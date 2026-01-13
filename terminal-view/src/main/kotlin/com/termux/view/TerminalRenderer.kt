@@ -168,6 +168,7 @@ class TerminalRenderer(
         }
     }
 
+    @Suppress("NewApi")
     private fun drawTextRun(
         canvas: Canvas, text: CharArray, palette: IntArray, y: Float, startColumn: Int, runWidthColumns: Int,
         startCharIndex: Int, runWidthChars: Int, mes: Float, cursor: Int, cursorStyle: Int,
