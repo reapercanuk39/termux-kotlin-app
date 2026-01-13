@@ -4,12 +4,19 @@
 
 [![CI](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/ci.yml/badge.svg)](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/ci.yml)
 [![Release](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/release.yml/badge.svg)](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/release.yml)
+[![GitHub Downloads](https://img.shields.io/github/downloads/reapercanuk39/termux-kotlin-app/total?style=for-the-badge&logo=github&label=Downloads&color=success)](https://github.com/reapercanuk39/termux-kotlin-app/releases)
+[![Latest Release](https://img.shields.io/github/v/release/reapercanuk39/termux-kotlin-app?style=for-the-badge&logo=android&label=Latest&color=blue)](https://github.com/reapercanuk39/termux-kotlin-app/releases/latest)
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-7.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com/)
 [![License](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)](LICENSE.md)
 [![Fork](https://img.shields.io/badge/Fork%20of-termux%2Ftermux--app-orange?style=for-the-badge&logo=github)](https://github.com/termux/termux-app)
 
 **The official Termux Android terminal emulator, fully converted to Kotlin!**
+
+<a href="https://github.com/reapercanuk39/termux-kotlin-app/releases/latest">
+  <img src="https://img.shields.io/badge/⬇️_Download_APK-Latest_Release-brightgreen?style=for-the-badge&logo=android" alt="Download APK">
+</a>
 
 [Features](#features) • [Installation](#installation) • [Building](#building) • [Contributing](#contributing) • [Original Project](#original-project)
 
