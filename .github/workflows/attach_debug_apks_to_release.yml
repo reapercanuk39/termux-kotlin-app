@@ -74,7 +74,7 @@ jobs:
           fi
 
           echo "Attaching APKs to github release"
-          if ! gh release upload "$RELEASE_VERSION_NAME" \
+          if ! gh release upload "$RELEASE_VERSION_NAME" --clobber \
           "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_universal.apk" \
           "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_arm64-v8a.apk" \
           "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_armeabi-v7a.apk" \
