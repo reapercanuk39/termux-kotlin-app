@@ -1,0 +1,6 @@
+• Complete Java to Kotlin conversion (145+ files)
+• 100% feature compatibility with original Termux
+• Modern type-safe codebase with null safety
+• Fixed lint errors for API compatibility
+• Upgraded core library desugaring for Android 15
+• Improved CI/CD with automated releases
