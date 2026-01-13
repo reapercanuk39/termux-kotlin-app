@@ -258,9 +258,9 @@ afterEvaluate {
     android.applicationVariants.all { variant ->
         variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
     }
-    
-    // Make NDK build tasks depend on bootstrap download
-    tasks.matching { it.name.startsWith('buildNdkBuild') || it.name.startsWith('configureNdkBuild') }.configureEach {
-        dependsOn downloadBootstraps
-    }
+}
+
+// Make preBuild depend on downloadBootstraps to ensure bootstrap files exist before any build
+tasks.named('preBuild').configure {
+    dependsOn downloadBootstraps
 }
