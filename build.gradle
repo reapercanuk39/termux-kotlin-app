@@ -1,5 +1,6 @@
 buildscript {
     ext.kotlin_version = '1.9.22'
+    ext.detekt_version = '1.23.4'
     repositories {
         mavenCentral()
         google()
@@ -7,6 +8,7 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:8.13.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "io.gitlab.arturbosch.detekt:detekt-gradle-plugin:$detekt_version"
     }
 }
 
@@ -15,5 +17,28 @@ allprojects {
         google()
         mavenCentral()
         maven { url "https://jitpack.io" }
+    }
+}
+
+// Apply Detekt to all subprojects
+subprojects {
+    apply plugin: 'io.gitlab.arturbosch.detekt'
+    
+    detekt {
+        buildUponDefaultConfig = true
+        allRules = false
+        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+        baseline = file("$projectDir/config/detekt/baseline.xml")
+        parallel = true
+    }
+    
+    tasks.withType(io.gitlab.arturbosch.detekt.Detekt).configureEach {
+        jvmTarget = "1.8"
+        reports {
+            html.required.set(true)
+            xml.required.set(true)
+            txt.required.set(false)
+            sarif.required.set(true)
+        }
     }
 }
