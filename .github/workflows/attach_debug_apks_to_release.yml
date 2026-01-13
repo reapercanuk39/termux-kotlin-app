@@ -5,6 +5,9 @@ on:
     types:
       - published
 
+permissions:
+  contents: write
+
 jobs:
   attach-apks:
     runs-on: ubuntu-latest
@@ -14,12 +17,13 @@ jobs:
         package_variant: [ apt-android-7, apt-android-5 ]
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Clone repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.GITHUB_REF }}
+          ref: ${{ github.ref }}
 
       - name: Build and attach APKs to release
         shell: bash {0}
@@ -29,8 +33,8 @@ jobs:
           exit_on_error() {
               echo "$1"
               echo "Deleting '$RELEASE_VERSION_NAME' release and '$GITHUB_REF' tag"
-              hub release delete "$RELEASE_VERSION_NAME"
-              git push --delete origin "$GITHUB_REF"
+              gh release delete "$RELEASE_VERSION_NAME" --yes --repo "$GITHUB_REPOSITORY" || true
+              git push --delete origin "$GITHUB_REF" || true
               exit 1
           }
 
@@ -41,12 +45,12 @@ jobs:
           fi
 
           APK_DIR_PATH="./app/build/outputs/apk/debug"
-          APK_VERSION_TAG="$RELEASE_VERSION_NAME+${{ env.PACKAGE_VARIANT }}-github-debug"
+          APK_VERSION_TAG="$RELEASE_VERSION_NAME+$PACKAGE_VARIANT-github-debug"
           APK_BASENAME_PREFIX="termux-app_$APK_VERSION_TAG"
 
           echo "Building APKs for 'APK_VERSION_TAG' release"
           export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
-          export TERMUX_PACKAGE_VARIANT="${{ env.PACKAGE_VARIANT }}" # Used by app/build.gradle
+          export TERMUX_PACKAGE_VARIANT="$PACKAGE_VARIANT" # Used by app/build.gradle
           if ! ./gradlew assembleDebug; then
             exit_on_error "Build failed for '$APK_VERSION_TAG' release."
           fi
@@ -71,14 +75,13 @@ jobs:
           fi
 
           echo "Attaching APKs to github release"
-          if ! hub release edit \
-          -m "" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_universal.apk" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_arm64-v8a.apk" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_armeabi-v7a.apk" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_x86_64.apk" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_x86.apk" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_sha256sums" \
-          "$RELEASE_VERSION_NAME"; then
+          if ! gh release upload "$RELEASE_VERSION_NAME" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_universal.apk" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_arm64-v8a.apk" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_armeabi-v7a.apk" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_x86_64.apk" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_x86.apk" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}_sha256sums" \
+          --repo "$GITHUB_REPOSITORY"; then
             exit_on_error "Attach APKs to release failed for '$APK_VERSION_TAG' release."
           fi
