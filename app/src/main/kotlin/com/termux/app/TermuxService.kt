@@ -767,13 +767,16 @@ class TermuxService : Service(), AppShell.AppShellClient, TermuxSession.TermuxSe
     }
 
     /** Update the shown foreground service notification after making any changes that affect it. */
+    @SuppressLint("MissingPermission")
     @Synchronized
     private fun updateNotification() {
         if (mWakeLock == null && mShellManager.mTermuxSessions.isEmpty() && mShellManager.mTermuxTasks.isEmpty()) {
             requestStopService()
         } else {
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification())
+            if (PermissionUtils.checkNotificationPermission(this)) {
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                    .notify(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification())
+            }
         }
     }
 
