@@ -2,6 +2,8 @@
 
 <div align="center">
 
+[![CI](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/ci.yml/badge.svg)](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/ci.yml)
+[![Release](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/release.yml/badge.svg)](https://github.com/reapercanuk39/termux-kotlin-app/actions/workflows/release.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-7.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com/)
 [![License](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)](LICENSE.md)
