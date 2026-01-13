@@ -181,7 +181,7 @@ jobs:
     
     steps:
       - name: Comment PR with build summary
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const lintStatus = '${{ needs.lint.outputs.status }}' || '${{ needs.lint.result }}';
