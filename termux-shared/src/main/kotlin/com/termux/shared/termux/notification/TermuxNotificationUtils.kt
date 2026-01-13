@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.graphics.drawable.Icon
 import android.os.Build
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.android.resource.ResourceUtils
 import com.termux.shared.notification.NotificationUtils
 import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences

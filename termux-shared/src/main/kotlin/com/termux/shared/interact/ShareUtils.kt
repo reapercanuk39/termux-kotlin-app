@@ -11,7 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import androidx.appcompat.app.AppCompatActivity
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.data.DataUtils
 import com.termux.shared.data.IntentUtils
 import com.termux.shared.file.FileUtils

@@ -14,7 +14,7 @@ ext {
 }
 
 android {
-    namespace "com.termux.kotlin"
+    namespace "com.termux"
 
     compileSdkVersion project.properties.compileSdkVersion.toInteger()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
@@ -43,6 +43,7 @@ android {
     }
 
     defaultConfig {
+        applicationId "com.termux.kotlin"
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
         versionCode 118

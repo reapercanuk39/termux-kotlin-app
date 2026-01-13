@@ -13,7 +13,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ListView
 import androidx.drawerlayout.widget.DrawerLayout
-import com.termux.kotlin.R
+import com.termux.R
 import com.termux.app.TermuxActivity
 import com.termux.app.models.UserAction
 import com.termux.app.terminal.io.KeyboardShortcut
@@ -558,9 +558,9 @@ class TermuxTerminalViewClient(
         MessageDialogUtils.showMessage(
             mActivity, "${TermuxConstants.TERMUX_APP_NAME} Report Issue",
             mActivity.getString(R.string.msg_add_termux_debug_info),
-            mActivity.getString(com.termux.kotlin.shared.R.string.action_yes),
+            mActivity.getString(com.termux.shared.R.string.action_yes),
             { _, _ -> reportIssueFromTranscript(transcriptText, true) },
-            mActivity.getString(com.termux.kotlin.shared.R.string.action_no),
+            mActivity.getString(com.termux.shared.R.string.action_no),
             { _, _ -> reportIssueFromTranscript(transcriptText, false) },
             null
         )

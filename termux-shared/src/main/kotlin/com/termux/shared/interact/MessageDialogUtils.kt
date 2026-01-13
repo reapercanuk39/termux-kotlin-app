@@ -7,7 +7,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.widget.Button
 import android.widget.TextView
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.logger.Logger
 
 object MessageDialogUtils {

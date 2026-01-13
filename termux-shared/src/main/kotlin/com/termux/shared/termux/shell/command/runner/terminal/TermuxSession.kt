@@ -4,7 +4,7 @@ import android.content.Context
 import android.system.OsConstants
 
 import com.google.common.base.Joiner
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.shell.command.ExecutionCommand
 import com.termux.shared.shell.command.environment.ShellEnvironmentUtils
 import com.termux.shared.shell.command.environment.UnixShellEnvironment

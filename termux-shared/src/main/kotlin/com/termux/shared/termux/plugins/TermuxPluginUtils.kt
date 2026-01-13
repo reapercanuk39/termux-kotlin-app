@@ -6,7 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import android.os.Environment
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.activities.ReportActivity
 import com.termux.shared.android.AndroidUtils
 import com.termux.shared.data.DataUtils

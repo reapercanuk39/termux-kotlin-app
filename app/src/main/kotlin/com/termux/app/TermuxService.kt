@@ -14,7 +14,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import com.termux.kotlin.R
+import com.termux.R
 import com.termux.app.event.SystemEventReceiver
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient
 import com.termux.app.terminal.TermuxTerminalSessionServiceClient
@@ -246,7 +246,7 @@ class TermuxService : Service(), AppShell.AppShellClient, TermuxSession.TermuxSe
             if (!executionCommand.shouldNotProcessResults() && executionCommand.isPluginExecutionCommandWithPendingResult()) {
                 if (executionCommand.setStateFailed(
                         Errno.ERRNO_CANCELLED.getCode(),
-                        getString(com.termux.kotlin.shared.R.string.error_execution_cancelled)
+                        getString(com.termux.shared.R.string.error_execution_cancelled)
                     )
                 ) {
                     TermuxPluginUtils.processPluginExecutionCommandResult(this, LOG_TAG, executionCommand)

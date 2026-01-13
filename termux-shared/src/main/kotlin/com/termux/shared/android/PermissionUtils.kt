@@ -16,7 +16,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.common.base.Joiner
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.activity.ActivityUtils
 import com.termux.shared.errors.Error
 import com.termux.shared.errors.FunctionErrno

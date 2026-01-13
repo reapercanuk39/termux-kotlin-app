@@ -15,7 +15,7 @@ import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.PopupWindow
 import com.google.android.material.button.MaterialButton
-import com.termux.kotlin.shared.R
+import com.termux.shared.R
 import com.termux.shared.theme.ThemeUtils
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService

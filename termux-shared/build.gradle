@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'maven-publish'
 
 android {
-    namespace = "com.termux.kotlin.shared"
+    namespace = "com.termux.shared"
 
     compileSdkVersion project.properties.compileSdkVersion.toInteger()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
@@ -96,7 +96,7 @@ afterEvaluate {
             // Creates a Maven publication called "release".
             release(MavenPublication) {
                 from components.default
-                groupId = 'com.termux.kotlin'
+                groupId = 'com.termux'
                 artifactId = 'termux-shared'
                 version = '0.118.0'
                 artifact(sourceJar)

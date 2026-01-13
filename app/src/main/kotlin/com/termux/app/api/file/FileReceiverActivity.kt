@@ -8,7 +8,7 @@ import android.util.Patterns
 
 import androidx.appcompat.app.AppCompatActivity
 
-import com.termux.kotlin.R
+import com.termux.R
 import com.termux.shared.android.PackageUtils
 import com.termux.shared.data.DataUtils
 import com.termux.shared.data.IntentUtils

@@ -27,7 +27,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.viewpager.widget.ViewPager
-import com.termux.kotlin.R
+import com.termux.R
 import com.termux.app.activities.HelpActivity
 import com.termux.app.activities.SettingsActivity
 import com.termux.app.api.file.FileReceiverActivity
@@ -686,7 +686,7 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
                 if (isPermissionCallback) {
                     Logger.logInfoAndShowToast(
                         this@TermuxActivity, LOG_TAG,
-                        getString(com.termux.kotlin.shared.R.string.msg_storage_permission_granted_on_request)
+                        getString(com.termux.shared.R.string.msg_storage_permission_granted_on_request)
                     )
                 }
                 TermuxInstaller.setupStorageSymlinks(this@TermuxActivity)
@@ -694,7 +694,7 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
                 if (isPermissionCallback) {
                     Logger.logInfoAndShowToast(
                         this@TermuxActivity, LOG_TAG,
-                        getString(com.termux.kotlin.shared.R.string.msg_storage_permission_not_granted_on_request)
+                        getString(com.termux.shared.R.string.msg_storage_permission_not_granted_on_request)
                     )
                 }
             }
