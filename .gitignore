@@ -37,3 +37,8 @@ local.properties
 .swp
 ehthumbs.db
 Thumbs.db
+
+# Signing keys - DO NOT COMMIT
+*.keystore
+*.jks
+signing.properties

@@ -86,6 +86,17 @@ android {
             storePassword 'xrj45yWGLbsO7W0v'
             keyPassword 'xrj45yWGLbsO7W0v'
         }
+        release {
+            def signingPropsFile = rootProject.file('signing.properties')
+            if (signingPropsFile.exists()) {
+                def signingProps = new Properties()
+                signingProps.load(new FileInputStream(signingPropsFile))
+                storeFile file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
+        }
     }
 
     buildTypes {
@@ -93,6 +104,7 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
 
         debug {
