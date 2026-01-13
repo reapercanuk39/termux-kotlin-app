@@ -7,7 +7,7 @@ import android.media.AudioAttributes
 import android.media.SoundPool
 import android.text.TextUtils
 import android.widget.ListView
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.app.TermuxActivity
 import com.termux.app.TermuxService
 import com.termux.shared.interact.ShareUtils

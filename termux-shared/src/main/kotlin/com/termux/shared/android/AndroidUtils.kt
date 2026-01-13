@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import com.google.common.base.Joiner
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.data.DataUtils
 import com.termux.shared.logger.Logger
 import com.termux.shared.markdown.MarkdownUtils

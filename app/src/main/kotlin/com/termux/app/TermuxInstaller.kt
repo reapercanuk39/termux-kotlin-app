@@ -9,7 +9,7 @@ import android.os.Environment
 import android.system.Os
 import android.util.Pair
 import android.view.WindowManager
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.shared.android.PackageUtils
 import com.termux.shared.errors.Error
 import com.termux.shared.file.FileUtils

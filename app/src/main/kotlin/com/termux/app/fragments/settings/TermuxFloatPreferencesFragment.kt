@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.annotation.Keep
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.shared.termux.settings.preferences.TermuxFloatAppSharedPreferences
 
 @Keep

@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.activity.media.AppCompatActivityUtils
 import com.termux.shared.data.DataUtils
 import com.termux.shared.errors.Error

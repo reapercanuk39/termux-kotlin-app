@@ -7,7 +7,7 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.shared.termux.settings.preferences.TermuxWidgetAppSharedPreferences
 
 @Keep

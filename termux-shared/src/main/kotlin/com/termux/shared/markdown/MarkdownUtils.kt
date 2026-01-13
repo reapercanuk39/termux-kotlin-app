@@ -13,7 +13,7 @@ import android.text.style.TypefaceSpan
 import android.text.util.Linkify
 import androidx.core.content.ContextCompat
 import com.google.common.base.Strings
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.theme.ThemeUtils
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon

@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.data.DataUtils
 import com.termux.shared.markdown.MarkdownUtils
 import com.termux.shared.errors.Error

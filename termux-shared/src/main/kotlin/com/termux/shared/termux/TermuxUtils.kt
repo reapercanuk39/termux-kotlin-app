@@ -4,7 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.android.AndroidUtils
 import com.termux.shared.android.PackageUtils
 import com.termux.shared.data.DataUtils

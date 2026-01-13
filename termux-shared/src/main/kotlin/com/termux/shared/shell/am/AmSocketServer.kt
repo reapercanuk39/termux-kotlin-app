@@ -4,7 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.Context
 import com.termux.am.Am
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.android.PackageUtils
 import com.termux.shared.android.PermissionUtils
 import com.termux.shared.errors.Error

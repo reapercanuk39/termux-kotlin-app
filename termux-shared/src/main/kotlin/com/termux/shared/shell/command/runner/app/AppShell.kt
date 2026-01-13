@@ -6,7 +6,7 @@ import android.system.Os
 import android.system.OsConstants
 
 import com.google.common.base.Joiner
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.data.DataUtils
 import com.termux.shared.shell.command.ExecutionCommand
 import com.termux.shared.shell.command.environment.ShellEnvironmentUtils

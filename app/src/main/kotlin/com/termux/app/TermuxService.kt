@@ -14,7 +14,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.app.event.SystemEventReceiver
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient
 import com.termux.app.terminal.TermuxTerminalSessionServiceClient

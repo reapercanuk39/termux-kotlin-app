@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
-import com.termux.shared.R
+import com.termux.kotlin.shared.R
 import com.termux.shared.data.DataUtils
 import java.io.IOException
 import java.io.PrintWriter

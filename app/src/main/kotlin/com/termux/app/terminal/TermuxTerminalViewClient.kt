@@ -13,7 +13,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ListView
 import androidx.drawerlayout.widget.DrawerLayout
-import com.termux.R
+import com.termux.kotlin.R
 import com.termux.app.TermuxActivity
 import com.termux.app.models.UserAction
 import com.termux.app.terminal.io.KeyboardShortcut
