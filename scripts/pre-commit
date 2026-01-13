@@ -1,0 +1,35 @@
+#!/bin/sh
+# Pre-commit hook for termux-kotlin-app
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+echo "🔍 Running pre-commit checks..."
+
+# Check for ktlint
+if command -v ./gradlew &> /dev/null; then
+    echo "📝 Running ktlint..."
+    ./gradlew ktlintCheck --daemon 2>/dev/null
+    KTLINT_STATUS=$?
+    
+    if [ $KTLINT_STATUS -ne 0 ]; then
+        echo "❌ ktlint check failed. Run './gradlew ktlintFormat' to fix."
+        exit 1
+    fi
+    echo "✅ ktlint passed"
+fi
+
+# Check for large files
+echo "📦 Checking for large files..."
+LARGE_FILES=$(find . -type f -size +5M -not -path "./.git/*" -not -path "*/build/*" -not -name "*.zip" 2>/dev/null)
+if [ -n "$LARGE_FILES" ]; then
+    echo "⚠️  Warning: Large files detected (>5MB):"
+    echo "$LARGE_FILES"
+fi
+
+# Check for secrets
+echo "🔐 Checking for potential secrets..."
+if git diff --cached --name-only | xargs grep -l -E "(password|secret|api_key|apikey|private_key)" 2>/dev/null | grep -v -E "(\.md|\.txt|\.yml|\.yaml|build\.gradle)" | head -5; then
+    echo "⚠️  Warning: Potential secrets detected in staged files. Please review."
+fi
+
+echo "✅ Pre-commit checks passed!"
+exit 0
