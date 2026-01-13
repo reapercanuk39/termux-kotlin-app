@@ -176,6 +176,7 @@ open class ReportActivity : AppCompatActivity() {
         return true
     }
 
+    @Suppress("MissingSuperCall")
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         // Remove activity from recents menu on back button press
