@@ -485,6 +485,7 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
         }
     }
 
+    @Suppress("MissingSuperCall")
     @SuppressLint("RtlHardcoded")
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {

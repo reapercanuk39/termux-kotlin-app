@@ -207,6 +207,7 @@ open class TextIOActivity : AppCompatActivity() {
         return false
     }
 
+    @Suppress("MissingSuperCall")
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         confirm()
