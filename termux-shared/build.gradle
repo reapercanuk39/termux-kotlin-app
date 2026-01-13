@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 apply plugin: 'maven-publish'
 
 android {
@@ -29,6 +30,7 @@ android {
         implementation project(":terminal-view")
 
         implementation "com.termux:termux-am-library:v2.0.0"
+        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     }
 
     defaultConfig {
@@ -56,6 +58,10 @@ android {
 
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
     }
 
     externalNativeBuild {
