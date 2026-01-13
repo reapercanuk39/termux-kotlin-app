@@ -38,7 +38,7 @@ class SettingsActivity : AppCompatActivity() {
                 .commit()
         }
 
-        AppCompatActivityUtils.setToolbar(this, com.termux.shared.R.id.toolbar)
+        AppCompatActivityUtils.setToolbar(this, com.termux.kotlin.shared.R.id.toolbar)
         AppCompatActivityUtils.setShowBackButtonInActionBar(this, true)
     }
 

@@ -246,7 +246,7 @@ class TermuxService : Service(), AppShell.AppShellClient, TermuxSession.TermuxSe
             if (!executionCommand.shouldNotProcessResults() && executionCommand.isPluginExecutionCommandWithPendingResult()) {
                 if (executionCommand.setStateFailed(
                         Errno.ERRNO_CANCELLED.getCode(),
-                        getString(com.termux.shared.R.string.error_execution_cancelled)
+                        getString(com.termux.kotlin.shared.R.string.error_execution_cancelled)
                     )
                 ) {
                     TermuxPluginUtils.processPluginExecutionCommandResult(this, LOG_TAG, executionCommand)

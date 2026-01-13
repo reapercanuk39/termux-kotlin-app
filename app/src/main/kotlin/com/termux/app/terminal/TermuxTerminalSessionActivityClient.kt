@@ -198,7 +198,7 @@ class TermuxTerminalSessionActivityClient(private val mActivity: TermuxActivity)
             ).build()
 
             try {
-                mBellSoundId = mBellSoundPool!!.load(mActivity, com.termux.shared.R.raw.bell, 1)
+                mBellSoundId = mBellSoundPool!!.load(mActivity, com.termux.kotlin.shared.R.raw.bell, 1)
             } catch (e: Exception) {
                 Logger.logStackTraceWithMessage(LOG_TAG, "Failed to load bell sound pool", e)
             }

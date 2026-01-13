@@ -558,9 +558,9 @@ class TermuxTerminalViewClient(
         MessageDialogUtils.showMessage(
             mActivity, "${TermuxConstants.TERMUX_APP_NAME} Report Issue",
             mActivity.getString(R.string.msg_add_termux_debug_info),
-            mActivity.getString(com.termux.shared.R.string.action_yes),
+            mActivity.getString(com.termux.kotlin.shared.R.string.action_yes),
             { _, _ -> reportIssueFromTranscript(transcriptText, true) },
-            mActivity.getString(com.termux.shared.R.string.action_no),
+            mActivity.getString(com.termux.kotlin.shared.R.string.action_no),
             { _, _ -> reportIssueFromTranscript(transcriptText, false) },
             null
         )
