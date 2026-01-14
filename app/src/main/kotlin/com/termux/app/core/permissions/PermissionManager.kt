@@ -218,7 +218,14 @@ class PermissionRequester(
                 PermissionType.NOTIFICATIONS -> requestNotificationPermission()
                 PermissionType.BATTERY_OPTIMIZATION -> requestBatteryOptimization()
                 PermissionType.DISPLAY_OVERLAY -> requestOverlayPermission()
-                PermissionType.EXTERNAL_STORAGE_MANAGE -> requestManageStoragePermission()
+                PermissionType.EXTERNAL_STORAGE_MANAGE -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        requestManageStoragePermission()
+                    } else {
+                        // Not required on older versions
+                        handlePermissionResult(true)
+                    }
+                }
             }
             
             continuation.invokeOnCancellation {
