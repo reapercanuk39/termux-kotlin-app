@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -118,10 +119,8 @@ class PluginRegistryImpl @Inject constructor(
     private val _stateChanges = MutableSharedFlow<PluginStateChangeEvent>(extraBufferCapacity = 50)
     
     override val pluginStateChanges: Flow<Pair<String, PluginState>> = _stateChanges.asSharedFlow()
-        .let { flow ->
-            kotlinx.coroutines.flow.map(flow) { event ->
-                event.pluginId to event.newState.toPluginState()
-            }
+        .map { event ->
+            event.pluginId to event.newState.toPluginState()
         }
     
     /**
