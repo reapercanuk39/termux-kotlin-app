@@ -1,15 +1,18 @@
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.detekt) apply false
+}
+
+// Keep these for backward compatibility with existing modules
 buildscript {
-    ext.kotlin_version = '1.9.22'
-    ext.detekt_version = '1.23.4'
-    repositories {
-        mavenCentral()
-        google()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.13.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "io.gitlab.arturbosch.detekt:detekt-gradle-plugin:$detekt_version"
-    }
+    ext.kotlin_version = '2.0.21'
+    ext.detekt_version = '1.23.7'
+    ext.markwonVersion = '4.6.2'
 }
 
 allprojects {
@@ -33,7 +36,7 @@ subprojects {
     }
     
     tasks.withType(io.gitlab.arturbosch.detekt.Detekt).configureEach {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
         reports {
             html.required.set(true)
             xml.required.set(true)

@@ -73,6 +73,37 @@ All original Termux features are preserved:
 - ✅ **Background execution** via Termux:Tasker
 - ✅ **URL handling** and file sharing
 
+### 🆕 Kotlin-Exclusive Features
+
+New features only available in the Kotlin version:
+
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Jetpack Compose UI** | Modern declarative UI for settings and dialogs |
+| 🔍 **Command Palette** | VS Code-style fuzzy command search (Ctrl+Shift+P) |
+| 📐 **Split Terminal** | Side-by-side or top/bottom terminal panes |
+| 🔑 **SSH Manager** | Save and manage SSH connection profiles |
+| 📜 **Command History** | Searchable command history with statistics |
+| ⚡ **Kotlin Coroutines** | Efficient async operations with Flow |
+| 💉 **Dependency Injection** | Hilt for clean architecture |
+| 💾 **DataStore** | Modern preferences with reactive updates |
+
+### 🏗️ Modern Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    Compose UI                        │
+│  (Settings, Command Palette, SSH Manager)           │
+├─────────────────────────────────────────────────────┤
+│              ViewModels + StateFlow                  │
+├─────────────────────────────────────────────────────┤
+│                  Repositories                        │
+│  (Settings, Sessions, History, SSH Profiles)        │
+├─────────────────────────────────────────────────────┤
+│            DataStore / Coroutines / Hilt            │
+└─────────────────────────────────────────────────────┘
+```
+
 ## 📥 Installation
 
 ### Download APK

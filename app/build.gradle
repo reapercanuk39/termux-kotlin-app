@@ -1,6 +1,10 @@
 plugins {
-    id "com.android.application"
-    id "kotlin-android"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 ext {
@@ -16,38 +20,19 @@ ext {
 android {
     namespace "com.termux"
 
-    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    compileSdk libs.versions.compileSdk.get().toInteger()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
     def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
     def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
     def splitAPKsForDebugBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS") ?: "1"
     def splitAPKsForReleaseBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS") ?: "0" // F-Droid does not support split APKs #1904
 
-    dependencies {
-        implementation "androidx.annotation:annotation:1.9.0"
-        implementation "androidx.core:core:1.13.1"
-        implementation "androidx.drawerlayout:drawerlayout:1.2.0"
-        implementation "androidx.preference:preference:1.2.1"
-        implementation "androidx.viewpager:viewpager:1.0.0"
-        implementation "com.google.android.material:material:1.12.0"
-        implementation "com.google.guava:guava:24.1-jre"
-        implementation "io.noties.markwon:core:$markwonVersion"
-        implementation "io.noties.markwon:ext-strikethrough:$markwonVersion"
-        implementation "io.noties.markwon:linkify:$markwonVersion"
-        implementation "io.noties.markwon:recycler:$markwonVersion"
-        implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
-
-        implementation project(":terminal-view")
-        implementation project(":termux-shared")
-        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    }
-
     defaultConfig {
         applicationId "com.termux.kotlin"
-        minSdkVersion project.properties.minSdkVersion.toInteger()
-        targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 118
-        versionName "0.118.0"
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
+        versionCode 119
+        versionName "0.119.0"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -117,12 +102,12 @@ android {
         // Flag to enable support for the new language APIs
         coreLibraryDesugaringEnabled true
 
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     externalNativeBuild {
@@ -161,13 +146,64 @@ android {
 
     buildFeatures {
         buildConfig true
+        compose true
     }
 }
 
 dependencies {
-    testImplementation "junit:junit:4.13.2"
-    testImplementation "org.robolectric:robolectric:4.14.1"
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+    // Project modules
+    implementation project(":terminal-view")
+    implementation project(":termux-shared")
+    
+    // Kotlin
+    implementation libs.kotlin.stdlib
+    implementation libs.bundles.coroutines
+    implementation libs.kotlin.serialization.json
+    
+    // AndroidX Core
+    implementation libs.androidx.annotation
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.activity.ktx
+    implementation libs.androidx.activity.compose
+    implementation libs.androidx.fragment.ktx
+    implementation libs.androidx.drawerlayout
+    implementation libs.androidx.preference
+    implementation libs.androidx.viewpager
+    
+    // Lifecycle
+    implementation libs.bundles.lifecycle
+    implementation libs.bundles.lifecycle.compose
+    
+    // DataStore
+    implementation libs.androidx.datastore.preferences
+    
+    // Compose
+    implementation platform(libs.compose.bom)
+    implementation libs.bundles.compose
+    debugImplementation libs.bundles.compose.debug
+    
+    // Hilt DI
+    implementation libs.hilt.android
+    ksp libs.hilt.compiler
+    implementation libs.hilt.navigation.compose
+    
+    // UI Libraries
+    implementation libs.material
+    implementation libs.bundles.markwon
+    
+    // Utilities
+    implementation libs.guava
+    implementation libs.guava.listenablefuture
+    
+    // Testing
+    testImplementation libs.bundles.testing
+    testImplementation libs.robolectric
+    androidTestImplementation libs.bundles.testing.android
+    androidTestImplementation platform(libs.compose.bom)
+    androidTestImplementation libs.compose.ui.test.junit4
+    
+    // Desugaring
+    coreLibraryDesugaring libs.desugar.jdk.libs
 }
 
 task versionName {
