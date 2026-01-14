@@ -63,13 +63,64 @@ This architectural foundation positions the project as a modern, reliable, and e
 
 ---
 
-## 3. Plugin Ecosystem
+## 3. Unified Plugin Ecosystem
 
-- **Stable Plugin API** with semantic versioning
-- **Plugin SDK** with documentation and examples
-- **Plugin marketplace** integration
-- **Sandboxed plugin execution** for security
-- **Plugin lifecycle management**
+A comprehensive plugin framework enabling third-party extensions while maintaining security and stability.
+
+### Plugin Framework (core/plugin)
+
+- **Stable, versioned Plugin API (v1.0.0+)** providing a predictable contract for all plugins
+- **PluginHost interface** enabling structured, typed communication between plugins and the Termux core
+- **PluginRegistry** for discovery, capability negotiation, and lifecycle coordination
+- **PluginCapabilities model** defining what each plugin can request or provide
+- **Typed IPC messages** shared across all plugins using the IpcMessage sealed hierarchy
+
+### Shared Permission Layer (core/permissions)
+
+- **Unified permission handling** for all plugins using the Activity Result API
+- **Coroutine-based permission requests** (suspend), eliminating callback chains
+- **Flow-based permission state observation** for reactive plugin behavior
+- **Centralized support** for storage, notifications, battery optimizations, overlays, and background execution
+
+### Shared Logging Layer (core/logging)
+
+- **TermuxLogger** available to all plugins with Logcat, File, and In-memory writers
+- **Structured logs** with metadata (plugin ID, component, timestamp)
+- **Flow-based log streaming** for debugging and plugin diagnostics
+- **Tagged loggers** for plugin-scoped logging
+
+### Plugin Lifecycle & Execution Model
+
+- **Standardized lifecycle** (REGISTERED → INITIALIZING → READY → ACTIVE → STOPPED → DESTROYED)
+- **Coroutine-based execution** model for async plugin operations
+- **Graceful cancellation** and structured concurrency for long-running tasks
+- **Plugin sandboxing** boundaries for safety and predictable behavior
+
+### Plugin Distribution & Compatibility
+
+- **Semantic versioning** for the Plugin API to ensure forward compatibility
+- **CI templates** for all plugins (lint, detekt, tests, debug builds)
+- **Compatibility matrix** testing against multiple Termux core versions
+
+### Progress
+
+| Component | Status |
+|-----------|--------|
+| Plugin API v1.0.0 | ✅ Implemented |
+| PluginHost Interface | ✅ Implemented |
+| PluginCapabilities Model | ✅ Implemented |
+| IpcMessage Sealed Hierarchy | ✅ Implemented |
+| PluginRegistry Implementation | ✅ Implemented |
+| Plugin Lifecycle States | ✅ Implemented |
+| PluginHostImpl (Full Implementation) | ✅ Implemented |
+| Plugin Command Registry | ✅ Implemented |
+| Inter-Plugin Messaging | ✅ Implemented |
+| File Access Sandboxing | ✅ Implemented |
+| Shared Permission Layer | ✅ Implemented |
+| Shared Logging Layer | ✅ Implemented |
+| Plugin SDK Documentation | ✅ Implemented |
+| CI Templates for Plugins | ✅ Documented |
+| Plugin Marketplace | 📋 Planned |
 
 ---
 
