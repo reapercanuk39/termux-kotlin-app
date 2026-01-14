@@ -9,10 +9,10 @@ plugins {
 }
 
 // Keep these for backward compatibility with existing modules
-buildscript {
-    ext.kotlin_version = '2.0.21'
-    ext.detekt_version = '1.23.7'
-    ext.markwonVersion = '4.6.2'
+ext {
+    kotlin_version = '2.0.21'
+    detekt_version = '1.23.7'
+    markwonVersion = '4.6.2'
 }
 
 allprojects {
