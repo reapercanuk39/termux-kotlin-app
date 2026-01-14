@@ -1,10 +1,14 @@
 package com.termux.app.core.plugin
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.termux.app.core.api.IpcMessage
 import com.termux.app.core.api.PluginError
 import com.termux.app.core.api.Result
@@ -234,6 +238,16 @@ class PluginHostImpl(
         }
         
         return try {
+            // Check POST_NOTIFICATIONS permission on Android 13+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                    return Result.error(
+                        PluginError.SecurityViolation(pluginId, "POST_NOTIFICATIONS permission not granted")
+                    )
+                }
+            }
+            
             val notification = NotificationCompat.Builder(context, "termux_plugin_$pluginId")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle(title)
