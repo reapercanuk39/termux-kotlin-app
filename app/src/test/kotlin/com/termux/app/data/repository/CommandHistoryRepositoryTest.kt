@@ -114,7 +114,14 @@ class CommandHistoryRepositoryTest {
         historyRepository.addCommand("test command")
         advanceUntilIdle()
 
-        val commandId = historyRepository.history.value.first().id
+        // Get the command ID from the flow
+        var commandId = 0L
+        historyRepository.history.test {
+            val history = awaitItem()
+            commandId = history.first().id
+            cancelAndConsumeRemainingEvents()
+        }
+        
         historyRepository.deleteCommand(commandId)
         advanceUntilIdle()
 
