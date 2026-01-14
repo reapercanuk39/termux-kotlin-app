@@ -60,7 +60,7 @@ jobs:
           echo "total_size=$TOTAL_SIZE" >> $GITHUB_OUTPUT
 
       - name: Upload size report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: apk-size-report
           path: size-report.md
