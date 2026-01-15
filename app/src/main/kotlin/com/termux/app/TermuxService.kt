@@ -97,8 +97,21 @@ class TermuxService : Service(), AppShell.AppShellClient, TermuxSession.TermuxSe
 
         // Get Termux app SharedProperties without loading from disk since TermuxApplication handles
         // load and TermuxActivity handles reloads
-        mProperties = TermuxAppSharedProperties.getProperties()!!
-        mShellManager = TermuxShellManager.getShellManager()!!
+        val properties = TermuxAppSharedProperties.getProperties()
+        if (properties == null) {
+            Logger.logError(LOG_TAG, "Failed to get TermuxAppSharedProperties - properties is null")
+            stopSelf()
+            return
+        }
+        mProperties = properties
+        
+        val shellManager = TermuxShellManager.getShellManager()
+        if (shellManager == null) {
+            Logger.logError(LOG_TAG, "Failed to get TermuxShellManager - shellManager is null")
+            stopSelf()
+            return
+        }
+        mShellManager = shellManager
 
         runStartForeground()
         SystemEventReceiver.registerPackageUpdateEvents(this)

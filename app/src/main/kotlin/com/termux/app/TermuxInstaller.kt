@@ -367,7 +367,15 @@ object TermuxInstaller {
     @JvmStatic
     fun loadZipBytes(): ByteArray {
         // Only load the shared library when necessary to save memory usage.
-        System.loadLibrary("termux-bootstrap")
+        try {
+            System.loadLibrary("termux-bootstrap")
+        } catch (e: UnsatisfiedLinkError) {
+            Logger.logError(LOG_TAG, "Failed to load termux-bootstrap native library: ${e.message}")
+            throw RuntimeException("Failed to load bootstrap library. Please reinstall the app.", e)
+        } catch (e: SecurityException) {
+            Logger.logError(LOG_TAG, "Security exception loading termux-bootstrap library: ${e.message}")
+            throw RuntimeException("Security error loading bootstrap library.", e)
+        }
         return getZip()
     }
 

@@ -285,20 +285,26 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
         Logger.logDebug(LOG_TAG, "onServiceConnected")
 
         mTermuxService = (service as TermuxService.LocalBinder).service
+        
+        val termuxService = mTermuxService
+        if (termuxService == null) {
+            Logger.logError(LOG_TAG, "onServiceConnected: mTermuxService is null after assignment")
+            return
+        }
 
         setTermuxSessionsListView()
 
         val intent = intent
         setIntent(null)
 
-        if (mTermuxService!!.isTermuxSessionsEmpty) {
+        if (termuxService.isTermuxSessionsEmpty) {
             if (mIsVisible) {
                 TermuxInstaller.setupBootstrapIfNeeded(this@TermuxActivity) {
                     if (mTermuxService == null) return@setupBootstrapIfNeeded
                     try {
                         var launchFailsafe = false
                         if (intent?.extras != null) {
-                            launchFailsafe = intent.extras!!.getBoolean(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false)
+                            launchFailsafe = intent.extras?.getBoolean(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false) ?: false
                         }
                         mTermuxTerminalSessionActivityClient?.addNewSession(launchFailsafe, null)
                     } catch (e: WindowManager.BadTokenException) {
@@ -370,8 +376,13 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
     }
 
     private fun setTermuxSessionsListView() {
+        val termuxService = mTermuxService
+        if (termuxService == null) {
+            Logger.logError(LOG_TAG, "setTermuxSessionsListView: mTermuxService is null")
+            return
+        }
         val termuxSessionsListView = findViewById<ListView>(R.id.terminal_sessions_list)
-        mTermuxSessionListViewController = TermuxSessionsListViewController(this, mTermuxService!!.termuxSessions)
+        mTermuxSessionListViewController = TermuxSessionsListViewController(this, termuxService.termuxSessions)
         termuxSessionsListView.adapter = mTermuxSessionListViewController
         termuxSessionsListView.onItemClickListener = mTermuxSessionListViewController
         termuxSessionsListView.onItemLongClickListener = mTermuxSessionListViewController

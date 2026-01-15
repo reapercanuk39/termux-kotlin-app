@@ -1,12 +1,43 @@
 package com.termux.terminal
 
+import android.util.Log
+
 /**
  * Native methods for creating and managing pseudoterminal subprocesses. C code is in jni/termux.c.
  */
 internal object JNI {
 
+    private const val LOG_TAG = "JNI"
+    
+    /** Whether the native library was loaded successfully. */
+    var isLibraryLoaded: Boolean = false
+        private set
+    
+    /** Error message if library failed to load. */
+    var libraryLoadError: String? = null
+        private set
+
     init {
-        System.loadLibrary("termux")
+        try {
+            System.loadLibrary("termux")
+            isLibraryLoaded = true
+            Log.d(LOG_TAG, "Successfully loaded termux native library")
+        } catch (e: UnsatisfiedLinkError) {
+            libraryLoadError = "Failed to load termux native library: ${e.message}"
+            Log.e(LOG_TAG, libraryLoadError, e)
+        } catch (e: SecurityException) {
+            libraryLoadError = "Security exception loading termux native library: ${e.message}"
+            Log.e(LOG_TAG, libraryLoadError, e)
+        }
+    }
+    
+    /**
+     * Check if the native library is available and throw an exception if not.
+     */
+    fun ensureLibraryLoaded() {
+        if (!isLibraryLoaded) {
+            throw IllegalStateException(libraryLoadError ?: "Native library not loaded")
+        }
     }
 
     /**
