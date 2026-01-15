@@ -87,6 +87,11 @@ New features only available in the Kotlin version:
 | ⚡ **Kotlin Coroutines** | Efficient async operations with Flow |
 | 💉 **Dependency Injection** | Hilt for clean architecture |
 | 💾 **DataStore** | Modern preferences with reactive updates |
+| 🎭 **Profile System** | Named profiles with theme, font, shell, and env vars |
+| 🖌️ **Theme Gallery** | 10+ built-in themes with live preview |
+| 💾 **Package Backup** | Full backup/restore of packages, repos, and dotfiles |
+| 🩺 **Package Doctor** | Health checks with auto-repair suggestions |
+| 🛠️ **termuxctl CLI** | Unified CLI for backup, doctor, and profile management |
 
 ### 🏗️ Modern Architecture
 
@@ -125,6 +130,44 @@ New features only available in the Kotlin version:
 | `core/permissions` | Unified permission handling with coroutines |
 | `core/terminal` | Flow-based event bus replacing callbacks |
 | `core/plugin` | Stable plugin API with semantic versioning |
+| `ui/settings` | Material 3 Compose settings with DataStore |
+| `pkg/backup` | Package backup/restore manager |
+| `pkg/doctor` | Package health diagnostics and auto-repair |
+
+### 🎨 Built-in Themes
+
+10 beautiful themes included out of the box:
+
+| Theme | Author | Description |
+|-------|--------|-------------|
+| **Dark Steel** | Termux Kotlin | Signature dark theme with steel blue accents |
+| **Molten Blue** | Termux Kotlin | GitHub-inspired dark theme |
+| **Obsidian** | Termux Kotlin | VS Code-inspired dark theme |
+| **Dracula** | Zeno Rocha | Popular dark theme |
+| **Nord** | Arctic Ice Studio | Arctic north-bluish palette |
+| **Solarized Dark** | Ethan Schoonover | Classic precision colors |
+| **Solarized Light** | Ethan Schoonover | Light variant |
+| **Gruvbox Dark** | morhetz | Retro groove palette |
+| **Gruvbox Light** | morhetz | Light variant |
+| **High Contrast** | Termux Kotlin | Maximum readability |
+
+### 💾 Package Management
+
+Advanced package management features that surpass standard Termux:
+
+```bash
+# Create a full backup
+termuxctl backup create --type full
+
+# Restore with dry-run preview
+termuxctl backup restore backup.json --dry-run
+
+# Run package health diagnostics
+termuxctl pkg doctor
+
+# Auto-repair issues
+termuxctl pkg doctor --auto-repair
+```
 
 ## 📥 Installation
 

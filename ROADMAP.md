@@ -124,7 +124,88 @@ A comprehensive plugin framework enabling third-party extensions while maintaini
 
 ---
 
-## 4. Performance & Reliability
+## 4. Modern Settings UI + UX Overhaul
+
+Transform settings into a modern, Compose-based UI with profiles, themes, and instant-apply preferences.
+
+### Settings Architecture
+- **Material 3 Compose UI** replacing PreferenceFragmentCompat
+- **DataStore Preferences** replacing SharedPreferences
+- **Searchable settings** with category filtering
+- **Smooth animations** and consistent typography
+
+### Profile System
+- **Named profiles** with all settings (font, theme, shell, env vars, plugins)
+- **Quick profile switching** from terminal
+- **Profile import/export** for sharing configurations
+- **Use cases**: Work, Dev, Minimal startup profiles
+
+### Theme Gallery
+- **Built-in themes**: Dark Steel, Molten Blue, Obsidian, Solarized, Gruvbox, High Contrast
+- **Live preview** with terminal sample
+- **Import/export themes** in JSON format
+- **Plugin-provided themes** support
+
+### Progress
+
+| Component | Status |
+|-----------|--------|
+| SettingsDataStore | ✅ Implemented |
+| SettingsViewModel | ✅ Implemented |
+| Compose Settings Screen | ✅ Implemented |
+| Profile System (Data) | ✅ Implemented |
+| Profile System (UI) | ✅ Implemented |
+| Theme Gallery | ✅ Implemented |
+| Settings Search | ✅ Implemented |
+| Hilt DI Module | ✅ Implemented |
+| Compose Navigation | ✅ Implemented |
+
+---
+
+## 5. Package Management Enhancements
+
+Surpass Termux in reliability and usability with comprehensive package management tools.
+
+### Package Backup & Restore
+- **Full backup**: packages, versions, repositories, dotfiles
+- **Restore options**: full, selective, dry-run mode
+- **JSON export format** for portability
+- **UI + CLI integration** via termuxctl
+
+### Package Health Checks (Doctor)
+- **Dependency integrity checks**
+- **Broken package detection**
+- **Auto-repair suggestions**
+- **Health score reporting**
+
+### termuxctl CLI
+- `termuxctl backup create/restore/list`
+- `termuxctl pkg doctor [--auto-repair]`
+- `termuxctl repo list/add/remove`
+- `termuxctl profile list/activate/export/import`
+
+### Repository Management UI
+- **Visual repository management**
+- **Enable/disable sources**
+- **Add custom repositories**
+- **View repo metadata and signatures**
+
+### Progress
+
+| Component | Status |
+|-----------|--------|
+| PackageBackupManager | ✅ Implemented |
+| BackupMetadata Model | ✅ Implemented |
+| PackageDoctor | ✅ Implemented |
+| termuxctl CLI | ✅ Implemented |
+| Hilt DI Module | ✅ Implemented |
+| Repository Management UI | 📋 Planned |
+| Parallel Downloads | 📋 Planned |
+| Package Event Hooks | 📋 Planned |
+
+---
+
+## 6. Performance & Reliability
 
 - **Memory-efficient terminal buffer**
 - **Background task optimization**
@@ -134,7 +215,7 @@ A comprehensive plugin framework enabling third-party extensions while maintaini
 
 ---
 
-## 5. Accessibility & Localization
+## 7. Accessibility & Localization
 
 - **Screen reader support** (TalkBack)
 - **High contrast themes**

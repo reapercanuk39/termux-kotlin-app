@@ -17,7 +17,17 @@ termux-kotlin-app/
 │   │   │   │   ├── activities/            # Other activities
 │   │   │   │   ├── api/                   # API implementations
 │   │   │   │   ├── fragments/             # UI fragments
-│   │   │   │   └── terminal/              # Terminal session clients
+│   │   │   │   ├── terminal/              # Terminal session clients
+│   │   │   │   ├── ui/                    # Modern UI components
+│   │   │   │   │   └── settings/          # Compose settings UI
+│   │   │   │   │       ├── data/          # DataStore, Theme, Profile
+│   │   │   │   │       ├── components/    # Reusable Compose components
+│   │   │   │   │       └── sections/      # Settings sections
+│   │   │   │   └── pkg/                   # Package management
+│   │   │   │       ├── backup/            # Backup/restore system
+│   │   │   │       ├── doctor/            # Health diagnostics
+│   │   │   │       ├── repository/        # Repo management
+│   │   │   │       └── cli/               # termuxctl CLI
 │   │   │   └── filepicker/       # File picker components
 │   │   ├── cpp/                  # Native code (bootstrap loader)
 │   │   └── res/                  # Resources
@@ -48,6 +58,9 @@ termux-kotlin-app/
 │       ├── settings/             # Settings/preferences
 │       ├── shell/                # Shell execution
 │       └── ...
+│
+├── docs/                         # Documentation
+│   └── IMPLEMENTATION_PLAN_SETTINGS_AND_PACKAGES.md
 │
 └── .github/workflows/            # CI/CD workflows
 ```
@@ -167,3 +180,109 @@ APKs are split by ABI for smaller download sizes:
 - [Termux Wiki](https://wiki.termux.com/)
 - [VT100 Escape Sequences](https://vt100.net/docs/)
 - [Android NDK](https://developer.android.com/ndk)
+
+## 🎨 Settings & Package Management Architecture
+
+### Settings Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SettingsScreen.kt                         │
+│                    (Jetpack Compose)                         │
+├─────────────────────────────────────────────────────────────┤
+│                   SettingsViewModel.kt                       │
+│              (StateFlow, UI State Management)                │
+├─────────────────────────────────────────────────────────────┤
+│                  SettingsDataStore.kt                        │
+│          (Preferences DataStore, Type-safe Keys)             │
+├─────────────────────────────────────────────────────────────┤
+│                   DataStore + Room                           │
+│              (Preferences + Profile Database)                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Package Management Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      termuxctl CLI                           │
+│         (backup, restore, doctor, repo, profile)             │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────┐  ┌──────────────────────────────┐  │
+│  │  PackageBackupManager │  │      PackageDoctor          │  │
+│  │  - createBackup()     │  │  - runFullDiagnostic()      │  │
+│  │  - restoreBackup()    │  │  - autoRepair()             │  │
+│  │  - listBackups()      │  │  - isHealthy()              │  │
+│  └──────────────────────┘  └──────────────────────────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│                    BackupMetadata.kt                         │
+│   (PackageInfo, RepositoryInfo, BackupConfig, RestoreOptions)│
+├─────────────────────────────────────────────────────────────┤
+│                  DiagnosticResult.kt                         │
+│    (DiagnosticIssue, DiagnosticReport, IssueSeverity)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Theme System
+
+```kotlin
+// Built-in themes available:
+Theme.DARK_STEEL      // Signature Termux Kotlin theme
+Theme.MOLTEN_BLUE     // GitHub-inspired
+Theme.OBSIDIAN        // VS Code-inspired
+Theme.DRACULA         // Popular dark theme
+Theme.NORD            // Arctic palette
+Theme.SOLARIZED_DARK  // Classic precision
+Theme.SOLARIZED_LIGHT // Light variant
+Theme.GRUVBOX_DARK    // Retro groove
+Theme.GRUVBOX_LIGHT   // Light variant
+Theme.HIGH_CONTRAST   // Maximum readability
+```
+
+### Profile System
+
+Profiles allow saving and switching between complete terminal configurations:
+
+```kotlin
+data class Profile(
+    val id: String,
+    val name: String,               // "Work", "Dev", "Minimal"
+    
+    // Appearance
+    val fontFamily: String,         // "JetBrains Mono", "Fira Code"
+    val fontSize: Int,              // 12-24
+    val themeName: String,          // "dark_steel", "dracula"
+    val lineSpacing: Float,         // 1.0-2.0
+    val ligaturesEnabled: Boolean,
+    
+    // Shell
+    val shell: String,              // "/bin/bash", "/bin/zsh"
+    val startupCommands: List<String>,
+    val environmentVariables: Map<String, String>,
+    
+    // Plugins
+    val enabledPlugins: Set<String>
+)
+```
+
+### Backup System
+
+Supports multiple backup types for different use cases:
+
+| Type | Contents | Size | Use Case |
+|------|----------|------|----------|
+| `FULL` | Packages + Repos + Dotfiles | Large | Complete environment restore |
+| `PACKAGES_ONLY` | Package list only | Small | Quick reinstall on new device |
+| `CONFIG_ONLY` | Dotfiles only | Tiny | Sync config across devices |
+| `MINIMAL` | Manually installed packages | Smallest | Essential packages only |
+
+### Package Doctor Checks
+
+| Check | Detects | Severity | Auto-Fix |
+|-------|---------|----------|----------|
+| Broken | Corrupted packages | HIGH | `apt --fix-broken install` |
+| Dependencies | Missing deps | HIGH | `apt install -f` |
+| Held | Upgrade-blocked packages | LOW | `apt-mark unhold` |
+| Versions | Upgradable packages | INFO | `apt upgrade` |
+| Orphaned | Unused packages | INFO | `apt autoremove` |
+| Repositories | Failed fetches, GPG issues | MEDIUM | Varies |
