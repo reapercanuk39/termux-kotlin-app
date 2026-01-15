@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.6] - 2026-01-15
+
+### 🐛 Bug Fixes
+-  Remove force unwrap (            {                 echo ___BEGIN___COMMAND_OUTPUT_MARKER___;                 PS1=;PS2=;unset HISTFILE;                 EC=0;                 echo ___BEGIN___COMMAND_DONE_MARKER___0;             }) in runStartForeground to prevent NPE crash
+
+### 📚 Documentation
+-  Update CHANGELOG for v1.0.5 [skip ci]
+
+
 ## [v1.0.5] - 2026-01-15
 
 ### 🐛 Bug Fixes
