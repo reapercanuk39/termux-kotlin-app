@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.termux.app.ui.settings.components.*
 import com.termux.app.ui.settings.data.*
-import com.termux.app.ui.settings.sections.*
 
 /**
  * Main Settings screen using Jetpack Compose.
