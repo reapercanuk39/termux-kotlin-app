@@ -286,3 +286,186 @@ Supports multiple backup types for different use cases:
 | Versions | Upgradable packages | INFO | `apt upgrade` |
 | Orphaned | Unused packages | INFO | `apt autoremove` |
 | Repositories | Failed fetches, GPG issues | MEDIUM | Varies |
+
+## 📱 Integrated Device API
+
+The Termux:API functionality is integrated directly into the app, eliminating the need for a separate APK.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     termuxctl CLI                            │
+│              termuxctl device battery                        │
+│              termuxctl device location                       │
+├─────────────────────────────────────────────────────────────┤
+│                   DeviceCommands.kt                          │
+│          (CLI command handlers for device APIs)              │
+├─────────────────────────────────────────────────────────────┤
+│                  DeviceApiService.kt                         │
+│      (Background service for long-running operations)        │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────┐  ┌──────────────────────────────┐  │
+│  │     BatteryAction    │  │       LocationAction         │  │
+│  │     ClipboardAction  │  │       SensorAction          │  │
+│  │     CameraAction     │  │       WifiAction            │  │
+│  │          ...         │  │           ...               │  │
+│  └──────────────────────┘  └──────────────────────────────┘  │
+│                    (Device API Actions)                      │
+├─────────────────────────────────────────────────────────────┤
+│                  DeviceApiActionBase.kt                      │
+│   (Base class with logging, permissions, error handling)     │
+├─────────────────────────────────────────────────────────────┤
+│                    Core Components                           │
+│  ┌──────────────┐ ┌───────────────┐ ┌────────────────────┐  │
+│  │ Result<T,E>  │ │ DeviceApiError │ │  PermissionManager │  │
+│  │ TermuxError  │ │   hierarchy    │ │  TermuxLogger      │  │
+│  └──────────────┘ └───────────────┘ └────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Module Structure
+
+```
+app/src/main/kotlin/com/termux/app/
+├── core/
+│   └── deviceapi/
+│       ├── DeviceApiError.kt         # Error types for device APIs
+│       ├── actions/
+│       │   ├── DeviceApiActionBase.kt # Base class for all actions
+│       │   ├── BatteryAction.kt       # Battery status API
+│       │   ├── ClipboardAction.kt     # Clipboard get/set
+│       │   ├── LocationAction.kt      # GPS location
+│       │   ├── SensorAction.kt        # Device sensors
+│       │   └── ...
+│       ├── models/
+│       │   ├── BatteryInfo.kt         # Battery data model
+│       │   ├── DeviceApiMessage.kt    # IPC message types
+│       │   └── ...
+│       └── service/
+│           └── DeviceApiService.kt    # Background service
+├── di/
+│   └── DeviceApiModule.kt             # Hilt DI module
+└── pkg/cli/commands/device/
+    └── DeviceCommands.kt              # CLI commands
+```
+
+### Available APIs
+
+| API | Command | Permissions | Status |
+|-----|---------|-------------|--------|
+| Battery | `termuxctl device battery` | None | ✅ Implemented |
+| Clipboard | `termuxctl device clipboard` | None | 🔜 Planned |
+| Location | `termuxctl device location` | ACCESS_FINE_LOCATION | 🔜 Planned |
+| Sensors | `termuxctl device sensor` | None | 🔜 Planned |
+| Camera | `termuxctl device camera` | CAMERA | 🔜 Planned |
+| WiFi | `termuxctl device wifi` | ACCESS_WIFI_STATE | 🔜 Planned |
+| Volume | `termuxctl device volume` | None | 🔜 Planned |
+| Torch | `termuxctl device torch` | CAMERA | 🔜 Planned |
+| Vibrate | `termuxctl device vibrate` | VIBRATE | 🔜 Planned |
+| TTS | `termuxctl device tts` | None | 🔜 Planned |
+| Toast | `termuxctl device toast` | None | 🔜 Planned |
+
+### Implementation Pattern
+
+Each device API action follows a consistent pattern:
+
+```kotlin
+@Singleton
+class ExampleAction @Inject constructor(
+    @ApplicationContext private val context: Context,
+    logger: TermuxLogger,
+    private val permissionManager: PermissionManager  // If permissions needed
+) : DeviceApiActionBase<ExampleData>(logger) {
+    
+    override val actionName: String = "example"
+    override val description: String = "Example API action"
+    override val requiredPermissions: List<String> = listOf(
+        Manifest.permission.EXAMPLE_PERMISSION
+    )
+    
+    override suspend fun execute(
+        params: Map<String, String>
+    ): Result<ExampleData, DeviceApiError> {
+        return executeWithLogging {
+            withContext(Dispatchers.IO) {
+                // Implementation
+                ExampleData(...)
+            }
+        }
+    }
+}
+```
+
+### Error Handling
+
+Device API errors extend the `TermuxError` hierarchy:
+
+```kotlin
+sealed class DeviceApiError : TermuxError() {
+    data class PermissionRequired(...)   // Permission not granted
+    data class FeatureNotAvailable(...)  // Hardware/software not available
+    data class HardwareNotFound(...)     // Sensor/camera not present
+    data class Timeout(...)              // Operation timed out
+    data class Cancelled(...)            // Operation cancelled
+    data class InvalidArguments(...)     // Bad parameters
+    data class ServiceUnavailable(...)   // Service disabled
+    data class SystemException(...)      // Unexpected error
+    data class RateLimited(...)          // Too many requests
+    data class UnsupportedApiLevel(...)  // Android version too old
+}
+```
+
+### CLI Usage
+
+```bash
+# Battery status
+termuxctl device battery
+termuxctl device battery --json
+termuxctl device battery --extended
+
+# List available APIs
+termuxctl device list
+
+# Future APIs
+termuxctl device location --provider gps
+termuxctl device sensor --list
+termuxctl device sensor --name accelerometer
+termuxctl device clipboard get
+termuxctl device clipboard set "text"
+termuxctl device wifi scan
+termuxctl device volume get
+termuxctl device torch on
+```
+
+### IPC Messages
+
+Device API uses typed IPC messages for communication:
+
+```kotlin
+sealed class DeviceApiMessage : IpcMessage() {
+    data class ApiRequest(...)    // Request to execute action
+    data class ApiResponse(...)   // Success response with data
+    data class ApiError(...)      // Error response
+    data class StreamData(...)    // Streaming data (sensors, etc.)
+    data class StreamEnded(...)   // Stream completed
+}
+```
+
+### Dependency Injection
+
+All device API components are provided via Hilt:
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object DeviceApiModule {
+    @Provides @Singleton
+    fun provideBatteryAction(...): BatteryAction
+    
+    @Provides @Singleton
+    fun provideDeviceCommands(...): DeviceCommands
+    
+    // Add more as implemented
+}
+```

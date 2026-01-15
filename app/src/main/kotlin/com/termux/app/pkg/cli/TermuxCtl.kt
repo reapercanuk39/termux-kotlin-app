@@ -1,6 +1,7 @@
 package com.termux.app.pkg.cli
 
 import com.termux.app.pkg.backup.*
+import com.termux.app.pkg.cli.commands.device.DeviceCommands
 import com.termux.app.pkg.doctor.*
 import kotlinx.coroutines.runBlocking
 
@@ -41,7 +42,8 @@ import kotlinx.coroutines.runBlocking
  */
 class TermuxCtl(
     private val backupManager: PackageBackupManager,
-    private val doctor: PackageDoctor
+    private val doctor: PackageDoctor,
+    private val deviceCommands: DeviceCommands? = null
 ) {
     companion object {
         const val VERSION = "1.0.0"
@@ -74,6 +76,7 @@ class TermuxCtl(
             "pkg" -> handlePackageCommand(args.drop(1))
             "repo" -> handleRepoCommand(args.drop(1))
             "profile" -> handleProfileCommand(args.drop(1))
+            "device" -> handleDeviceCommand(args.drop(1))
             "--help", "-h", "help" -> { printUsage(); 0 }
             "--version", "-v", "version" -> { printVersion(); 0 }
             else -> { 
@@ -395,6 +398,18 @@ class TermuxCtl(
         }
     }
     
+    // ========== Device Commands ==========
+    
+    private fun handleDeviceCommand(args: List<String>): Int {
+        if (deviceCommands == null) {
+            printError("Device API commands not available")
+            println("${YELLOW}DeviceCommands not injected. Ensure Hilt is properly configured.${RESET}")
+            return 1
+        }
+        
+        return deviceCommands.execute(args)
+    }
+    
     // ========== Option Parsing ==========
     
     private data class BackupCreateOptions(
@@ -458,6 +473,7 @@ class TermuxCtl(
               pkg       Package management and health checks
               repo      Repository management
               profile   Profile management
+              device    Access device APIs (battery, sensors, etc.)
             
             ${BOLD}Options:${RESET}
               --help, -h       Show this help message
