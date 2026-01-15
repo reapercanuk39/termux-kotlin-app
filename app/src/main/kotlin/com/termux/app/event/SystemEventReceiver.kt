@@ -74,7 +74,13 @@ class SystemEventReceiver : BroadcastReceiver() {
                 addAction(Intent.ACTION_PACKAGE_REPLACED)
                 addDataScheme("package")
             }
-            context.registerReceiver(getInstance(), intentFilter)
+            // Android 14+ (API 34+) requires specifying export status for receivers
+            // This receiver needs RECEIVER_EXPORTED to receive system package broadcasts
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(getInstance(), intentFilter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(getInstance(), intentFilter)
+            }
         }
 
         @JvmStatic
