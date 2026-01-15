@@ -2,6 +2,7 @@ package com.termux.app.ui.settings.data
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -296,8 +297,6 @@ class ProfileRepository @Inject constructor(
             }
         }
     }
-    
-    private fun <T, R> Flow<T>.map(transform: (T) -> R): Flow<R> = kotlinx.coroutines.flow.map(this, transform)
 }
 
 /**
