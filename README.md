@@ -92,6 +92,32 @@ New features only available in the Kotlin version:
 | 💾 **Package Backup** | Full backup/restore of packages, repos, and dotfiles |
 | 🩺 **Package Doctor** | Health checks with auto-repair suggestions |
 | 🛠️ **termuxctl CLI** | Unified CLI for backup, doctor, and profile management |
+| 📱 **Integrated Device API** | Built-in Termux:API - no separate APK needed |
+
+### 📱 Integrated Device API (No Separate APK!)
+
+Unlike standard Termux which requires installing the separate **Termux:API** APK, the Kotlin version has device APIs **built directly into the main app**:
+
+```bash
+# Battery status
+termuxctl device battery
+termuxctl device battery --json --extended
+
+# List available APIs
+termuxctl device list
+
+# Coming soon: location, sensors, clipboard, camera, wifi, and more
+termuxctl device location --provider gps
+termuxctl device sensor --name accelerometer
+```
+
+**Features:**
+- ✅ **Zero Setup** - APIs work immediately after install
+- ✅ **Coroutine-Based** - Efficient async operations
+- ✅ **Type-Safe** - Sealed Result types and error handling
+- ✅ **Unified Permissions** - Integrated permission manager
+
+See [ARCHITECTURE.md](ARCHITECTURE.md#-integrated-device-api) for the full API list and implementation details.
 
 ### 🏗️ Modern Architecture
 
@@ -111,11 +137,11 @@ New features only available in the Kotlin version:
 │  │ Sealed Types │ │TermuxLogger  │ │  PermissionManager   │  │
 │  │ Result<T,E>  │ │ File Logging │ │  Activity Result API │  │
 │  └──────────────┘ └──────────────┘ └──────────────────────┘  │
-│  ┌──────────────┐ ┌──────────────┐                           │
-│  │core/terminal │ │ core/plugin  │                           │
-│  │  EventBus    │ │  Plugin API  │                           │
-│  │ Flow Events  │ │ Versioning   │                           │
-│  └──────────────┘ └──────────────┘                           │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐  │
+│  │core/terminal │ │ core/plugin  │ │  core/deviceapi      │  │
+│  │  EventBus    │ │  Plugin API  │ │  Battery, Location   │  │
+│  │ Flow Events  │ │ Versioning   │ │  Sensors, Camera...  │  │
+│  └──────────────┘ └──────────────┘ └──────────────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │              DataStore / Coroutines / Hilt DI                │
 └─────────────────────────────────────────────────────────────┘
@@ -130,6 +156,7 @@ New features only available in the Kotlin version:
 | `core/permissions` | Unified permission handling with coroutines |
 | `core/terminal` | Flow-based event bus replacing callbacks |
 | `core/plugin` | Stable plugin API with semantic versioning |
+| `core/deviceapi` | Integrated device APIs (battery, location, sensors, etc.) |
 | `ui/settings` | Material 3 Compose settings with DataStore |
 | `pkg/backup` | Package backup/restore manager |
 | `pkg/doctor` | Package health diagnostics and auto-repair |
