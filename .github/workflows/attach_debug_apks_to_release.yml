@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +22,12 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v6
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Build and attach APKs to release
         shell: bash {0}
         env:
@@ -28,9 +35,8 @@ jobs:
         run: |
           exit_on_error() {
               echo "$1"
-              echo "Deleting '$RELEASE_VERSION_NAME' release and '$GITHUB_REF' tag"
+              echo "Deleting '$RELEASE_VERSION_NAME' release"
               gh release delete "$RELEASE_VERSION_NAME" --yes || true
-              git push --delete origin "$GITHUB_REF" || true
               exit 1
           }
 

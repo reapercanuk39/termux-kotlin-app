@@ -24,9 +24,10 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.sha }}
-          check-name: 'Build Debug APK'
+          running-workflow-name: 'Auto Tag & Release'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 30
+          allowed-conclusions: success,skipped
 
       - name: Get latest tag
         id: latest_tag
