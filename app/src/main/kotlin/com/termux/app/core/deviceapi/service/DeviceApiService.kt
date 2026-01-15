@@ -12,8 +12,8 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.termux.app.TermuxActivity
+import com.termux.app.core.api.DeviceApiError
 import com.termux.app.core.api.Result
-import com.termux.app.core.deviceapi.DeviceApiError
 import com.termux.app.core.deviceapi.actions.BatteryAction
 import com.termux.app.core.deviceapi.models.BatteryInfo
 import com.termux.app.core.deviceapi.models.DeviceApiAction
@@ -24,11 +24,9 @@ import com.termux.app.di.ApplicationScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID

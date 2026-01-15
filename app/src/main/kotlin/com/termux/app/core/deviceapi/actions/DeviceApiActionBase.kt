@@ -1,7 +1,7 @@
 package com.termux.app.core.deviceapi.actions
 
+import com.termux.app.core.api.DeviceApiError
 import com.termux.app.core.api.Result
-import com.termux.app.core.deviceapi.DeviceApiError
 import com.termux.app.core.logging.TaggedLogger
 import com.termux.app.core.logging.TermuxLogger
 

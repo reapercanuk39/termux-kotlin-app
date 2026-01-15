@@ -5,8 +5,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
+import com.termux.app.core.api.DeviceApiError
 import com.termux.app.core.api.Result
-import com.termux.app.core.deviceapi.DeviceApiError
 import com.termux.app.core.deviceapi.models.BatteryHealth
 import com.termux.app.core.deviceapi.models.BatteryInfo
 import com.termux.app.core.deviceapi.models.BatteryPlugged
@@ -88,7 +88,7 @@ class BatteryAction @Inject constructor(
         // Extract temperature (comes in tenths of a degree)
         val tempRaw = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
         val temperature = if (tempRaw != Int.MIN_VALUE) {
-            round(tempRaw / 10.0 * 10.0) / 10.0f
+            (round(tempRaw / 10.0 * 10.0) / 10.0).toFloat()
         } else {
             0f
         }

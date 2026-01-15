@@ -1,20 +1,23 @@
 package com.termux.app.core.deviceapi.models
 
-import com.termux.app.core.api.IpcMessage
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 /**
  * IPC messages for Device API communication.
- * Extends the IpcMessage hierarchy for typed event handling.
+ * Provides typed event handling for device API operations.
  */
-sealed class DeviceApiMessage : IpcMessage() {
+sealed class DeviceApiMessage {
+    
+    abstract val id: String
+    abstract val timestamp: Long
     
     /**
      * Request for device API action.
      */
     @Serializable
     data class ApiRequest(
-        override val id: String,
+        override val id: String = UUID.randomUUID().toString(),
         val action: String,
         val parameters: Map<String, String> = emptyMap(),
         override val timestamp: Long = System.currentTimeMillis()
