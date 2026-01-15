@@ -188,14 +188,20 @@ class TermuxService : Service(), AppShell.AppShellClient, TermuxSession.TermuxSe
     /** Make service run in foreground mode. */
     private fun runStartForeground() {
         setupNotificationChannel()
+        val notification = buildNotification()
+        if (notification == null) {
+            Logger.logError(LOG_TAG, "Failed to build notification - cannot start foreground service")
+            stopSelf()
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             // Android 14+ requires foreground service type
             startForeground(
-                TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification()!!,
+                TermuxConstants.TERMUX_APP_NOTIFICATION_ID, notification,
                 android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
         } else {
-            startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification()!!)
+            startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, notification)
         }
     }
 
