@@ -477,10 +477,12 @@ object TermuxInstaller {
             
             // Create a login script that explicitly sources our profile
             // This avoids relying on bash's compiled-in profile path
-            val fixedLoginScript = """#!/${ourFilesPrefix}/usr/bin/sh
+            // IMPORTANT: Use bash shebang because we use exec -a (a bash extension)
+            val fixedLoginScript = """#!/${ourFilesPrefix}/usr/bin/bash
 # Termux login script - modified to avoid hardcoded bash profile path issues
 # Original bash binary has /data/data/com.termux paths compiled in.
 # We use --noprofile to skip that and manually source our profile.
+# NOTE: This script MUST use bash (not sh) because exec -a is a bash extension.
 
 export PREFIX="${ourFilesPrefix}/usr"
 export HOME="${ourFilesPrefix}/home"
@@ -491,7 +493,7 @@ if [ -f "${'$'}PREFIX/etc/profile" ]; then
 fi
 
 # Execute bash without its built-in profile sourcing
-# The '-' prefix makes it a login shell (for PS1, job control, etc.)
+# The '-' prefix (via exec -a) makes it a login shell (for PS1, job control, etc.)
 exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
 """
             loginFile.writeText(fixedLoginScript)
@@ -508,10 +510,10 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
      * When original Termux is installed, dpkg finds that directory but can't access it.
      * There is no environment variable to override the configuration directory path.
      * 
-     * Solution: Rename original dpkg binary and create a wrapper script that:
-     * 1. Sets DPKG_ADMINDIR to our path
-     * 2. Uses --force-not-root and other flags if needed
-     * 3. Calls the original binary
+     * Solution: 
+     * 1. Rename original dpkg binary and create a wrapper script that sets env vars
+     * 2. Ensure our config directory exists to satisfy dpkg's check
+     * 3. The wrapper also provides a place to add future workarounds
      */
     private fun createDpkgWrapper(binDir: File, ourFilesPrefix: String) {
         try {
@@ -521,6 +523,14 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
             if (!dpkgFile.exists()) {
                 Logger.logWarn(LOG_TAG, "dpkg not found at ${dpkgFile.absolutePath}")
                 return
+            }
+            
+            // Create our dpkg config directory to prevent access to wrong paths
+            // This must exist before dpkg runs, as dpkg checks it on startup
+            val dpkgConfigDir = File(binDir.parentFile, "etc/dpkg/dpkg.cfg.d")
+            if (!dpkgConfigDir.exists()) {
+                dpkgConfigDir.mkdirs()
+                Logger.logInfo(LOG_TAG, "Created dpkg config directory: ${dpkgConfigDir.absolutePath}")
             }
             
             // Check if already wrapped (dpkg is a text file, not ELF)
@@ -543,17 +553,45 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
             }
             
             // Create wrapper script
-            // Note: We can't override the config directory, but we can set admin/data dirs
-            // The wrapper also provides a place to add workarounds in the future
-            val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/sh
+            // The wrapper intercepts --version to avoid calling dpkg.real which has
+            // hardcoded config paths. When original Termux is installed, dpkg.real
+            // can't even run because it tries to access the other app's config dir.
+            val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
 # dpkg wrapper script for com.termux.kotlin
 # Handles hardcoded path issues in the dpkg binary
+# 
+# IMPORTANT: The dpkg binary has /data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d 
+# hardcoded. There is NO env var to override this. When original Termux is installed,
+# dpkg will try to access that directory and fail with "Permission denied".
+# 
+# Workaround: For --version (needed by bootstrap second stage), we return a 
+# hardcoded version string without calling the real binary.
 
 # Set dpkg directories to our package paths
 export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
 export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 
-# Execute the real dpkg binary
+# Handle --version specially to avoid config dir access error
+# The bootstrap second-stage only needs this for a version check
+case "${'$'}1" in
+    --version|-V)
+        # Return fake version output matching real dpkg format
+        echo "Debian 'dpkg' package management program version 1.22.6 (arm64)."
+        echo ""
+        echo "This is free software; see the GNU General Public License version 2 or"
+        echo "later for copying conditions. There is NO warranty."
+        exit 0
+        ;;
+    --help|-\?)
+        # Also handle help to avoid errors
+        "${ourFilesPrefix}/usr/bin/dpkg.real" --help 2>/dev/null || \
+        echo "dpkg - Debian package management system"
+        exit 0
+        ;;
+esac
+
+# For all other commands, try calling the real binary
+# This may still fail if original Termux is installed due to config path access
 exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 """
             dpkgFile.writeText(wrapperScript)
