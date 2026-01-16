@@ -235,8 +235,8 @@ object TermuxInstaller {
                 // Create dpkg wrapper to handle hardcoded config path issues
                 createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
                 
-                // Ensure update-alternatives exists (create symlink if missing)
-                ensureUpdateAlternativesExists(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
+                // NOTE: update-alternatives is an ELF binary in the bootstrap, not a symlink
+                // It doesn't need any special handling - it works with LD_LIBRARY_PATH
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -412,6 +412,9 @@ object TermuxInstaller {
         // These have shebangs pointing to /data/data/com.termux/files/usr/bin/sh or bash
         if (entryName.startsWith("bin/")) {
             // Known shell/perl scripts that need fixing (not ELF binaries)
+            // NOTE: update-alternatives is an ELF BINARY, not a script!
+            // Do NOT add it here - modifying binaries corrupts them.
+            // update-alternatives has hardcoded paths but uses LD_LIBRARY_PATH at runtime.
             val knownScripts = setOf(
                 "login", "chsh", "su", "am", "pm", "cmd", "dalvikvm", "logcat", "getprop", "settings",
                 "ping", "ping6", "df", "top", "red",
@@ -422,17 +425,16 @@ object TermuxInstaller {
                 "zfgrep", "zforce", "zgrep", "zmore", "znew", "uncompress", "zipgrep",
                 "bzdiff", "bzgrep", "bzmore",
                 "xzdiff", "xzgrep", "xzless", "xzmore",
-                "wcurl",
-                // dpkg-related scripts (Perl scripts with hardcoded paths)
-                "update-alternatives", "dpkg-divert", "dpkg-statoverride",
-                "dpkg-trigger", "dpkg-maintscript-helper"
+                "wcurl"
+                // dpkg-divert, dpkg-statoverride, dpkg-trigger are also ELF binaries
             )
             val basename = entryName.removePrefix("bin/")
             if (knownScripts.contains(basename)) return true
             // All termux-* scripts
             if (basename.startsWith("termux-")) return true
-            // All dpkg-* scripts (many are Perl with hardcoded paths)
-            if (basename.startsWith("dpkg-")) return true
+            // All dpkg-* SCRIPTS (not ELF binaries - dpkg-divert, dpkg-trigger are ELF!)
+            val dpkgScripts = setOf("dpkg-buildapi", "dpkg-buildtree", "dpkg-fsys-usrunmess")
+            if (dpkgScripts.contains(basename)) return true
             // .sh and .bash script extensions
             if (entryName.endsWith(".sh") || entryName.endsWith(".bash")) return true
         }
@@ -637,62 +639,6 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
-        }
-    }
-    
-    /**
-     * Ensure update-alternatives exists in bin/ directory.
-     * 
-     * In Termux bootstrap, update-alternatives is typically a symlink from bin/ to share/dpkg/.
-     * If the symlink wasn't created (not in SYMLINKS.txt or creation failed), create it manually.
-     * This is needed for dpkg postinst scripts that call update-alternatives.
-     */
-    private fun ensureUpdateAlternativesExists(binDir: File, ourFilesPrefix: String) {
-        try {
-            val updateAltFile = File(binDir, "update-alternatives")
-            val shareDpkgDir = File(binDir.parentFile, "share/dpkg")
-            val updateAltTarget = File(shareDpkgDir, "update-alternatives")
-            
-            Logger.logDebug(LOG_TAG, "Checking update-alternatives: file=${updateAltFile.absolutePath}, target=${updateAltTarget.absolutePath}")
-            
-            // Check if it's a working symlink or real file
-            if (updateAltFile.exists() && updateAltFile.canExecute()) {
-                Logger.logDebug(LOG_TAG, "update-alternatives already exists and is executable")
-                return
-            }
-            
-            // The symlink bin/update-alternatives -> ../share/dpkg/update-alternatives exists but is broken
-            // because the target doesn't exist. Instead of trying to delete the symlink and create a file,
-            // let's CREATE THE TARGET so the symlink becomes valid!
-            
-            // Ensure the share/dpkg directory exists
-            if (!shareDpkgDir.exists()) {
-                shareDpkgDir.mkdirs()
-                Logger.logInfo(LOG_TAG, "Created directory: ${shareDpkgDir.absolutePath}")
-            }
-            
-            // Create the stub script at the symlink target location
-            val stubScript = """#!/system/bin/sh
-# Stub update-alternatives script - exits successfully doing nothing
-exit 0
-"""
-            updateAltTarget.writeText(stubScript)
-            Os.chmod(updateAltTarget.absolutePath, 493) // 0755 - executable by all
-            Logger.logInfo(LOG_TAG, "Created update-alternatives stub at symlink target: ${updateAltTarget.absolutePath}")
-            
-            // Verify the symlink now works
-            if (updateAltFile.exists() && updateAltFile.canExecute()) {
-                Logger.logInfo(LOG_TAG, "Verified: update-alternatives symlink is now valid and executable")
-            } else {
-                // If symlink doesn't exist, create the file directly at bin/update-alternatives
-                Logger.logWarn(LOG_TAG, "Symlink not working, creating file directly at ${updateAltFile.absolutePath}")
-                updateAltFile.writeText(stubScript)
-                Os.chmod(updateAltFile.absolutePath, 493)
-            }
-            
-        } catch (e: Exception) {
-            Logger.logError(LOG_TAG, "Failed to ensure update-alternatives exists: ${e.message}")
-            e.printStackTrace()
         }
     }
 

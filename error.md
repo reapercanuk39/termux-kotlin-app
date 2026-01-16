@@ -470,3 +470,66 @@ exit 0
 | v1.0.22 | Use bash shebang | ❌ Not found |
 | v1.0.23 | Use /system/bin/sh shebang | ❌ Not found |
 | v1.0.24 | Create stub at share/dpkg/ (target) | 🔄 Pending test |
+
+---
+
+## Error #8: ROOT CAUSE FOUND - Binary Corruption
+
+**Date:** 2026-01-16  
+**Error Message:**
+```
+/data/data/com.termux.kotlin/files/usr/bin/update-alternatives: not found
+```
+
+**Status:** ✅ FIXED in v1.0.25
+
+**ACTUAL Root Cause (discovered via apktool debugging):**
+
+The `update-alternatives` file in the bootstrap is an **ELF binary** (67KB), NOT a Perl script or symlink as assumed. The `isTextFileNeedingPathFix()` function was incorrectly including `update-alternatives` in its list of "known scripts", which caused the path replacement code to:
+
+1. Read the binary as text
+2. Replace `/data/data/com.termux` with `/data/data/com.termux.kotlin`
+3. Write the result back
+
+Since the replacement string is **7 characters longer**, this:
+- Increased file size from 67,800 to 101,464 bytes
+- Corrupted the ELF header ("corrupted program header size")
+- Made the binary completely unusable
+
+**Debugging Evidence:**
+```bash
+# Original in bootstrap ZIP:
+-rwx------ 1 root root 67800 Nov 6 04:15 bin/update-alternatives
+file: ELF 64-bit LSB shared object, x86-64
+
+# On device after extraction:
+-rwx------ 1 u0_a219 u0_a219 101464 Jan 16 22:31 bin/update-alternatives  
+file: ELF 64-bit LSB shared object, corrupted program header size
+```
+
+**Fix Applied (v1.0.25):**
+
+1. Removed `update-alternatives`, `dpkg-divert`, `dpkg-statoverride`, `dpkg-trigger`, `dpkg-maintscript-helper` from the knownScripts list (these are ELF binaries, not scripts)
+
+2. Removed blanket `if (basename.startsWith("dpkg-")) return true` pattern match
+
+3. Added explicit list of actual Perl scripts: `dpkg-buildapi`, `dpkg-buildtree`, `dpkg-fsys-usrunmess`
+
+4. Removed the `ensureUpdateAlternativesExists()` function (no longer needed)
+
+**Bootstrap File Analysis:**
+| File | Type | Path Fix? |
+|------|------|-----------|
+| update-alternatives | ELF binary | ❌ NO |
+| dpkg-divert | ELF binary | ❌ NO |
+| dpkg-trigger | ELF binary | ❌ NO |
+| dpkg-deb | ELF binary | ❌ NO |
+| dpkg-query | ELF binary | ❌ NO |
+| dpkg-split | ELF binary | ❌ NO |
+| dpkg-buildapi | Perl script | ✅ YES |
+| dpkg-buildtree | Perl script | ✅ YES |
+| dpkg-fsys-usrunmess | Perl script | ✅ YES |
+| dpkg-realpath | Shell script | ✅ YES (already in list) |
+
+**Lesson Learned:**
+NEVER assume a file is a script based on its name. Always check with `file` command or by looking at the first bytes (ELF magic: `\x7fELF`, script shebang: `#!`).
