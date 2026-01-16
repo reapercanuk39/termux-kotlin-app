@@ -564,3 +564,36 @@ private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String
     //   --log PREFIX/var/log/alternatives.log
 }
 ```
+
+---
+
+## 🎉 SUCCESS - v1.0.26 - Bootstrap Complete!
+
+**Date:** 2026-01-16  
+**Status:** ✅ WORKING!
+
+**v1.0.26 Test Results:**
+- Bootstrap first stage: ✅ Completed
+- Bootstrap second stage: ✅ Completed  
+- `coreutils.postinst`: ✅ Ran successfully
+- `update-alternatives`: ✅ Using correct paths (`/data/data/com.termux.kotlin/...`)
+- `less.postinst`: ✅ Ran successfully
+- `nano.postinst`: ✅ Ran successfully
+- Bash prompt: ✅ `-bash-5.3$` showing
+
+**Key Fixes That Made It Work:**
+
+1. **Error #8 (v1.0.25):** Stopped corrupting ELF binaries
+   - Removed `update-alternatives`, `dpkg-divert`, etc from path-fixing list
+   - Only fix actual scripts, not ELF binaries
+
+2. **Error #9 (v1.0.26):** Added update-alternatives wrapper
+   - Wrapper passes `--altdir`, `--admindir`, `--log` flags
+   - Overrides hardcoded `/data/data/com.termux/...` paths in binary
+
+**Tools Used for Debugging:**
+- `apktool` - Decompiled APK to inspect embedded bootstrap
+- `dd` + offset detection - Extracted ZIP from native library
+- `file` command - Identified ELF vs script files
+- `adb root` + direct file inspection - Compared file sizes to detect corruption
+- `strings` - Found hardcoded paths in binaries
