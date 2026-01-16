@@ -665,10 +665,25 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
                 return
             }
             
-            // If neither exists, log warning - the postinst scripts will fail
-            // but we can't do anything about it
-            Logger.logWarn(LOG_TAG, "update-alternatives not found in bin/ or share/dpkg/. " +
-                    "Bootstrap may be incomplete. postinst scripts may fail.")
+            // If neither exists, create a stub script that does nothing
+            // This allows postinst scripts to run without failing
+            Logger.logWarn(LOG_TAG, "update-alternatives not found in share/dpkg/. Creating stub script.")
+            
+            // Delete any broken symlink that might exist
+            if (updateAltFile.delete()) {
+                Logger.logDebug(LOG_TAG, "Deleted broken symlink at ${updateAltFile.absolutePath}")
+            }
+            
+            val stubScript = """#!/${binDir.parentFile.absolutePath}/bin/sh
+# Stub update-alternatives script
+# The real update-alternatives from dpkg package is not present in bootstrap
+# This stub allows package postinst scripts to run without errors
+# It simply ignores all arguments and exits successfully
+exit 0
+"""
+            updateAltFile.writeText(stubScript)
+            Os.chmod(updateAltFile.absolutePath, 448) // 0700
+            Logger.logInfo(LOG_TAG, "Created update-alternatives stub script")
             
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to ensure update-alternatives exists: ${e.message}")
