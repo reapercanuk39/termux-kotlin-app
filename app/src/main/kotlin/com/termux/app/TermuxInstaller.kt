@@ -238,6 +238,12 @@ object TermuxInstaller {
                 // Create update-alternatives wrapper to handle hardcoded paths
                 // The binary has paths like /data/data/com.termux/files/usr/var/log compiled in
                 createUpdateAlternativesWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
+                
+                // Create apt wrappers to handle hardcoded paths in libapt-pkg.so
+                // The library has /data/data/com.termux/files/usr/etc/apt etc. compiled in
+                // Cache dir is at /data/data/com.termux.kotlin/cache (parallel to /files)
+                val ourCacheDir = ourFilesPrefix.replace("/files/", "/cache/").replace("/files", "/cache")
+                createAptWrappers(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, ourCacheDir)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -744,6 +750,99 @@ exec "${ourFilesPrefix}/usr/bin/update-alternatives.real" \
             Logger.logInfo(LOG_TAG, "Created update-alternatives wrapper script")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create update-alternatives wrapper: ${e.message}")
+        }
+    }
+    
+    /**
+     * Create wrapper scripts for apt, apt-get, apt-cache, apt-config, apt-mark.
+     * 
+     * The libapt-pkg.so library has hardcoded paths like:
+     * - /data/data/com.termux/files/usr/etc/apt
+     * - /data/data/com.termux/cache/apt  
+     * - /data/data/com.termux/files/usr/var/lib/apt
+     * - /data/data/com.termux/files/usr/var/log/apt
+     * 
+     * These can be overridden with -o Dir::* options.
+     */
+    private fun createAptWrappers(binDir: File, ourFilesPrefix: String, cacheDir: String) {
+        val aptCommands = listOf("apt", "apt-get", "apt-cache", "apt-config", "apt-mark")
+        
+        for (cmd in aptCommands) {
+            try {
+                val aptFile = File(binDir, cmd)
+                val aptRealFile = File(binDir, "$cmd.real")
+                
+                if (!aptFile.exists()) {
+                    Logger.logDebug(LOG_TAG, "$cmd not found, skipping wrapper creation")
+                    continue
+                }
+                
+                // Check if it's an ELF binary
+                val firstBytes = ByteArray(4)
+                aptFile.inputStream().use { it.read(firstBytes) }
+                val isElf = firstBytes[0] == 0x7F.toByte() && 
+                            firstBytes[1] == 'E'.code.toByte() && 
+                            firstBytes[2] == 'L'.code.toByte() && 
+                            firstBytes[3] == 'F'.code.toByte()
+                
+                if (!isElf) {
+                    Logger.logDebug(LOG_TAG, "$cmd is not an ELF binary, skipping wrapper creation")
+                    continue
+                }
+                
+                // Rename original to .real
+                if (!aptFile.renameTo(aptRealFile)) {
+                    Logger.logError(LOG_TAG, "Failed to rename $cmd to $cmd.real")
+                    continue
+                }
+                
+                // Create wrapper script that overrides hardcoded paths
+                val wrapperScript = """#!/system/bin/sh
+# $cmd wrapper for com.termux.kotlin
+# Handles hardcoded path issues in libapt-pkg.so
+#
+# The library has /data/data/com.termux/files/usr/... paths compiled in.
+# We override these with -o Dir::* options.
+
+PREFIX="${ourFilesPrefix}/usr"
+CACHE="${cacheDir}"
+
+# Ensure required directories exist
+mkdir -p "${'$'}PREFIX/etc/apt/apt.conf.d" 2>/dev/null
+mkdir -p "${'$'}PREFIX/etc/apt/preferences.d" 2>/dev/null
+mkdir -p "${'$'}PREFIX/etc/apt/trusted.gpg.d" 2>/dev/null
+mkdir -p "${'$'}PREFIX/var/lib/apt/lists/partial" 2>/dev/null
+mkdir -p "${'$'}PREFIX/var/lib/apt/periodic" 2>/dev/null
+mkdir -p "${'$'}PREFIX/var/log/apt" 2>/dev/null
+mkdir -p "${'$'}CACHE/apt/archives/partial" 2>/dev/null
+
+# Call real binary with overridden paths
+exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
+    -o Dir::Etc="${'$'}PREFIX/etc/apt" \
+    -o Dir::Etc::sourcelist="${'$'}PREFIX/etc/apt/sources.list" \
+    -o Dir::Etc::sourceparts="${'$'}PREFIX/etc/apt/sources.list.d" \
+    -o Dir::Etc::main="${'$'}PREFIX/etc/apt/apt.conf" \
+    -o Dir::Etc::parts="${'$'}PREFIX/etc/apt/apt.conf.d" \
+    -o Dir::Etc::preferences="${'$'}PREFIX/etc/apt/preferences" \
+    -o Dir::Etc::preferencesparts="${'$'}PREFIX/etc/apt/preferences.d" \
+    -o Dir::Etc::trusted="${'$'}PREFIX/etc/apt/trusted.gpg" \
+    -o Dir::Etc::trustedparts="${'$'}PREFIX/etc/apt/trusted.gpg.d" \
+    -o Dir::State="${'$'}PREFIX/var/lib/apt" \
+    -o Dir::State::lists="${'$'}PREFIX/var/lib/apt/lists" \
+    -o Dir::State::status="${'$'}PREFIX/var/lib/dpkg/status" \
+    -o Dir::Cache="${'$'}CACHE/apt" \
+    -o Dir::Cache::archives="${'$'}CACHE/apt/archives" \
+    -o Dir::Log="${'$'}PREFIX/var/log/apt" \
+    -o Dir::Bin::dpkg="${'$'}PREFIX/bin/dpkg" \
+    "${'$'}@"
+"""
+                aptFile.writeText(wrapperScript)
+                Os.chmod(aptFile.absolutePath, 493) // 0755 - executable by all
+                
+                Logger.logInfo(LOG_TAG, "Created $cmd wrapper script")
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Failed to create $cmd wrapper: ${e.message}")
+            }
         }
     }
 
