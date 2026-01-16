@@ -148,6 +148,11 @@ object TermuxInstaller {
                 val symlinks = ArrayList<Pair<String, String>>(50)
 
                 val zipBytes = loadZipBytes()
+                
+                // Build the path prefix for replacing upstream paths with our package paths
+                val upstreamFilesPrefix = "/data/data/${TermuxConstants.TERMUX_UPSTREAM_PACKAGE_NAME}/files"
+                val ourFilesPrefix = "/data/data/${TermuxConstants.TERMUX_PACKAGE_NAME}/files"
+                
                 ZipInputStream(ByteArrayInputStream(zipBytes)).use { zipInput ->
                     var zipEntry = zipInput.nextEntry
                     while (zipEntry != null) {
@@ -157,7 +162,8 @@ object TermuxInstaller {
                             while (line != null) {
                                 val parts = line.split("←")
                                 if (parts.size != 2) throw RuntimeException("Malformed symlink line: $line")
-                                val oldPath = parts[0]
+                                // Replace upstream package path with our package path in symlink targets
+                                val oldPath = parts[0].replace(upstreamFilesPrefix, ourFilesPrefix)
                                 val newPath = "$TERMUX_STAGING_PREFIX_DIR_PATH/${parts[1]}"
                                 symlinks.add(Pair.create(oldPath, newPath))
 
@@ -191,6 +197,11 @@ object TermuxInstaller {
                                     zipEntryName.startsWith("lib/apt/apt-helper") || zipEntryName.startsWith("lib/apt/methods")
                                 ) {
                                     Os.chmod(targetFile.absolutePath, 448) // 0700 octal
+                                }
+                                
+                                // Fix hardcoded paths in shell scripts and config files
+                                if (isTextFileNeedingPathFix(zipEntryName)) {
+                                    fixPathsInTextFile(targetFile, upstreamFilesPrefix, ourFilesPrefix)
                                 }
                             }
                         }
@@ -362,6 +373,46 @@ object TermuxInstaller {
 
     private fun ensureDirectoryExists(directory: File): Error? {
         return FileUtils.createDirectoryFile(directory.absolutePath)
+    }
+    
+    /**
+     * Check if a file needs path fixing based on its location and extension.
+     * Only process text files in etc/, share/, and certain bin/ scripts.
+     */
+    private fun isTextFileNeedingPathFix(entryName: String): Boolean {
+        // Shell scripts and config files in etc/
+        if (entryName.startsWith("etc/")) {
+            // Match shell scripts, config files, and the second-stage bootstrap script
+            return entryName.endsWith(".sh") || 
+                   entryName.endsWith(".bashrc") ||
+                   entryName.endsWith(".profile") ||
+                   entryName.endsWith("profile") ||
+                   entryName.endsWith("nanorc") ||
+                   entryName.endsWith("inputrc") ||
+                   entryName.endsWith("termux-login.sh") ||
+                   entryName.contains("termux-bootstrap")
+        }
+        // Shell scripts in share/ directories
+        if (entryName.startsWith("share/") && entryName.endsWith(".sh")) {
+            return true
+        }
+        return false
+    }
+    
+    /**
+     * Replace hardcoded upstream package paths with our package paths in a text file.
+     */
+    private fun fixPathsInTextFile(file: File, upstreamPrefix: String, ourPrefix: String) {
+        try {
+            val content = file.readText()
+            if (content.contains(upstreamPrefix)) {
+                val fixedContent = content.replace(upstreamPrefix, ourPrefix)
+                file.writeText(fixedContent)
+                Logger.logDebug(LOG_TAG, "Fixed paths in ${file.name}")
+            }
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to fix paths in ${file.absolutePath}: ${e.message}")
+        }
     }
 
     @JvmStatic

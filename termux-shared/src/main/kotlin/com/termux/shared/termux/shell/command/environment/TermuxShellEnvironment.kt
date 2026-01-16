@@ -44,9 +44,11 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
                 environment[ENV_PATH] = "${TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH}:${TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH}/applets"
                 environment[ENV_LD_LIBRARY_PATH] = TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH
             } else {
-                // Termux binaries on Android 7+ rely on DT_RUNPATH, so LD_LIBRARY_PATH should be unset by default
+                // Termux binaries on Android 7+ normally rely on DT_RUNPATH, but upstream binaries
+                // have RUNPATH hardcoded to /data/data/com.termux/files/usr/lib which doesn't work
+                // for our com.termux.kotlin package. Setting LD_LIBRARY_PATH overrides RUNPATH.
                 environment[ENV_PATH] = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH
-                environment.remove(ENV_LD_LIBRARY_PATH)
+                environment[ENV_LD_LIBRARY_PATH] = TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH
             }
         }
 

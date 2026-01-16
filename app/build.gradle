@@ -31,8 +31,8 @@ android {
         applicationId "com.termux.kotlin"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 120
-        versionName "1.0.9"
+        versionCode 121
+        versionName "1.0.10"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -287,11 +287,12 @@ task downloadBootstraps() {
     doLast {
         if (bootstrapPackageVariant == "apt-android-7") {
             def version = "2026.01.11-r1" + "+" + bootstrapPackageVariant
-            // Hashes updated for com.termux.kotlin package paths
-            downloadBootstrap("aarch64", "92bc2a18e2c5dc4bee315da776791a96e9d3049547d7529ed1ec3be93ee375bd", version, bootstrapProjectDir)
-            downloadBootstrap("arm", "6af71304f0d81f87196693989394e7f1f6d8e4109184992525932b518153aad1", version, bootstrapProjectDir)
-            downloadBootstrap("i686", "ac708818abac16e8f1978a68881f3046e0aca9c47aef8c5192344d2e6894b39b", version, bootstrapProjectDir)
-            downloadBootstrap("x86_64", "c5751e0468d7c46528734a2358994bbe0977799a63e4953d1f02bcacd0c3fe8e", version, bootstrapProjectDir)
+            // Use original upstream bootstrap hashes - binaries have RUNPATH hardcoded to com.termux
+            // We override at runtime with LD_LIBRARY_PATH in TermuxShellEnvironment
+            downloadBootstrap("aarch64", "512508166cee5603855a450802ecb1db82c3fdb477c85f8150fc26c26d4f5b02", version, bootstrapProjectDir)
+            downloadBootstrap("arm", "f4940fc3e2cfe74db47eea4747e066ef522ac45dfdcf1088529e772d05d109e2", version, bootstrapProjectDir)
+            downloadBootstrap("i686", "59a1e9546a87bcb4de65089d0f82d04c664ae33a99926d7a2c203a2c4f0230ed", version, bootstrapProjectDir)
+            downloadBootstrap("x86_64", "cbe5c4235c60054d109bb0936dccb03e1c36b890171f75b07f603c6444e11082", version, bootstrapProjectDir)
         } else if (bootstrapPackageVariant == "apt-android-5") {
             // Note: apt-android-5 is no longer actively maintained by Termux.
             // Using legacy checksums for compatibility with Android 5/6 devices.
