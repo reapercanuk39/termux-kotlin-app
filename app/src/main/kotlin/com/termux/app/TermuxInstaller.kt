@@ -235,8 +235,9 @@ object TermuxInstaller {
                 // Create dpkg wrapper to handle hardcoded config path issues
                 createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
                 
-                // NOTE: update-alternatives is an ELF binary in the bootstrap, not a symlink
-                // It doesn't need any special handling - it works with LD_LIBRARY_PATH
+                // Create update-alternatives wrapper to handle hardcoded paths
+                // The binary has paths like /data/data/com.termux/files/usr/var/log compiled in
+                createUpdateAlternativesWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -639,6 +640,76 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
+        }
+    }
+    
+    /**
+     * Create a wrapper script for update-alternatives to handle hardcoded paths.
+     * 
+     * The update-alternatives binary has paths like /data/data/com.termux/files/usr/var/log,
+     * /data/data/com.termux/files/usr/etc/alternatives, etc. compiled in. These can be
+     * overridden with --altdir, --admindir, and --log flags.
+     */
+    private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String) {
+        try {
+            val updateAltFile = File(binDir, "update-alternatives")
+            val updateAltRealFile = File(binDir, "update-alternatives.real")
+            
+            if (!updateAltFile.exists()) {
+                Logger.logWarn(LOG_TAG, "update-alternatives not found, skipping wrapper creation")
+                return
+            }
+            
+            // Check if it's an ELF binary (not a script)
+            val firstBytes = ByteArray(4)
+            updateAltFile.inputStream().use { it.read(firstBytes) }
+            val isElf = firstBytes[0] == 0x7F.toByte() && 
+                        firstBytes[1] == 'E'.code.toByte() && 
+                        firstBytes[2] == 'L'.code.toByte() && 
+                        firstBytes[3] == 'F'.code.toByte()
+            
+            if (!isElf) {
+                Logger.logDebug(LOG_TAG, "update-alternatives is not an ELF binary, skipping wrapper creation")
+                return
+            }
+            
+            // Rename original to .real
+            if (!updateAltFile.renameTo(updateAltRealFile)) {
+                Logger.logError(LOG_TAG, "Failed to rename update-alternatives to update-alternatives.real")
+                return
+            }
+            
+            // Create wrapper script that passes correct paths
+            // --altdir: where alternative links are stored (default: /etc/alternatives)
+            // --admindir: where administrative data is stored (default: /var/lib/dpkg/alternatives)
+            // --log: log file location (default: /var/log/alternatives.log)
+            val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
+# update-alternatives wrapper for com.termux.kotlin
+# Handles hardcoded path issues in the update-alternatives binary
+#
+# The binary has /data/data/com.termux/files/usr/... paths compiled in.
+# We override these with command-line flags.
+
+PREFIX="${ourFilesPrefix}/usr"
+
+# Ensure required directories exist
+mkdir -p "${'$'}PREFIX/etc/alternatives" 2>/dev/null
+mkdir -p "${'$'}PREFIX/var/lib/dpkg/alternatives" 2>/dev/null
+mkdir -p "${'$'}PREFIX/var/log" 2>/dev/null
+
+# Call real binary with overridden paths
+exec "${ourFilesPrefix}/usr/bin/update-alternatives.real" \
+    --altdir "${'$'}PREFIX/etc/alternatives" \
+    --admindir "${'$'}PREFIX/var/lib/dpkg/alternatives" \
+    --log "${'$'}PREFIX/var/log/alternatives.log" \
+    "${'$'}@"
+"""
+            updateAltFile.writeText(wrapperScript)
+            Os.chmod(updateAltFile.absolutePath, 493) // 0755 - executable by all
+            
+            Logger.logInfo(LOG_TAG, "Created update-alternatives wrapper script")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to create update-alternatives wrapper: ${e.message}")
         }
     }
 

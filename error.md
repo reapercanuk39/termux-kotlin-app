@@ -533,3 +533,34 @@ file: ELF 64-bit LSB shared object, corrupted program header size
 
 **Lesson Learned:**
 NEVER assume a file is a script based on its name. Always check with `file` command or by looking at the first bytes (ELF magic: `\x7fELF`, script shebang: `#!`).
+
+---
+
+## Error #9: update-alternatives hardcoded paths (v1.0.25)
+**Date:** 2026-01-16  
+**Error Message:**
+```
+update-alternatives: error: cannot create log directory
+'/data/data/com.termux/files/usr/var/log': Permission denied
+```
+
+**Status:** ✅ FIXED in v1.0.26
+
+**Root Cause:** Now that the binary is no longer corrupted (v1.0.25 fixed that), it runs but fails because it has hardcoded paths compiled into the ELF binary pointing to `/data/data/com.termux/files/...`. These paths don't exist (or are inaccessible if original Termux is installed).
+
+**Fix Applied (v1.0.26):**
+Created a wrapper script for update-alternatives (similar to dpkg wrapper):
+1. Rename `update-alternatives` → `update-alternatives.real`
+2. Create wrapper script that passes `--altdir`, `--admindir`, and `--log` flags to override hardcoded paths
+3. Wrapper also creates required directories before calling the real binary
+
+```kotlin
+private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String) {
+    // Check if ELF binary
+    // Rename to .real
+    // Create wrapper that overrides paths with command-line flags:
+    //   --altdir PREFIX/etc/alternatives
+    //   --admindir PREFIX/var/lib/dpkg/alternatives  
+    //   --log PREFIX/var/log/alternatives.log
+}
+```
