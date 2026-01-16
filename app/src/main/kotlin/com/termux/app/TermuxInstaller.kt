@@ -234,7 +234,7 @@ object TermuxInstaller {
                 createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
                 
                 // Ensure update-alternatives exists (create symlink if missing)
-                ensureUpdateAlternativesExists(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"))
+                ensureUpdateAlternativesExists(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -645,20 +645,24 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
      * If the symlink wasn't created (not in SYMLINKS.txt or creation failed), create it manually.
      * This is needed for dpkg postinst scripts that call update-alternatives.
      */
-    private fun ensureUpdateAlternativesExists(binDir: File) {
+    private fun ensureUpdateAlternativesExists(binDir: File, ourFilesPrefix: String) {
         try {
             val updateAltFile = File(binDir, "update-alternatives")
             val shareDpkgDir = File(binDir.parentFile, "share/dpkg")
             val updateAltTarget = File(shareDpkgDir, "update-alternatives")
             
-            // If update-alternatives already exists (as file or symlink), nothing to do
-            if (updateAltFile.exists()) {
-                Logger.logDebug(LOG_TAG, "update-alternatives already exists at ${updateAltFile.absolutePath}")
+            Logger.logDebug(LOG_TAG, "Checking update-alternatives: file=${updateAltFile.absolutePath}, exists=${updateAltFile.exists()}, target=${updateAltTarget.absolutePath}, targetExists=${updateAltTarget.exists()}")
+            
+            // Check if it's a working symlink or real file
+            if (updateAltFile.exists() && updateAltFile.canExecute()) {
+                Logger.logDebug(LOG_TAG, "update-alternatives already exists and is executable")
                 return
             }
             
             // Check if the target exists in share/dpkg/
             if (updateAltTarget.exists()) {
+                // Delete any existing broken symlink first using NIO (handles symlinks properly)
+                java.nio.file.Files.deleteIfExists(updateAltFile.toPath())
                 // Create symlink: bin/update-alternatives -> ../share/dpkg/update-alternatives
                 Os.symlink("../share/dpkg/update-alternatives", updateAltFile.absolutePath)
                 Logger.logInfo(LOG_TAG, "Created update-alternatives symlink: ${updateAltFile.absolutePath} -> ../share/dpkg/update-alternatives")
@@ -667,14 +671,18 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             
             // If neither exists, create a stub script that does nothing
             // This allows postinst scripts to run without failing
-            Logger.logWarn(LOG_TAG, "update-alternatives not found in share/dpkg/. Creating stub script.")
+            Logger.logWarn(LOG_TAG, "update-alternatives not found in share/dpkg/. Creating stub script at ${updateAltFile.absolutePath}")
             
-            // Delete any broken symlink that might exist
-            if (updateAltFile.delete()) {
-                Logger.logDebug(LOG_TAG, "Deleted broken symlink at ${updateAltFile.absolutePath}")
+            // Delete any broken symlink that might exist using NIO (handles symlinks properly)
+            try {
+                java.nio.file.Files.deleteIfExists(updateAltFile.toPath())
+                Logger.logDebug(LOG_TAG, "Deleted existing file/symlink at ${updateAltFile.absolutePath}")
+            } catch (e: Exception) {
+                Logger.logDebug(LOG_TAG, "No file to delete or delete failed: ${e.message}")
             }
             
-            val stubScript = """#!/${binDir.parentFile.absolutePath}/bin/sh
+            // Use the FINAL prefix path for shebang (not staging path)
+            val stubScript = """#!/${ourFilesPrefix}/usr/bin/sh
 # Stub update-alternatives script
 # The real update-alternatives from dpkg package is not present in bootstrap
 # This stub allows package postinst scripts to run without errors
@@ -682,11 +690,19 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 exit 0
 """
             updateAltFile.writeText(stubScript)
-            Os.chmod(updateAltFile.absolutePath, 448) // 0700
-            Logger.logInfo(LOG_TAG, "Created update-alternatives stub script")
+            Os.chmod(updateAltFile.absolutePath, 493) // 0755 - executable by all
+            Logger.logInfo(LOG_TAG, "Created update-alternatives stub script successfully")
+            
+            // Verify the file was created
+            if (updateAltFile.exists() && updateAltFile.canExecute()) {
+                Logger.logInfo(LOG_TAG, "Verified: update-alternatives stub script is in place and executable")
+            } else {
+                Logger.logError(LOG_TAG, "Failed to verify update-alternatives stub script: exists=${updateAltFile.exists()}, executable=${updateAltFile.canExecute()}")
+            }
             
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to ensure update-alternatives exists: ${e.message}")
+            e.printStackTrace()
         }
     }
 
