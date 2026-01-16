@@ -50,6 +50,14 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
                 environment[ENV_PATH] = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH
                 environment[ENV_LD_LIBRARY_PATH] = TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH
             }
+            
+            // dpkg and apt have hardcoded paths to /data/data/com.termux compiled into their
+            // ELF binaries. We can't modify ELF binaries without corrupting them, so we use
+            // environment variables to override the paths at runtime.
+            // DPKG_ADMINDIR: where dpkg stores its database (status, available, etc.)
+            // DPKG_DATADIR: where dpkg data files are stored
+            environment[ENV_DPKG_ADMINDIR] = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/var/lib/dpkg"
+            environment[ENV_DPKG_DATADIR] = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/share/dpkg"
         }
 
         return environment
@@ -72,6 +80,12 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
 
         /** Environment variable for the termux [TermuxConstants.TERMUX_PREFIX_DIR_PATH]. */
         const val ENV_PREFIX = "PREFIX"
+        
+        /** Environment variable for dpkg administrative directory (database location). */
+        const val ENV_DPKG_ADMINDIR = "DPKG_ADMINDIR"
+        
+        /** Environment variable for dpkg data directory. */
+        const val ENV_DPKG_DATADIR = "DPKG_DATADIR"
 
         /** Init [TermuxShellEnvironment] constants and caches. */
         @JvmStatic

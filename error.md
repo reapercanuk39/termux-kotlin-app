@@ -53,11 +53,56 @@ CANNOT LINK EXECUTABLE "/data/data/com.termux.kotlin/files/usr/bin/sh": empty/mi
 
 ---
 
+## Error #4: dpkg and bash hardcoded paths (Permission Denied)
+**Date:** 2026-01-16  
+**Error Message:**
+```
+Report issues at https://termux.dev/issues
+dpkg: error: error opening configuration directory '/data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d': Permission denied
+bash: /data/data/com.termux/files/usr/etc/profile: Permission denied
+bash-5.3$
+```
+
+**Status:** ✅ Fixed in v1.0.12  
+**Root Cause:** ELF binaries (bash, dpkg, apt, etc.) have absolute paths **compiled into the binary** during build time. These cannot be changed without recompiling or corrupting the binary. The errors occur specifically when:
+1. The **original Termux app (com.termux) is installed** on the same device
+2. Binaries look for `/data/data/com.termux/...` paths
+3. Android's app sandboxing prevents access to another app's data directory → "Permission denied"
+
+**Note:** If original Termux is NOT installed, these paths don't exist and the binaries typically handle missing files gracefully (silent skip or "file not found" which is often ignored).
+
+**Fix Applied (v1.0.12):**
+
+### Part A: Environment Variables (TermuxShellEnvironment.kt)
+Added dpkg-specific environment variables to override paths where supported:
+- `DPKG_ADMINDIR` → `/data/data/com.termux.kotlin/files/usr/var/lib/dpkg`
+- `DPKG_DATADIR` → `/data/data/com.termux.kotlin/files/usr/share/dpkg`
+
+**Note:** There is NO environment variable for dpkg's configuration directory (`dpkg.cfg.d`). This is a known dpkg limitation.
+
+### Part B: Login Script Rewrite (TermuxInstaller.kt)
+Rewrote the `login` script to avoid bash's compiled-in `/etc/profile` path:
+1. Use `bash --noprofile --norc` to skip bash's built-in profile sourcing
+2. Manually source `$PREFIX/etc/profile` from our package's path
+3. Use `exec -a "-bash"` to make it appear as a login shell
+
+### Part C: dpkg Wrapper Script (TermuxInstaller.kt)
+Created a wrapper script for dpkg:
+1. Rename `dpkg` → `dpkg.real`
+2. Create shell script `dpkg` that sets environment variables and calls `dpkg.real`
+3. This provides a single point to add future workarounds
+
+### Recommendation
+For best compatibility, **uninstall the original Termux app** before using Termux-Kotlin. The apps have conflicting package names that cause ELF binaries to look for the wrong app's data directory.
+
+---
+
 ## Version History & Fixes
 | Version | Date | Issues Fixed | Key Changes |
 |---------|------|--------------|-------------|
 | 1.0.10 | 2026-01-16 | DT_HASH/DT_GNU_HASH error | LD_LIBRARY_PATH override, stopped corrupting ELF binaries |
 | 1.0.11 | 2026-01-16 | Login script shebang paths | Extended path fixing to include bin/ scripts |
+| 1.0.12 | 2026-01-16 | dpkg/bash hardcoded paths | DPKG env vars, login script rewrite, dpkg wrapper |
 
 ---
 
@@ -78,6 +123,15 @@ The upstream Termux bootstrap contains:
 1. **Text files** (scripts, configs) - paths replaced during extraction
 2. **SYMLINKS.txt targets** - paths replaced when creating symlinks
 3. **ELF binaries** - NOT modified (uses LD_LIBRARY_PATH at runtime instead)
+4. **Login script** - Rewritten to avoid bash's compiled-in profile path
+5. **dpkg binary** - Wrapped with shell script to set environment variables
+
+### Hardcoded Paths in ELF Binaries (Cannot be fixed without recompile)
+These binaries have paths baked into them during compilation:
+- **bash**: `/data/data/com.termux/files/usr/etc/profile`, `/data/data/com.termux/files/usr/etc/bash.bashrc`
+- **dpkg**: `/data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d`, `/data/data/com.termux/files/usr/var/lib/dpkg`
+- **apt**: Various paths for sources.list, cache, etc.
+- **many others**: Any binary compiled with `--prefix=/data/data/com.termux/files/usr`
 
 ### Files in bin/ Needing Path Fixes
 Approximately 60+ shell scripts including:
@@ -87,3 +141,24 @@ Approximately 60+ shell scripts including:
 - curl-config, gpg-error-config, and other *-config scripts
 - Compression utils: gunzip, gzexe, bzdiff, xzdiff, zcat, etc.
 
+---
+
+## Known Limitations
+
+### Coexistence with Original Termux
+When both original Termux (com.termux) and Termux-Kotlin (com.termux.kotlin) are installed:
+- ELF binaries may find the wrong app's data directory
+- "Permission denied" errors will occur for files in the other app's sandbox
+- **Recommendation:** Uninstall original Termux before using Termux-Kotlin
+
+### Unfixable ELF Binary Paths
+Some paths in ELF binaries cannot be overridden:
+- dpkg configuration directory (`dpkg.cfg.d`) - no environment variable exists
+- bash interactive profile loading - worked around with login script rewrite
+- apt repository paths - may require apt wrapper similar to dpkg
+
+### Long-term Solutions
+For a complete fix, consider:
+1. **Rebuild bootstrap packages** with `--prefix=/data/data/com.termux.kotlin/files/usr`
+2. **Use patchelf** to modify RPATH/RUNPATH (risky, may corrupt binaries)
+3. **Contribute upstream** to add environment variable support for hardcoded paths

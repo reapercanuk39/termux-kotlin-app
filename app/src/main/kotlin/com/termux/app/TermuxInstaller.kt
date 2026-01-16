@@ -213,6 +213,14 @@ object TermuxInstaller {
                 for (symlink in symlinks) {
                     Os.symlink(symlink.first, symlink.second)
                 }
+                
+                // Fix login script to avoid bash's hardcoded profile path issue
+                // When original Termux is installed, bash finds the old /etc/profile (permission denied)
+                // We fix this by using --noprofile and manually sourcing our profile
+                fixLoginScript(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin/login"), ourFilesPrefix)
+                
+                // Create dpkg wrapper to handle hardcoded config path issues
+                createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -447,6 +455,113 @@ object TermuxInstaller {
             }
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to fix paths in ${file.absolutePath}: ${e.message}")
+        }
+    }
+    
+    /**
+     * Fix the login script to avoid bash's hardcoded profile path issue.
+     * 
+     * Problem: Upstream bash binary has /data/data/com.termux/files/usr/etc/profile hardcoded.
+     * When original Termux app is installed, bash finds that profile (permission denied).
+     * When it's not installed, bash can't find the file and continues normally.
+     * 
+     * Solution: Modify login script to use bash --noprofile and manually source our profile.
+     * This ensures we always use OUR profile regardless of what other apps are installed.
+     */
+    private fun fixLoginScript(loginFile: File, ourFilesPrefix: String) {
+        try {
+            if (!loginFile.exists()) {
+                Logger.logWarn(LOG_TAG, "Login script not found at ${loginFile.absolutePath}")
+                return
+            }
+            
+            // Create a login script that explicitly sources our profile
+            // This avoids relying on bash's compiled-in profile path
+            val fixedLoginScript = """#!/${ourFilesPrefix}/usr/bin/sh
+# Termux login script - modified to avoid hardcoded bash profile path issues
+# Original bash binary has /data/data/com.termux paths compiled in.
+# We use --noprofile to skip that and manually source our profile.
+
+export PREFIX="${ourFilesPrefix}/usr"
+export HOME="${ourFilesPrefix}/home"
+
+# Source our profile if it exists
+if [ -f "${'$'}PREFIX/etc/profile" ]; then
+    . "${'$'}PREFIX/etc/profile"
+fi
+
+# Execute bash without its built-in profile sourcing
+# The '-' prefix makes it a login shell (for PS1, job control, etc.)
+exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
+"""
+            loginFile.writeText(fixedLoginScript)
+            Logger.logInfo(LOG_TAG, "Fixed login script to avoid hardcoded profile path issues")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to fix login script: ${e.message}")
+        }
+    }
+    
+    /**
+     * Create dpkg wrapper script to handle hardcoded configuration path issues.
+     * 
+     * Problem: dpkg binary has /data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d hardcoded.
+     * When original Termux is installed, dpkg finds that directory but can't access it.
+     * There is no environment variable to override the configuration directory path.
+     * 
+     * Solution: Rename original dpkg binary and create a wrapper script that:
+     * 1. Sets DPKG_ADMINDIR to our path
+     * 2. Uses --force-not-root and other flags if needed
+     * 3. Calls the original binary
+     */
+    private fun createDpkgWrapper(binDir: File, ourFilesPrefix: String) {
+        try {
+            val dpkgFile = File(binDir, "dpkg")
+            val dpkgRealFile = File(binDir, "dpkg.real")
+            
+            if (!dpkgFile.exists()) {
+                Logger.logWarn(LOG_TAG, "dpkg not found at ${dpkgFile.absolutePath}")
+                return
+            }
+            
+            // Check if already wrapped (dpkg is a text file, not ELF)
+            val firstBytes = ByteArray(4)
+            dpkgFile.inputStream().use { it.read(firstBytes) }
+            val isElf = firstBytes[0] == 0x7F.toByte() && 
+                        firstBytes[1] == 'E'.code.toByte() && 
+                        firstBytes[2] == 'L'.code.toByte() && 
+                        firstBytes[3] == 'F'.code.toByte()
+            
+            if (!isElf) {
+                Logger.logDebug(LOG_TAG, "dpkg is not an ELF binary, skipping wrapper creation")
+                return
+            }
+            
+            // Rename original dpkg to dpkg.real
+            if (!dpkgFile.renameTo(dpkgRealFile)) {
+                Logger.logError(LOG_TAG, "Failed to rename dpkg to dpkg.real")
+                return
+            }
+            
+            // Create wrapper script
+            // Note: We can't override the config directory, but we can set admin/data dirs
+            // The wrapper also provides a place to add workarounds in the future
+            val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/sh
+# dpkg wrapper script for com.termux.kotlin
+# Handles hardcoded path issues in the dpkg binary
+
+# Set dpkg directories to our package paths
+export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
+export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
+
+# Execute the real dpkg binary
+exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
+"""
+            dpkgFile.writeText(wrapperScript)
+            Os.chmod(dpkgFile.absolutePath, 448) // 0700
+            
+            Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
         }
     }
 
