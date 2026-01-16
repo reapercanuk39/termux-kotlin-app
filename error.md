@@ -265,22 +265,61 @@ This ensures all maintainer scripts have their shebangs properly replaced from `
 | 1.0.13 | 2026-01-16 | (Same as 1.0.12) | Release with dpkg/bash fixes |
 | 1.0.14 | 2026-01-16 | exec -a in sh, dpkg config dir | Login uses bash shebang, dpkg intercepts --version |
 | 1.0.15 | 2026-01-16 | dpkg postinst bad interpreter | Fix paths in var/lib/dpkg/info/ maintainer scripts |
+| 1.0.16 | 2026-01-16 | update-alternatives hardcoded paths | Wrapper script with --altdir/--admindir overrides |
 
 ---
 
-## Current Status (2026-01-16 17:38 UTC)
+## Error #7: update-alternatives hardcoded paths
+**Date:** 2026-01-16  
+**Error Message:**
+```
+[*] Running 'coreutils' package postinst
+update-alternatives: error: cannot stat file '/data/data/com.termux/files/usr/etc/alternatives/pager': Permission denied
+[*] Failed to run 'coreutils' package postinst
+```
 
-**v1.0.15 Release:** ✅ Complete - APKs available at https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.15
+**Status:** ✅ Fixed in v1.0.16
+
+**Root Cause:** The `update-alternatives` command (called by `coreutils.postinst` and other package postinst scripts) has the alternatives directory path `/data/data/com.termux/files/usr/etc/alternatives` hardcoded - either compiled into the binary or configured in the script.
+
+When the postinst script runs `update-alternatives --install ... pager ...`:
+1. If original Termux is installed → "Permission denied" (sandbox blocks access)
+2. If original Termux is NOT installed → "No such file or directory"
+
+**Fix Applied (v1.0.16):**
+Created a wrapper script for `update-alternatives` that passes `--altdir` and `--admindir` flags to force correct paths:
+
+```kotlin
+private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String) {
+    // Rename update-alternatives → update-alternatives.real
+    // Create wrapper that adds: --altdir and --admindir flags
+    // This overrides any hardcoded paths in the binary
+}
+```
+
+The wrapper script:
+```sh
+#!/.../sh
+ALTDIR="${ourFilesPrefix}/usr/etc/alternatives"
+ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg/alternatives"
+exec update-alternatives.real --altdir "$ALTDIR" --admindir "$ADMINDIR" "$@"
+```
+
+This ensures `update-alternatives` always uses our package's paths regardless of what's compiled into the binary.
+
+---
+
+## Current Status (2026-01-16 17:43 UTC)
+
+**v1.0.16 Release:** In progress
 
 ### Changes Made:
-1. **TermuxInstaller.kt** - Added `var/lib/dpkg/info/` scripts to path fixing logic
-2. **error.md** - Documented Error #6 with root cause and fixes
+1. **TermuxInstaller.kt** - Added `createUpdateAlternativesWrapper()` function
+2. **TermuxInstaller.kt** - Call wrapper creation during bootstrap
+3. **error.md** - Documented Error #7 with root cause and fixes
 
-### Completed:
-- [x] v1.0.15 release workflow completed successfully
-- [x] APKs uploaded to GitHub Releases (arm64-v8a, armeabi-v7a, x86, x86_64, universal)
-
-### Testing:
-- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.15
+### Pending:
+- [ ] Wait for v1.0.16 release workflow to complete
+- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.16
 - [ ] Test bootstrap second stage completes without errors
-- [ ] Verify `coreutils.postinst` and other maintainer scripts run successfully
+- [ ] Verify `update-alternatives` runs successfully in postinst scripts
