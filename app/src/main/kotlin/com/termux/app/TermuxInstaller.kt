@@ -211,7 +211,18 @@ object TermuxInstaller {
 
                 if (symlinks.isEmpty()) throw RuntimeException("No SYMLINKS.txt encountered")
                 for (symlink in symlinks) {
-                    Os.symlink(symlink.first, symlink.second)
+                    try {
+                        val targetFile = File(symlink.second)
+                        // Delete existing file/symlink if present (zip might contain placeholder files)
+                        if (targetFile.exists()) {
+                            targetFile.delete()
+                            Logger.logDebug(LOG_TAG, "Deleted existing file before creating symlink: ${symlink.second}")
+                        }
+                        Os.symlink(symlink.first, symlink.second)
+                    } catch (e: Exception) {
+                        Logger.logError(LOG_TAG, "Failed to create symlink ${symlink.second} -> ${symlink.first}: ${e.message}")
+                        throw e
+                    }
                 }
                 
                 // Fix login script to avoid bash's hardcoded profile path issue
@@ -436,6 +447,12 @@ object TermuxInstaller {
         
         // Shell scripts in share/ directories
         if (entryName.startsWith("share/") && entryName.endsWith(".sh")) {
+            return true
+        }
+        
+        // dpkg-related scripts in share/dpkg/ 
+        // These are Perl scripts (update-alternatives, etc.) with hardcoded paths
+        if (entryName.startsWith("share/dpkg/")) {
             return true
         }
         

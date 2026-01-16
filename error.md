@@ -346,27 +346,75 @@ This ensures all Perl/shell scripts in `bin/` that start with `dpkg-` or are in 
 | 1.0.15 | 2026-01-16 | dpkg postinst bad interpreter | Fix paths in var/lib/dpkg/info/ maintainer scripts |
 | 1.0.16 | 2026-01-16 | update-alternatives (wrapper) | Wrapper approach - DID NOT WORK |
 | 1.0.17 | 2026-01-16 | update-alternatives (direct fix) | Fix internal paths in Perl/dpkg scripts directly |
+| 1.0.18 | 2026-01-16 | update-alternatives not found | Fix share/dpkg/ paths, robust symlink creation |
 
 ---
 
-## Current Status (2026-01-16 18:11 UTC)
+## Current Status (2026-01-16 19:10 UTC)
 
-**v1.0.17 Release:** In progress
+**v1.0.18 Release:** In progress
 
 ### Changes Made:
-1. **TermuxInstaller.kt** - Added `update-alternatives` and `dpkg-*` to known scripts list
-2. **TermuxInstaller.kt** - Added `dpkg-` prefix matching for all dpkg scripts
-3. **TermuxInstaller.kt** - Removed wrapper approach (was not effective)
-4. **error.md** - Updated Error #7 with revised fix
+1. **TermuxInstaller.kt** - Added `share/dpkg/` to path fixing logic
+2. **TermuxInstaller.kt** - Added error handling around symlink creation
+3. **TermuxInstaller.kt** - Delete existing files before creating symlinks
+4. **error.md** - Added Error #8 documentation
 
-### Pending:
-- [ ] Wait for v1.0.17 release workflow to complete
-- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.17
+### Testing:
+- [ ] Wait for v1.0.18 release workflow to complete
+- [ ] Download APK and install on emulator
 - [ ] **IMPORTANT:** Clear app data before installing (fresh bootstrap required)
 - [ ] Test bootstrap second stage completes without errors
-
-### Pending:
-- [ ] Wait for v1.0.16 release workflow to complete
-- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.16
-- [ ] Test bootstrap second stage completes without errors
 - [ ] Verify `update-alternatives` runs successfully in postinst scripts
+---
+
+## Error #8: update-alternatives: not found
+**Date:** 2026-01-16  
+**Error Message:**
+```
+Starting fallback run of termux bootstrap second stage
+[*] Running termux bootstrap second stage
+[*] Running postinst maintainer scripts
+[*] Running 'coreutils' package postinst
+/data/data/com.termux.kotlin/files/usr/var/lib/dpkg/info/coreutils.postinst: 6: /data/data/com.termux.kotlin/files/usr/bin/update-alternatives: not found
+[*] Failed to run 'coreutils' package postinst
+```
+
+**Status:** ✅ Fixed in v1.0.18
+
+**Root Cause:** The `update-alternatives` Perl script is located in `share/dpkg/update-alternatives` in the bootstrap, with a symlink at `bin/update-alternatives`. Two issues:
+1. The `share/dpkg/` directory was not included in `isTextFileNeedingPathFix()`, so the Perl script's internal paths weren't being replaced
+2. The symlink creation didn't have proper error handling - if a file existed at the symlink location (e.g., placeholder from zip), the symlink creation would fail silently or conflict
+
+**Fix Applied (v1.0.18):**
+1. Added `share/dpkg/` to path fixing logic to fix all dpkg-related Perl scripts:
+```kotlin
+// dpkg-related scripts in share/dpkg/ 
+// These are Perl scripts (update-alternatives, etc.) with hardcoded paths
+if (entryName.startsWith("share/dpkg/")) {
+    return true
+}
+```
+
+2. Added error handling around symlink creation with cleanup of existing files:
+```kotlin
+for (symlink in symlinks) {
+    try {
+        val targetFile = File(symlink.second)
+        // Delete existing file/symlink if present (zip might contain placeholder files)
+        if (targetFile.exists()) {
+            targetFile.delete()
+            Logger.logDebug(LOG_TAG, "Deleted existing file before creating symlink: ${symlink.second}")
+        }
+        Os.symlink(symlink.first, symlink.second)
+    } catch (e: Exception) {
+        Logger.logError(LOG_TAG, "Failed to create symlink ${symlink.second} -> ${symlink.first}: ${e.message}")
+        throw e
+    }
+}
+```
+
+This ensures:
+- All Perl scripts in `share/dpkg/` have their hardcoded paths fixed
+- Symlink creation is robust and won't fail due to existing placeholder files
+- Any symlink failures are logged for debugging
