@@ -86,3 +86,4 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         run: |
           echo "Tag ${{ steps.next_version.outputs.new_tag }} pushed - release.yml will handle the rest"
+# Test trigger for auto-release workflow
