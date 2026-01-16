@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.16] - 2026-01-16
+
+### 🐛 Bug Fixes
+-  Add update-alternatives wrapper for hardcoded paths (Error #7)
+
+### 📚 Documentation
+-  Update error.md with v1.0.15 release status
+-  Update CHANGELOG for v1.0.15 [skip ci]
+
+
 ## [v1.0.15] - 2026-01-16
 
 ### 🐛 Bug Fixes
