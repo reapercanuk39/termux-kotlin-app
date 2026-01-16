@@ -690,12 +690,9 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             // Delete any broken symlink that might exist
             deleteFileOrSymlink(updateAltFile)
             
-            // Use bash for shebang - sh might not exist if dash isn't in bootstrap
-            val stubScript = """#!/${ourFilesPrefix}/usr/bin/bash
-# Stub update-alternatives script
-# The real update-alternatives from dpkg package is not present in bootstrap
-# This stub allows package postinst scripts to run without errors
-# It simply ignores all arguments and exits successfully
+            // Use /system/bin/sh which always exists on Android
+            val stubScript = """#!/system/bin/sh
+# Stub update-alternatives script - exits successfully doing nothing
 exit 0
 """
             updateAltFile.writeText(stubScript)
