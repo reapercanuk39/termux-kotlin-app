@@ -220,3 +220,20 @@ This approach works because:
 | 1.0.12 | 2026-01-16 | dpkg/bash hardcoded paths | DPKG env vars, login script rewrite, dpkg wrapper |
 | 1.0.13 | 2026-01-16 | (Same as 1.0.12) | Release with dpkg/bash fixes |
 | 1.0.14 | 2026-01-16 | exec -a in sh, dpkg config dir | Login uses bash shebang, dpkg intercepts --version |
+
+---
+
+## Current Status (2026-01-16 16:17 UTC)
+
+**v1.0.14 Release:** In progress - GitHub Actions workflow running (run ID: 21072947033)
+
+### Changes Made:
+1. **TermuxInstaller.kt** - Login script now uses `#!/.../bash` shebang
+2. **TermuxInstaller.kt** - dpkg wrapper intercepts `--version` with hardcoded response
+3. **error.md** - Documented Error #5 with root cause and fixes
+
+### Pending:
+- [ ] Wait for v1.0.14 release workflow to complete
+- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.14
+- [ ] Test with both original Termux and Termux-Kotlin installed
+- [ ] Verify bootstrap second stage completes without errors
