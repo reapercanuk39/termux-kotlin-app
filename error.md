@@ -673,3 +673,88 @@ After v1.0.27:
 - [ ] Bash prompt appears
 - [ ] `pkg update` works
 - [ ] `pkg install` works
+
+---
+
+## Error #10: apt hardcoded paths in libapt-pkg.so
+
+**Date:** 2026-01-17  
+**Error Message:**
+```
+W: Unable to read /data/data/com.termux/files/usr/etc/apt/apt.conf.d/ - DirectoryExists (13: Permission denied)
+E: Unable to determine a suitable packaging system type
+```
+
+**Status:** 🔄 In Progress  
+**Root Cause:** The apt binary and libapt-pkg.so library have hardcoded paths compiled into the ELF binary:
+```
+/data/data/com.termux/files/usr/etc/apt
+/data/data/com.termux/cache/apt
+/data/data/com.termux/files/usr/var/lib/apt
+/data/data/com.termux/files/usr/var/log/apt
+```
+
+When `pkg update` runs, apt tries to read config from the old Termux path which either:
+- Doesn't exist (if original Termux not installed)
+- Is permission denied (if original Termux is installed)
+
+**Affected Binaries:**
+| Binary | Type | Has Hardcoded Paths |
+|--------|------|---------------------|
+| apt | ELF | ✅ via libapt-pkg.so |
+| apt-get | ELF | ✅ via libapt-pkg.so |
+| apt-cache | ELF | ✅ via libapt-pkg.so |
+| apt-config | ELF | ✅ via libapt-pkg.so |
+| apt-mark | ELF | ✅ via libapt-pkg.so |
+| apt-key | Script | ✅ (already fixed) |
+| libapt-pkg.so | ELF library | ✅ (source of paths) |
+
+**Solution:** Create wrapper scripts for apt, apt-get, apt-cache, apt-config, apt-mark that:
+1. Rename original binary to `.real`
+2. Create wrapper that passes `-o` flags to override paths:
+   - `-o Dir::Etc="${PREFIX}/etc/apt"`
+   - `-o Dir::State="${PREFIX}/var/lib/apt"`
+   - `-o Dir::Cache="${CACHE_DIR}/apt"`
+   - `-o Dir::Log="${PREFIX}/var/log/apt"`
+
+**Also Found - Scripts Still With Hardcoded Paths:**
+These scripts in bin/ have hardcoded /data/data/com.termux paths but are already in knownScripts list:
+- `pkg` - references MIRROR_BASE_DIR, cache paths
+- `termux-change-repo` - references MIRROR_BASE_DIR, symlinks
+
+The scripts ARE being path-fixed during extraction, so they should work.
+
+---
+
+## Complete Bootstrap Analysis - All Files With Hardcoded Paths
+
+### Category 1: ELF Binaries (Cannot Modify - Need Wrappers)
+
+**Binaries Needing Wrappers (have config/data path issues):**
+| Binary | Wrapper Status | Paths in Binary |
+|--------|----------------|-----------------|
+| dpkg | ✅ Wrapper created | config, database |
+| update-alternatives | ✅ Wrapper created | altdir, admindir, log |
+| apt, apt-* | ❌ Need wrapper | etc/apt, var/lib/apt, cache/apt |
+
+**Binaries That Work (only lib path, fixed by LD_LIBRARY_PATH):**
+All other ELF binaries (bash, grep, sed, etc.) only have library paths which are overridden at runtime by LD_LIBRARY_PATH.
+
+### Category 2: Scripts Being Fixed (in isTextFileNeedingPathFix)
+- bin/: 75+ scripts (login, chsh, pkg, termux-*, apt-key, etc.)
+- etc/: 8 files (bash.bashrc, profile, motd.sh, etc.)
+- var/lib/dpkg/info/: postinst, prerm scripts
+- share/dpkg/: Perl scripts
+- libexec/: various scripts
+
+### Category 3: Scripts NOT Being Fixed (GAPS)
+Scripts that have hardcoded paths but might not be covered:
+- etc/termux-login.sh (ends with .sh, should be covered)
+- etc/profile.d/*.sh (ends with .sh, should be covered)
+- etc/motd.sh (ends with .sh, should be covered)
+- etc/profile (ends with "profile", should be covered)
+- etc/bash.bashrc (ends with "bashrc", should be covered)
+- etc/nanorc (ends with "nanorc", should be covered)
+- etc/termux/termux-bootstrap/second-stage/* (contains "termux-bootstrap", should be covered)
+
+All etc/ files appear to be covered by current rules. ✅
