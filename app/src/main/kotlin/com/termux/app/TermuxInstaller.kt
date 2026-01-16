@@ -221,9 +221,6 @@ object TermuxInstaller {
                 
                 // Create dpkg wrapper to handle hardcoded config path issues
                 createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
-                
-                // Create update-alternatives wrapper to handle hardcoded alternatives paths
-                createUpdateAlternativesWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -398,7 +395,7 @@ object TermuxInstaller {
         // Scripts in bin/ - login, chsh, su, termux-*, pkg, apt-key, etc.
         // These have shebangs pointing to /data/data/com.termux/files/usr/bin/sh or bash
         if (entryName.startsWith("bin/")) {
-            // Known shell scripts that need fixing (not ELF binaries)
+            // Known shell/perl scripts that need fixing (not ELF binaries)
             val knownScripts = setOf(
                 "login", "chsh", "su", "am", "pm", "cmd", "dalvikvm", "logcat", "getprop", "settings",
                 "ping", "ping6", "df", "top", "red",
@@ -409,12 +406,17 @@ object TermuxInstaller {
                 "zfgrep", "zforce", "zgrep", "zmore", "znew", "uncompress", "zipgrep",
                 "bzdiff", "bzgrep", "bzmore",
                 "xzdiff", "xzgrep", "xzless", "xzmore",
-                "wcurl"
+                "wcurl",
+                // dpkg-related scripts (Perl scripts with hardcoded paths)
+                "update-alternatives", "dpkg-divert", "dpkg-statoverride",
+                "dpkg-trigger", "dpkg-maintscript-helper"
             )
             val basename = entryName.removePrefix("bin/")
             if (knownScripts.contains(basename)) return true
             // All termux-* scripts
             if (basename.startsWith("termux-")) return true
+            // All dpkg-* scripts (many are Perl with hardcoded paths)
+            if (basename.startsWith("dpkg-")) return true
             // .sh and .bash script extensions
             if (entryName.endsWith(".sh") || entryName.endsWith(".bash")) return true
         }
@@ -613,86 +615,6 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
-        }
-    }
-    
-    /**
-     * Create update-alternatives wrapper script to handle hardcoded directory paths.
-     * 
-     * Problem: update-alternatives has /data/data/com.termux/files/usr/etc/alternatives hardcoded.
-     * When original Termux is installed, it can't access that directory (Permission denied).
-     * When original Termux is NOT installed, the path doesn't exist.
-     * 
-     * Solution: Create a wrapper that passes --altdir and --admindir flags to force correct paths.
-     * This overrides any hardcoded paths in the binary.
-     */
-    private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String) {
-        try {
-            val updateAltFile = File(binDir, "update-alternatives")
-            val updateAltRealFile = File(binDir, "update-alternatives.real")
-            
-            if (!updateAltFile.exists()) {
-                Logger.logWarn(LOG_TAG, "update-alternatives not found at ${updateAltFile.absolutePath}")
-                return
-            }
-            
-            // Create our alternatives directories
-            val altDir = File(binDir.parentFile, "etc/alternatives")
-            val adminDir = File(binDir.parentFile, "var/lib/dpkg/alternatives")
-            if (!altDir.exists()) {
-                altDir.mkdirs()
-                Logger.logInfo(LOG_TAG, "Created alternatives directory: ${altDir.absolutePath}")
-            }
-            if (!adminDir.exists()) {
-                adminDir.mkdirs()
-                Logger.logInfo(LOG_TAG, "Created alternatives admin directory: ${adminDir.absolutePath}")
-            }
-            
-            // Check if already wrapped (update-alternatives might be script or ELF)
-            val firstBytes = ByteArray(4)
-            updateAltFile.inputStream().use { it.read(firstBytes) }
-            val isElf = firstBytes[0] == 0x7F.toByte() && 
-                        firstBytes[1] == 'E'.code.toByte() && 
-                        firstBytes[2] == 'L'.code.toByte() && 
-                        firstBytes[3] == 'F'.code.toByte()
-            
-            // For scripts, check if it starts with #!
-            val isScript = firstBytes[0] == '#'.code.toByte() && firstBytes[1] == '!'.code.toByte()
-            
-            if (!isElf && !isScript) {
-                Logger.logDebug(LOG_TAG, "update-alternatives is neither ELF nor script, skipping wrapper")
-                return
-            }
-            
-            // Rename original to .real
-            if (!updateAltFile.renameTo(updateAltRealFile)) {
-                Logger.logError(LOG_TAG, "Failed to rename update-alternatives to update-alternatives.real")
-                return
-            }
-            
-            // Create wrapper script that forces correct directory paths
-            val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/sh
-# update-alternatives wrapper script for com.termux.kotlin
-# Handles hardcoded path issues by forcing --altdir and --admindir
-#
-# Problem: update-alternatives has /data/data/com.termux paths hardcoded.
-# Solution: Pass explicit directory flags to override hardcoded paths.
-
-ALTDIR="${ourFilesPrefix}/usr/etc/alternatives"
-ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg/alternatives"
-
-# Pass all arguments to the real binary with our directory overrides
-exec "${ourFilesPrefix}/usr/bin/update-alternatives.real" \
-    --altdir "${'$'}ALTDIR" \
-    --admindir "${'$'}ADMINDIR" \
-    "${'$'}@"
-"""
-            updateAltFile.writeText(wrapperScript)
-            Os.chmod(updateAltFile.absolutePath, 448) // 0700
-            
-            Logger.logInfo(LOG_TAG, "Created update-alternatives wrapper script")
-        } catch (e: Exception) {
-            Logger.logError(LOG_TAG, "Failed to create update-alternatives wrapper: ${e.message}")
         }
     }
 

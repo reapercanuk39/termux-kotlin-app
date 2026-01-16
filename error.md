@@ -297,26 +297,73 @@ private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String
 }
 ```
 
-The wrapper script:
-```sh
-#!/.../sh
-ALTDIR="${ourFilesPrefix}/usr/etc/alternatives"
-ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg/alternatives"
-exec update-alternatives.real --altdir "$ALTDIR" --admindir "$ADMINDIR" "$@"
+---
+
+## Error #7 (Revised): update-alternatives internal hardcoded paths
+**Date:** 2026-01-16  
+**Error Message:**
+```
+[*] Running 'coreutils' package postinst
+update-alternatives: error: cannot stat file '/data/data/com.termux/files/usr/etc/alternatives/pager': Permission denied
+[*] Failed to run 'coreutils' package postinst
 ```
 
-This ensures `update-alternatives` always uses our package's paths regardless of what's compiled into the binary.
+**Status:** ✅ Fixed in v1.0.17
+
+**Root Cause:** The `update-alternatives` command is a Perl script with hardcoded paths **inside the script code itself**. The initial wrapper approach (v1.0.16) passing `--altdir` and `--admindir` flags didn't work because:
+1. The Perl script has paths like `/data/data/com.termux/files/usr/etc/alternatives` hardcoded in the source
+2. These internal paths are used for file operations regardless of command-line flags
+3. The wrapper approach renamed the script to `.real` but the internal paths weren't fixed
+
+**Fix Applied (v1.0.17):**
+1. Added `update-alternatives` and all `dpkg-*` scripts to `isTextFileNeedingPathFix()` in TermuxInstaller.kt
+2. Removed the wrapper approach (no more `.real` renaming)
+3. Now the script's internal paths are replaced during bootstrap extraction
+
+```kotlin
+val knownScripts = setOf(
+    // ... existing scripts ...
+    // dpkg-related scripts (Perl scripts with hardcoded paths)
+    "update-alternatives", "dpkg-divert", "dpkg-statoverride",
+    "dpkg-trigger", "dpkg-maintscript-helper"
+)
+// Also added:
+if (basename.startsWith("dpkg-")) return true
+```
+
+This ensures all Perl/shell scripts in `bin/` that start with `dpkg-` or are in the known list have their internal `/data/data/com.termux` paths replaced with `/data/data/com.termux.kotlin`.
 
 ---
 
-## Current Status (2026-01-16 17:43 UTC)
+## Version History & Fixes (Updated)
+| Version | Date | Issues Fixed | Key Changes |
+|---------|------|--------------|-------------|
+| 1.0.10 | 2026-01-16 | DT_HASH/DT_GNU_HASH error | LD_LIBRARY_PATH override, stopped corrupting ELF binaries |
+| 1.0.11 | 2026-01-16 | Login script shebang paths | Extended path fixing to include bin/ scripts |
+| 1.0.12 | 2026-01-16 | dpkg/bash hardcoded paths | DPKG env vars, login script rewrite, dpkg wrapper |
+| 1.0.13 | 2026-01-16 | (Same as 1.0.12) | Release with dpkg/bash fixes |
+| 1.0.14 | 2026-01-16 | exec -a in sh, dpkg config dir | Login uses bash shebang, dpkg intercepts --version |
+| 1.0.15 | 2026-01-16 | dpkg postinst bad interpreter | Fix paths in var/lib/dpkg/info/ maintainer scripts |
+| 1.0.16 | 2026-01-16 | update-alternatives (wrapper) | Wrapper approach - DID NOT WORK |
+| 1.0.17 | 2026-01-16 | update-alternatives (direct fix) | Fix internal paths in Perl/dpkg scripts directly |
 
-**v1.0.16 Release:** In progress
+---
+
+## Current Status (2026-01-16 18:11 UTC)
+
+**v1.0.17 Release:** In progress
 
 ### Changes Made:
-1. **TermuxInstaller.kt** - Added `createUpdateAlternativesWrapper()` function
-2. **TermuxInstaller.kt** - Call wrapper creation during bootstrap
-3. **error.md** - Documented Error #7 with root cause and fixes
+1. **TermuxInstaller.kt** - Added `update-alternatives` and `dpkg-*` to known scripts list
+2. **TermuxInstaller.kt** - Added `dpkg-` prefix matching for all dpkg scripts
+3. **TermuxInstaller.kt** - Removed wrapper approach (was not effective)
+4. **error.md** - Updated Error #7 with revised fix
+
+### Pending:
+- [ ] Wait for v1.0.17 release workflow to complete
+- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.17
+- [ ] **IMPORTANT:** Clear app data before installing (fresh bootstrap required)
+- [ ] Test bootstrap second stage completes without errors
 
 ### Pending:
 - [ ] Wait for v1.0.16 release workflow to complete
