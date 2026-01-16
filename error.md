@@ -597,3 +597,79 @@ private fun createUpdateAlternativesWrapper(binDir: File, ourFilesPrefix: String
 - `file` command - Identified ELF vs script files
 - `adb root` + direct file inspection - Compared file sizes to detect corruption
 - `strings` - Found hardcoded paths in binaries
+
+---
+
+## Comprehensive Bootstrap Analysis (v1.0.27)
+
+**Date:** 2026-01-17  
+**Status:** ✅ Comprehensive path fixing implemented
+
+### Bootstrap Statistics
+| Category | Count | Notes |
+|----------|-------|-------|
+| Total files | 3,629 | 74MB uncompressed |
+| Files with hardcoded paths | 583 | `/data/data/com.termux/...` |
+| ELF binaries | 322 | MUST NOT modify (corrupts) |
+| Scripts | 112 | Fixed via shebang replacement |
+| Config files | 143 | pkg-config, cmake, headers |
+| SYMLINKS.txt entries | 1,158 | Fixed during extraction |
+
+### File Categories with Hardcoded Paths
+
+**ELF Binaries (322 files) - DO NOT MODIFY:**
+- All binaries have `/data/data/com.termux/...` compiled in
+- Modifying them corrupts ELF headers (67KB → 101KB = broken)
+- Solution: Use LD_LIBRARY_PATH + wrapper scripts for config paths
+- Examples: `bash`, `dash`, `dpkg`, `update-alternatives`, `gpg`
+
+**Scripts Needing Path Fixes (112 files):**
+```
+bin/          - login, chsh, su, pkg, apt-key, termux-*, etc.
+etc/          - bash.bashrc, profile, motd.sh, bootstrap scripts
+share/        - .sh scripts, dpkg/* (Perl scripts)
+libexec/      - coreutils/cat, dpkg/*, test scripts
+var/lib/dpkg/info/ - *.postinst, *.prerm, etc.
+```
+
+**Config Files Needing Path Fixes (143 files):**
+```
+lib/pkgconfig/*.pc        - 44 files with prefix= paths
+lib/cmake/*.cmake         - CMake config files  
+lib/bash/Makefile.*       - Bash loadable builtin makefiles
+var/lib/dpkg/info/*.list  - Package file lists
+var/lib/dpkg/info/*.conffiles - Package config file lists
+include/*.h               - Some headers with paths
+share/awk/*.awk          - AWK scripts
+share/examples/          - Example config files
+```
+
+### v1.0.27 Changes to `isTextFileNeedingPathFix()`
+
+Added coverage for:
+1. **New bin/ scripts:** `ncursesw6-config`, `zstdgrep`, `zstdless`
+2. **All libexec/ scripts:** Any file without extension or with .sh/.bash
+3. **pkg-config files:** `lib/pkgconfig/*.pc`
+4. **CMake configs:** `lib/cmake/*.cmake`  
+5. **Bash makefiles:** `lib/bash/Makefile.*`
+6. **dpkg metadata:** `var/lib/dpkg/info/*.list`, `*.conffiles`
+7. **share/ examples:** `.bash`, `.tcsh`, `.awk`, `termux.properties`
+8. **Header files:** Specific headers with known paths
+
+### Binaries Requiring Wrappers
+
+| Binary | Wrapper Created | Purpose |
+|--------|-----------------|---------|
+| `dpkg` | ✅ Yes | Intercept --version for fake version |
+| `update-alternatives` | ✅ Yes | --altdir, --admindir, --log flags |
+| Others | ❌ No | Use LD_LIBRARY_PATH (works for lib paths) |
+
+### Testing Verification
+
+After v1.0.27:
+- [ ] Bootstrap first stage completes
+- [ ] Bootstrap second stage completes
+- [ ] All postinst scripts run successfully
+- [ ] Bash prompt appears
+- [ ] `pkg update` works
+- [ ] `pkg install` works

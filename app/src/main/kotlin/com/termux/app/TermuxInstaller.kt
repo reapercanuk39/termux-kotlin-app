@@ -415,27 +415,24 @@ object TermuxInstaller {
             // Known shell/perl scripts that need fixing (not ELF binaries)
             // NOTE: update-alternatives is an ELF BINARY, not a script!
             // Do NOT add it here - modifying binaries corrupts them.
-            // update-alternatives has hardcoded paths but uses LD_LIBRARY_PATH at runtime.
             val knownScripts = setOf(
                 "login", "chsh", "su", "am", "pm", "cmd", "dalvikvm", "logcat", "getprop", "settings",
                 "ping", "ping6", "df", "top", "red",
                 "pkg", "apt-key", "dpkg-realpath", "savelog",
                 "curl-config", "gpg-error-config", "gpgrt-config", "libassuan-config", 
-                "libgcrypt-config", "npth-config", "pcre2-config",
+                "libgcrypt-config", "npth-config", "pcre2-config", "ncursesw6-config",
                 "egrep", "fgrep", "gunzip", "gzexe", "zcat", "zcmp", "zdiff", "zegrep", 
                 "zfgrep", "zforce", "zgrep", "zmore", "znew", "uncompress", "zipgrep",
                 "bzdiff", "bzgrep", "bzmore",
                 "xzdiff", "xzgrep", "xzless", "xzmore",
-                "wcurl"
-                // dpkg-divert, dpkg-statoverride, dpkg-trigger are also ELF binaries
+                "wcurl", "zstdgrep", "zstdless",
+                // dpkg Perl scripts (NOT ELF: dpkg-divert, dpkg-trigger, dpkg-query, dpkg-split, dpkg-deb)
+                "dpkg-buildapi", "dpkg-buildtree", "dpkg-fsys-usrunmess"
             )
             val basename = entryName.removePrefix("bin/")
             if (knownScripts.contains(basename)) return true
             // All termux-* scripts
             if (basename.startsWith("termux-")) return true
-            // All dpkg-* SCRIPTS (not ELF binaries - dpkg-divert, dpkg-trigger are ELF!)
-            val dpkgScripts = setOf("dpkg-buildapi", "dpkg-buildtree", "dpkg-fsys-usrunmess")
-            if (dpkgScripts.contains(basename)) return true
             // .sh and .bash script extensions
             if (entryName.endsWith(".sh") || entryName.endsWith(".bash")) return true
         }
@@ -453,30 +450,67 @@ object TermuxInstaller {
                    entryName.contains("termux-bootstrap")
         }
         
-        // Shell scripts in share/ directories
-        if (entryName.startsWith("share/") && entryName.endsWith(".sh")) {
-            return true
+        // Shell scripts and examples in share/ directories
+        if (entryName.startsWith("share/")) {
+            if (entryName.endsWith(".sh") || entryName.endsWith(".bash") || entryName.endsWith(".tcsh")) return true
+            // termux.properties example
+            if (entryName.contains("termux.properties")) return true
+            // awk scripts
+            if (entryName.endsWith(".awk")) return true
         }
         
         // dpkg-related scripts in share/dpkg/ 
-        // These are Perl scripts (update-alternatives, etc.) with hardcoded paths
         if (entryName.startsWith("share/dpkg/")) {
             return true
         }
         
-        // Shell scripts in libexec/
-        if (entryName.startsWith("libexec/") && entryName.endsWith(".sh")) {
+        // All scripts in libexec/ (many have hardcoded paths)
+        // This includes coreutils/cat, dpkg/*, installed-tests/*, etc.
+        if (entryName.startsWith("libexec/")) {
+            // Match any script-like file (no extension or script extension)
+            val basename = entryName.substringAfterLast("/")
+            // Scripts without extension (like 'cat', 'dpkg-db-keeper', etc.)
+            if (!basename.contains(".") || 
+                entryName.endsWith(".sh") || 
+                entryName.endsWith(".bash")) return true
+        }
+        
+        // dpkg maintainer scripts and metadata in var/lib/dpkg/info/
+        if (entryName.startsWith("var/lib/dpkg/info/")) {
+            // Shell scripts
+            val scriptExtensions = listOf(".postinst", ".preinst", ".postrm", ".prerm", ".config", ".triggers")
+            if (scriptExtensions.any { entryName.endsWith(it) }) return true
+            // Metadata files with paths (.list, .conffiles)
+            val metaExtensions = listOf(".list", ".conffiles")
+            if (metaExtensions.any { entryName.endsWith(it) }) return true
+        }
+        
+        // pkg-config files (.pc) contain hardcoded paths for development
+        if (entryName.startsWith("lib/pkgconfig/") && entryName.endsWith(".pc")) {
             return true
         }
         
-        // dpkg maintainer scripts in var/lib/dpkg/info/
-        // These are shell scripts (*.postinst, *.prerm, *.postrm, *.preinst, *.config)
-        // that have shebangs pointing to /data/data/com.termux/files/usr/bin/sh
-        if (entryName.startsWith("var/lib/dpkg/info/")) {
-            val extensions = listOf(".postinst", ".preinst", ".postrm", ".prerm", ".config", ".triggers")
-            if (extensions.any { entryName.endsWith(it) }) {
-                return true
-            }
+        // CMake config files contain hardcoded paths
+        if (entryName.startsWith("lib/cmake/") && entryName.endsWith(".cmake")) {
+            return true
+        }
+        
+        // Bash loadable builtins Makefiles
+        if (entryName.startsWith("lib/bash/") && 
+            (entryName.endsWith("Makefile.inc") || entryName.endsWith("Makefile.sample"))) {
+            return true
+        }
+        
+        // Header files with hardcoded paths (for development)
+        if (entryName.startsWith("include/") && entryName.endsWith(".h")) {
+            // Only fix specific headers known to have hardcoded paths
+            val headersWithPaths = listOf(
+                "include/bash/pathnames.h",
+                "include/bash/config-top.h", 
+                "include/readline/rlconf.h",
+                "include/termux-exec/"  // All termux-exec headers
+            )
+            if (headersWithPaths.any { entryName.startsWith(it) || entryName == it }) return true
         }
         
         return false
