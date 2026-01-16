@@ -653,7 +653,7 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             val shareDpkgDir = File(binDir.parentFile, "share/dpkg")
             val updateAltTarget = File(shareDpkgDir, "update-alternatives")
             
-            Logger.logDebug(LOG_TAG, "Checking update-alternatives: file=${updateAltFile.absolutePath}, exists=${updateAltFile.exists()}, target=${updateAltTarget.absolutePath}, targetExists=${updateAltTarget.exists()}")
+            Logger.logDebug(LOG_TAG, "Checking update-alternatives: file=${updateAltFile.absolutePath}, target=${updateAltTarget.absolutePath}")
             
             // Check if it's a working symlink or real file
             if (updateAltFile.exists() && updateAltFile.canExecute()) {
@@ -661,49 +661,33 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
                 return
             }
             
-            // Helper to delete file/symlink using Os.remove (works with symlinks on all API levels)
-            fun deleteFileOrSymlink(f: File) {
-                try {
-                    Os.remove(f.absolutePath)
-                    Logger.logDebug(LOG_TAG, "Deleted ${f.absolutePath}")
-                } catch (e: ErrnoException) {
-                    if (e.errno != OsConstants.ENOENT) {
-                        Logger.logDebug(LOG_TAG, "Failed to delete ${f.absolutePath}: ${e.message}")
-                    }
-                }
+            // The symlink bin/update-alternatives -> ../share/dpkg/update-alternatives exists but is broken
+            // because the target doesn't exist. Instead of trying to delete the symlink and create a file,
+            // let's CREATE THE TARGET so the symlink becomes valid!
+            
+            // Ensure the share/dpkg directory exists
+            if (!shareDpkgDir.exists()) {
+                shareDpkgDir.mkdirs()
+                Logger.logInfo(LOG_TAG, "Created directory: ${shareDpkgDir.absolutePath}")
             }
             
-            // Check if the target exists in share/dpkg/
-            if (updateAltTarget.exists()) {
-                // Delete any existing broken symlink first
-                deleteFileOrSymlink(updateAltFile)
-                // Create symlink: bin/update-alternatives -> ../share/dpkg/update-alternatives
-                Os.symlink("../share/dpkg/update-alternatives", updateAltFile.absolutePath)
-                Logger.logInfo(LOG_TAG, "Created update-alternatives symlink: ${updateAltFile.absolutePath} -> ../share/dpkg/update-alternatives")
-                return
-            }
-            
-            // If neither exists, create a stub script that does nothing
-            // This allows postinst scripts to run without failing
-            Logger.logWarn(LOG_TAG, "update-alternatives not found in share/dpkg/. Creating stub script at ${updateAltFile.absolutePath}")
-            
-            // Delete any broken symlink that might exist
-            deleteFileOrSymlink(updateAltFile)
-            
-            // Use /system/bin/sh which always exists on Android
+            // Create the stub script at the symlink target location
             val stubScript = """#!/system/bin/sh
 # Stub update-alternatives script - exits successfully doing nothing
 exit 0
 """
-            updateAltFile.writeText(stubScript)
-            Os.chmod(updateAltFile.absolutePath, 493) // 0755 - executable by all
-            Logger.logInfo(LOG_TAG, "Created update-alternatives stub script successfully")
+            updateAltTarget.writeText(stubScript)
+            Os.chmod(updateAltTarget.absolutePath, 493) // 0755 - executable by all
+            Logger.logInfo(LOG_TAG, "Created update-alternatives stub at symlink target: ${updateAltTarget.absolutePath}")
             
-            // Verify the file was created
+            // Verify the symlink now works
             if (updateAltFile.exists() && updateAltFile.canExecute()) {
-                Logger.logInfo(LOG_TAG, "Verified: update-alternatives stub script is in place and executable")
+                Logger.logInfo(LOG_TAG, "Verified: update-alternatives symlink is now valid and executable")
             } else {
-                Logger.logError(LOG_TAG, "Failed to verify update-alternatives stub script: exists=${updateAltFile.exists()}, executable=${updateAltFile.canExecute()}")
+                // If symlink doesn't exist, create the file directly at bin/update-alternatives
+                Logger.logWarn(LOG_TAG, "Symlink not working, creating file directly at ${updateAltFile.absolutePath}")
+                updateAltFile.writeText(stubScript)
+                Os.chmod(updateAltFile.absolutePath, 493)
             }
             
         } catch (e: Exception) {
