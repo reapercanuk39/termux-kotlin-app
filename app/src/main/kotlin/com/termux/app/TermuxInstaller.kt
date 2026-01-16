@@ -377,9 +377,37 @@ object TermuxInstaller {
     
     /**
      * Check if a file needs path fixing based on its location and extension.
-     * Only process text files in etc/, share/, and certain bin/ scripts.
+     * Process text files (scripts, configs) in bin/, etc/, share/, and libexec/.
+     * 
+     * IMPORTANT: The upstream bootstrap contains many shell scripts with hardcoded
+     * paths like #!/data/data/com.termux/files/usr/bin/sh - these MUST be fixed
+     * or the scripts will fail to execute on com.termux.kotlin package.
      */
     private fun isTextFileNeedingPathFix(entryName: String): Boolean {
+        // Scripts in bin/ - login, chsh, su, termux-*, pkg, apt-key, etc.
+        // These have shebangs pointing to /data/data/com.termux/files/usr/bin/sh or bash
+        if (entryName.startsWith("bin/")) {
+            // Known shell scripts that need fixing (not ELF binaries)
+            val knownScripts = setOf(
+                "login", "chsh", "su", "am", "pm", "cmd", "dalvikvm", "logcat", "getprop", "settings",
+                "ping", "ping6", "df", "top", "red",
+                "pkg", "apt-key", "dpkg-realpath", "savelog",
+                "curl-config", "gpg-error-config", "gpgrt-config", "libassuan-config", 
+                "libgcrypt-config", "npth-config", "pcre2-config",
+                "egrep", "fgrep", "gunzip", "gzexe", "zcat", "zcmp", "zdiff", "zegrep", 
+                "zfgrep", "zforce", "zgrep", "zmore", "znew", "uncompress", "zipgrep",
+                "bzdiff", "bzgrep", "bzmore",
+                "xzdiff", "xzgrep", "xzless", "xzmore",
+                "wcurl"
+            )
+            val basename = entryName.removePrefix("bin/")
+            if (knownScripts.contains(basename)) return true
+            // All termux-* scripts
+            if (basename.startsWith("termux-")) return true
+            // .sh and .bash script extensions
+            if (entryName.endsWith(".sh") || entryName.endsWith(".bash")) return true
+        }
+        
         // Shell scripts and config files in etc/
         if (entryName.startsWith("etc/")) {
             // Match shell scripts, config files, and the second-stage bootstrap script
@@ -392,10 +420,17 @@ object TermuxInstaller {
                    entryName.endsWith("termux-login.sh") ||
                    entryName.contains("termux-bootstrap")
         }
+        
         // Shell scripts in share/ directories
         if (entryName.startsWith("share/") && entryName.endsWith(".sh")) {
             return true
         }
+        
+        // Shell scripts in libexec/
+        if (entryName.startsWith("libexec/") && entryName.endsWith(".sh")) {
+            return true
+        }
+        
         return false
     }
     
