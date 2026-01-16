@@ -6,7 +6,9 @@ import android.app.ProgressDialog
 import android.content.Context
 import android.os.Build
 import android.os.Environment
+import android.system.ErrnoException
 import android.system.Os
+import android.system.OsConstants
 import android.util.Pair
 import android.view.WindowManager
 import com.termux.R
@@ -659,10 +661,22 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
                 return
             }
             
+            // Helper to delete file/symlink using Os.remove (works with symlinks on all API levels)
+            fun deleteFileOrSymlink(f: File) {
+                try {
+                    Os.remove(f.absolutePath)
+                    Logger.logDebug(LOG_TAG, "Deleted ${f.absolutePath}")
+                } catch (e: ErrnoException) {
+                    if (e.errno != OsConstants.ENOENT) {
+                        Logger.logDebug(LOG_TAG, "Failed to delete ${f.absolutePath}: ${e.message}")
+                    }
+                }
+            }
+            
             // Check if the target exists in share/dpkg/
             if (updateAltTarget.exists()) {
-                // Delete any existing broken symlink first using NIO (handles symlinks properly)
-                java.nio.file.Files.deleteIfExists(updateAltFile.toPath())
+                // Delete any existing broken symlink first
+                deleteFileOrSymlink(updateAltFile)
                 // Create symlink: bin/update-alternatives -> ../share/dpkg/update-alternatives
                 Os.symlink("../share/dpkg/update-alternatives", updateAltFile.absolutePath)
                 Logger.logInfo(LOG_TAG, "Created update-alternatives symlink: ${updateAltFile.absolutePath} -> ../share/dpkg/update-alternatives")
@@ -673,13 +687,8 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             // This allows postinst scripts to run without failing
             Logger.logWarn(LOG_TAG, "update-alternatives not found in share/dpkg/. Creating stub script at ${updateAltFile.absolutePath}")
             
-            // Delete any broken symlink that might exist using NIO (handles symlinks properly)
-            try {
-                java.nio.file.Files.deleteIfExists(updateAltFile.toPath())
-                Logger.logDebug(LOG_TAG, "Deleted existing file/symlink at ${updateAltFile.absolutePath}")
-            } catch (e: Exception) {
-                Logger.logDebug(LOG_TAG, "No file to delete or delete failed: ${e.message}")
-            }
+            // Delete any broken symlink that might exist
+            deleteFileOrSymlink(updateAltFile)
             
             // Use the FINAL prefix path for shebang (not staging path)
             val stubScript = """#!/${ourFilesPrefix}/usr/bin/sh
