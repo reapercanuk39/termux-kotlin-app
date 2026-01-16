@@ -439,6 +439,16 @@ object TermuxInstaller {
             return true
         }
         
+        // dpkg maintainer scripts in var/lib/dpkg/info/
+        // These are shell scripts (*.postinst, *.prerm, *.postrm, *.preinst, *.config)
+        // that have shebangs pointing to /data/data/com.termux/files/usr/bin/sh
+        if (entryName.startsWith("var/lib/dpkg/info/")) {
+            val extensions = listOf(".postinst", ".preinst", ".postrm", ".prerm", ".config", ".triggers")
+            if (extensions.any { entryName.endsWith(it) }) {
+                return true
+            }
+        }
+        
         return false
     }
     

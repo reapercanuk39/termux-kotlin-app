@@ -223,17 +223,61 @@ This approach works because:
 
 ---
 
-## Current Status (2026-01-16 16:17 UTC)
+## Error #6: dpkg maintainer scripts (postinst) bad interpreter
+**Date:** 2026-01-16  
+**Error Message:**
+```
+[*] Running 'coreutils' package postinst
+/data/data/com.termux.kotlin/files/usr/etc/termux/termux-bootstrap/second-stage/termux-bootstrap-second-stage.sh: /data/data/com.termux.kotlin/files/usr/var/lib/dpkg/info/coreutils.postinst: /data/data/com.termux/files/usr/bin/sh: bad interpreter: Permission denied
+[*] Failed to run 'coreutils' package postinst
+```
 
-**v1.0.14 Release:** In progress - GitHub Actions workflow running (run ID: 21072947033)
+**Status:** ✅ Fixed in v1.0.15
+
+**Root Cause:** The bootstrap package contains dpkg maintainer scripts (`.postinst`, `.preinst`, `.postrm`, `.prerm`, `.config`, `.triggers`) in `var/lib/dpkg/info/`. These scripts have shebangs like `#!/data/data/com.termux/files/usr/bin/sh` pointing to the upstream package path. The `isTextFileNeedingPathFix()` function was not including these scripts in the path replacement logic.
+
+When the bootstrap second stage runs, it calls `dpkg-trigger` or similar mechanisms that execute the postinst scripts. Since the shebang points to `/data/data/com.termux/files/usr/bin/sh`:
+1. If original Termux is installed → "Permission denied" (sandbox)
+2. If original Termux is NOT installed → "No such file or directory"
+
+**Fix Applied (v1.0.15):**
+Added `var/lib/dpkg/info/` scripts to the path fixing logic in `isTextFileNeedingPathFix()`:
+```kotlin
+// dpkg maintainer scripts in var/lib/dpkg/info/
+if (entryName.startsWith("var/lib/dpkg/info/")) {
+    val extensions = listOf(".postinst", ".preinst", ".postrm", ".prerm", ".config", ".triggers")
+    if (extensions.any { entryName.endsWith(it) }) {
+        return true
+    }
+}
+```
+
+This ensures all maintainer scripts have their shebangs properly replaced from `/data/data/com.termux/files/usr/bin/sh` to `/data/data/com.termux.kotlin/files/usr/bin/sh` during bootstrap extraction.
+
+---
+
+## Version History & Fixes (Updated)
+| Version | Date | Issues Fixed | Key Changes |
+|---------|------|--------------|-------------|
+| 1.0.10 | 2026-01-16 | DT_HASH/DT_GNU_HASH error | LD_LIBRARY_PATH override, stopped corrupting ELF binaries |
+| 1.0.11 | 2026-01-16 | Login script shebang paths | Extended path fixing to include bin/ scripts |
+| 1.0.12 | 2026-01-16 | dpkg/bash hardcoded paths | DPKG env vars, login script rewrite, dpkg wrapper |
+| 1.0.13 | 2026-01-16 | (Same as 1.0.12) | Release with dpkg/bash fixes |
+| 1.0.14 | 2026-01-16 | exec -a in sh, dpkg config dir | Login uses bash shebang, dpkg intercepts --version |
+| 1.0.15 | 2026-01-16 | dpkg postinst bad interpreter | Fix paths in var/lib/dpkg/info/ maintainer scripts |
+
+---
+
+## Current Status (2026-01-16 17:24 UTC)
+
+**v1.0.15 Release:** In progress
 
 ### Changes Made:
-1. **TermuxInstaller.kt** - Login script now uses `#!/.../bash` shebang
-2. **TermuxInstaller.kt** - dpkg wrapper intercepts `--version` with hardcoded response
-3. **error.md** - Documented Error #5 with root cause and fixes
+1. **TermuxInstaller.kt** - Added `var/lib/dpkg/info/` scripts to path fixing logic
+2. **error.md** - Documented Error #6 with root cause and fixes
 
 ### Pending:
-- [ ] Wait for v1.0.14 release workflow to complete
-- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.14
-- [ ] Test with both original Termux and Termux-Kotlin installed
+- [ ] Wait for v1.0.15 release workflow to complete
+- [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.15
+- [ ] Test bootstrap second stage completes without errors
 - [ ] Verify bootstrap second stage completes without errors
