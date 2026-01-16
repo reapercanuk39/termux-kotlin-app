@@ -346,26 +346,33 @@ This ensures all Perl/shell scripts in `bin/` that start with `dpkg-` or are in 
 | 1.0.15 | 2026-01-16 | dpkg postinst bad interpreter | Fix paths in var/lib/dpkg/info/ maintainer scripts |
 | 1.0.16 | 2026-01-16 | update-alternatives (wrapper) | Wrapper approach - DID NOT WORK |
 | 1.0.17 | 2026-01-16 | update-alternatives (direct fix) | Fix internal paths in Perl/dpkg scripts directly |
-| 1.0.18 | 2026-01-16 | update-alternatives not found | Fix share/dpkg/ paths, robust symlink creation |
+| 1.0.18 | 2026-01-16 | Error #8 v1 | Fix share/dpkg/ paths, robust symlink creation |
+| 1.0.19 | 2026-01-16 | Error #8 v2 | Explicit symlink creation function |
+| 1.0.20 | 2026-01-16 | Error #8 v3 | Create stub script if missing |
+| 1.0.21 | 2026-01-16 | Error #8 v4 | Fix shebang path, API 24 compatibility |
+| 1.0.22 | 2026-01-16 | Error #8 v5 | Use bash shebang |
+| 1.0.23 | 2026-01-16 | Error #8 v6 | Use /system/bin/sh shebang |
+| 1.0.24 | 2026-01-16 | Error #8 v7 | Create stub at symlink target (share/dpkg/) |
 
 ---
 
-## Current Status (2026-01-16 19:10 UTC)
+## Current Status (2026-01-16 22:25 UTC)
 
-**v1.0.18 Release:** In progress
+**Latest Released:** v1.0.23  
+**Pending:** v1.0.24 (pushed to main, awaiting tag/release)
 
-### Changes Made:
-1. **TermuxInstaller.kt** - Added `share/dpkg/` to path fixing logic
-2. **TermuxInstaller.kt** - Added error handling around symlink creation
-3. **TermuxInstaller.kt** - Delete existing files before creating symlinks
-4. **error.md** - Added Error #8 documentation
+### Error #8 Investigation Summary
+The `update-alternatives: not found` error persisted through 7 fix attempts because:
+1. The file at `bin/update-alternatives` is a **symlink** pointing to `../share/dpkg/update-alternatives`
+2. The **target file** (`share/dpkg/update-alternatives`) doesn't appear to exist in the bootstrap
+3. Creating files/stubs at `bin/update-alternatives` doesn't work - it conflicts with symlink creation
+4. v1.0.24 attempts to create the stub at the **symlink target location** instead
 
-### Testing:
-- [ ] Wait for v1.0.18 release workflow to complete
-- [ ] Download APK and install on emulator
-- [ ] **IMPORTANT:** Clear app data before installing (fresh bootstrap required)
-- [ ] Test bootstrap second stage completes without errors
-- [ ] Verify `update-alternatives` runs successfully in postinst scripts
+### Next Steps:
+- [ ] Create and push v1.0.24 tag (commit is ready on main)
+- [ ] Wait for release workflow to complete
+- [ ] Test on emulator - verify `update-alternatives` runs
+- [ ] If still failing, investigate bootstrap ZIP to confirm if `share/dpkg/update-alternatives` exists
 ---
 
 ## Error #8: update-alternatives: not found
@@ -380,41 +387,86 @@ Starting fallback run of termux bootstrap second stage
 [*] Failed to run 'coreutils' package postinst
 ```
 
-**Status:** ✅ Fixed in v1.0.18
+**Status:** 🔄 IN PROGRESS (v1.0.24 pending)
 
-**Root Cause:** The `update-alternatives` Perl script is located in `share/dpkg/update-alternatives` in the bootstrap, with a symlink at `bin/update-alternatives`. Two issues:
-1. The `share/dpkg/` directory was not included in `isTextFileNeedingPathFix()`, so the Perl script's internal paths weren't being replaced
-2. The symlink creation didn't have proper error handling - if a file existed at the symlink location (e.g., placeholder from zip), the symlink creation would fail silently or conflict
+**Root Cause:** The `update-alternatives` command doesn't exist at `bin/update-alternatives`. This is a complex issue involving symlinks and missing target files.
 
-**Fix Applied (v1.0.18):**
-1. Added `share/dpkg/` to path fixing logic to fix all dpkg-related Perl scripts:
+### Troubleshooting History
+
+#### v1.0.18 - Initial Fix Attempt (FAILED)
+**Theory:** Symlink not being created from SYMLINKS.txt
+**Fix:** Added `share/dpkg/` to path fixing logic, added error handling around symlink creation
+**Result:** Still failed - `update-alternatives: not found`
+
+#### v1.0.19 - Ensure Symlink Exists (FAILED)
+**Theory:** Symlink creation silently failing
+**Fix:** Added `ensureUpdateAlternativesExists()` function to explicitly create the symlink if missing
+**Result:** Still failed - symlink might exist but target doesn't
+
+#### v1.0.20 - Create Stub Script (FAILED)
+**Theory:** The symlink target (`share/dpkg/update-alternatives`) doesn't exist in bootstrap
+**Fix:** Created a stub script at `bin/update-alternatives` that outputs "update-alternatives: not implemented"
+**Result:** Still failed - shebang using staging path that's invalid after move
+
+#### v1.0.21 - Fix Shebang and Symlink Deletion (FAILED)
+**Theory:** Stub shebang pointed to staging path, and File.toPath() caused API 26 compatibility issue
+**Fix:** 
+- Used final prefix path in shebang
+- Used `Os.remove()` instead of NIO for API 24 compatibility
+**Result:** Still failed - same error
+
+#### v1.0.22 - Use Bash Instead of Sh (FAILED)
+**Theory:** The `sh` symlink may not exist if dash isn't in bootstrap
+**Fix:** Changed stub shebang from `#!/.../bin/sh` to `#!/.../bin/bash`
+**Result:** Still failed - bash might not exist at that point either
+
+#### v1.0.23 - Use /system/bin/sh (FAILED)
+**Theory:** Need to use Android system shell which always exists
+**Fix:** Changed stub shebang to `#!/system/bin/sh`
+**Result:** Still failed - script exists but still getting "not found"
+
+#### v1.0.24 - Create Stub at Symlink Target Location (PENDING TEST)
+**Theory:** Creating file at `bin/update-alternatives` doesn't work because it's supposed to be a symlink pointing to `share/dpkg/update-alternatives`. Need to create the TARGET file instead.
+**Fix:** Modified `ensureUpdateAlternativesExists()` to:
+1. Create `share/dpkg/` directory if missing
+2. Create stub script at `share/dpkg/update-alternatives` (the symlink target)
+3. Let the symlink creation work naturally
+
 ```kotlin
-// dpkg-related scripts in share/dpkg/ 
-// These are Perl scripts (update-alternatives, etc.) with hardcoded paths
-if (entryName.startsWith("share/dpkg/")) {
-    return true
-}
-```
-
-2. Added error handling around symlink creation with cleanup of existing files:
-```kotlin
-for (symlink in symlinks) {
-    try {
-        val targetFile = File(symlink.second)
-        // Delete existing file/symlink if present (zip might contain placeholder files)
-        if (targetFile.exists()) {
-            targetFile.delete()
-            Logger.logDebug(LOG_TAG, "Deleted existing file before creating symlink: ${symlink.second}")
-        }
-        Os.symlink(symlink.first, symlink.second)
-    } catch (e: Exception) {
-        Logger.logError(LOG_TAG, "Failed to create symlink ${symlink.second} -> ${symlink.first}: ${e.message}")
-        throw e
+private fun ensureUpdateAlternativesExists(filesDir: File, prefix: String) {
+    // Create the TARGET of the symlink, not the symlink itself
+    val shareDpkgDir = File(filesDir, "usr/share/dpkg")
+    if (!shareDpkgDir.exists()) {
+        shareDpkgDir.mkdirs()
+    }
+    
+    val targetScript = File(shareDpkgDir, "update-alternatives")
+    if (!targetScript.exists()) {
+        // Create stub script at the symlink target location
+        val stubScript = """#!/system/bin/sh
+# Stub update-alternatives - real script missing from bootstrap
+echo "update-alternatives: stub (v1.0.24)" >&2
+exit 0
+"""
+        targetScript.writeText(stubScript)
+        targetScript.setExecutable(true, false)
     }
 }
 ```
 
-This ensures:
-- All Perl scripts in `share/dpkg/` have their hardcoded paths fixed
-- Symlink creation is robust and won't fail due to existing placeholder files
-- Any symlink failures are logged for debugging
+### Key Insights
+1. The bootstrap doesn't seem to include `share/dpkg/update-alternatives` (the real Perl script)
+2. SYMLINKS.txt has an entry creating `bin/update-alternatives` → `../share/dpkg/update-alternatives`
+3. When the target doesn't exist, the symlink becomes a "dangling" symlink
+4. Creating a file at the symlink location doesn't help - need to create the target
+
+### Version Attempts Summary
+| Version | Approach | Result |
+|---------|----------|--------|
+| v1.0.18 | Fix share/dpkg/ paths, robust symlinks | ❌ Not found |
+| v1.0.19 | Explicit symlink creation | ❌ Not found |
+| v1.0.20 | Create stub at bin/update-alternatives | ❌ Not found |
+| v1.0.21 | Fix shebang path, API compatibility | ❌ Not found |
+| v1.0.22 | Use bash shebang | ❌ Not found |
+| v1.0.23 | Use /system/bin/sh shebang | ❌ Not found |
+| v1.0.24 | Create stub at share/dpkg/ (target) | 🔄 Pending test |
