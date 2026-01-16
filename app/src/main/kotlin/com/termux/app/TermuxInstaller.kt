@@ -232,6 +232,9 @@ object TermuxInstaller {
                 
                 // Create dpkg wrapper to handle hardcoded config path issues
                 createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
+                
+                // Ensure update-alternatives exists (create symlink if missing)
+                ensureUpdateAlternativesExists(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"))
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -632,6 +635,43 @@ exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
             Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
+        }
+    }
+    
+    /**
+     * Ensure update-alternatives exists in bin/ directory.
+     * 
+     * In Termux bootstrap, update-alternatives is typically a symlink from bin/ to share/dpkg/.
+     * If the symlink wasn't created (not in SYMLINKS.txt or creation failed), create it manually.
+     * This is needed for dpkg postinst scripts that call update-alternatives.
+     */
+    private fun ensureUpdateAlternativesExists(binDir: File) {
+        try {
+            val updateAltFile = File(binDir, "update-alternatives")
+            val shareDpkgDir = File(binDir.parentFile, "share/dpkg")
+            val updateAltTarget = File(shareDpkgDir, "update-alternatives")
+            
+            // If update-alternatives already exists (as file or symlink), nothing to do
+            if (updateAltFile.exists()) {
+                Logger.logDebug(LOG_TAG, "update-alternatives already exists at ${updateAltFile.absolutePath}")
+                return
+            }
+            
+            // Check if the target exists in share/dpkg/
+            if (updateAltTarget.exists()) {
+                // Create symlink: bin/update-alternatives -> ../share/dpkg/update-alternatives
+                Os.symlink("../share/dpkg/update-alternatives", updateAltFile.absolutePath)
+                Logger.logInfo(LOG_TAG, "Created update-alternatives symlink: ${updateAltFile.absolutePath} -> ../share/dpkg/update-alternatives")
+                return
+            }
+            
+            // If neither exists, log warning - the postinst scripts will fail
+            // but we can't do anything about it
+            Logger.logWarn(LOG_TAG, "update-alternatives not found in bin/ or share/dpkg/. " +
+                    "Bootstrap may be incomplete. postinst scripts may fail.")
+            
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to ensure update-alternatives exists: ${e.message}")
         }
     }
 
