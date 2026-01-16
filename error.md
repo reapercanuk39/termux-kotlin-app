@@ -268,16 +268,19 @@ This ensures all maintainer scripts have their shebangs properly replaced from `
 
 ---
 
-## Current Status (2026-01-16 17:24 UTC)
+## Current Status (2026-01-16 17:38 UTC)
 
-**v1.0.15 Release:** In progress
+**v1.0.15 Release:** ✅ Complete - APKs available at https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.15
 
 ### Changes Made:
 1. **TermuxInstaller.kt** - Added `var/lib/dpkg/info/` scripts to path fixing logic
 2. **error.md** - Documented Error #6 with root cause and fixes
 
-### Pending:
-- [ ] Wait for v1.0.15 release workflow to complete
+### Completed:
+- [x] v1.0.15 release workflow completed successfully
+- [x] APKs uploaded to GitHub Releases (arm64-v8a, armeabi-v7a, x86, x86_64, universal)
+
+### Testing:
 - [ ] Download arm64-v8a APK from https://github.com/reapercanuk39/termux-kotlin-app/releases/tag/v1.0.15
 - [ ] Test bootstrap second stage completes without errors
-- [ ] Verify bootstrap second stage completes without errors
+- [ ] Verify `coreutils.postinst` and other maintainer scripts run successfully
