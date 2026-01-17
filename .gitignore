@@ -7,11 +7,11 @@ build/
 release/
 *.apk
 *.so
-# BUT include the bootstrap files
-!**/jniLibs/**/libtermux-bootstrap.so
 .externalNativeBuild
 .cxx
 *.zip
+# BUT include the bootstrap files in cpp/
+!**/cpp/bootstrap-*.zip
 
 # Local configuration file (sdk path, etc)
 local.properties
