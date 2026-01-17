@@ -1,11 +1,9 @@
 package com.termux.shared.tools
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import com.termux.shared.shell.command.ExecutionCommand
-import com.termux.shared.shell.command.runner.app.AppShell
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 
 /**
  * Kotlin interface for invoking Termux userland tools.
@@ -19,9 +17,9 @@ object TermuxTools {
     private const val TERMUX_HOME = "/data/data/com.termux.kotlin/files/home"
     
     /**
-     * Execute a termux tool by name
+     * Execute a termux tool by name using ProcessBuilder
      */
-    fun executeTool(context: Context, toolName: String, args: List<String> = emptyList()): ToolResult {
+    fun executeTool(toolName: String, args: List<String> = emptyList()): ToolResult {
         val toolPath = "$TERMUX_BIN/$toolName"
         val toolFile = File(toolPath)
         
@@ -34,18 +32,28 @@ object TermuxTools {
             )
         }
         
-        val command = ExecutionCommand()
-        command.executable = toolPath
-        command.arguments = args.toTypedArray()
-        command.workingDirectory = TERMUX_HOME
-        
         return try {
-            val shell = AppShell.execute(context, command, null, null, false)
+            val command = mutableListOf(toolPath)
+            command.addAll(args)
+            
+            val processBuilder = ProcessBuilder(command)
+            processBuilder.directory(File(TERMUX_HOME))
+            processBuilder.environment()["HOME"] = TERMUX_HOME
+            processBuilder.environment()["PATH"] = TERMUX_BIN
+            processBuilder.environment()["PREFIX"] = TERMUX_PREFIX
+            processBuilder.environment()["TERMUX_PREFIX"] = TERMUX_PREFIX
+            
+            val process = processBuilder.start()
+            
+            val stdout = BufferedReader(InputStreamReader(process.inputStream)).readText()
+            val stderr = BufferedReader(InputStreamReader(process.errorStream)).readText()
+            val exitCode = process.waitFor()
+            
             ToolResult(
-                success = shell.mExitCode == 0,
-                exitCode = shell.mExitCode,
-                stdout = shell.mStdout ?: "",
-                stderr = shell.mStderr ?: ""
+                success = exitCode == 0,
+                exitCode = exitCode,
+                stdout = stdout,
+                stderr = stderr
             )
         } catch (e: Exception) {
             ToolResult(
@@ -60,88 +68,88 @@ object TermuxTools {
     /**
      * termux-info: Get system and Termux information
      */
-    fun info(context: Context): ToolResult {
-        return executeTool(context, "termux-info", listOf("--no-set-clipboard"))
+    fun info(): ToolResult {
+        return executeTool("termux-info", listOf("--no-set-clipboard"))
     }
     
     /**
      * termux-setup-storage: Request storage permissions
      */
-    fun setupStorage(context: Context): ToolResult {
-        return executeTool(context, "termux-setup-storage")
+    fun setupStorage(): ToolResult {
+        return executeTool("termux-setup-storage")
     }
     
     /**
      * termux-change-repo: Change package repository
      */
-    fun changeRepo(context: Context): ToolResult {
-        return executeTool(context, "termux-change-repo")
+    fun changeRepo(): ToolResult {
+        return executeTool("termux-change-repo")
     }
     
     /**
      * termux-open: Open a file or URL using Android intents
      */
-    fun open(context: Context, path: String, sendIntent: Boolean = false, chooser: Boolean = false): ToolResult {
+    fun open(path: String, sendIntent: Boolean = false, chooser: Boolean = false): ToolResult {
         val args = mutableListOf(path)
         if (sendIntent) args.add("--send")
         if (chooser) args.add("--chooser")
-        return executeTool(context, "termux-open", args)
+        return executeTool("termux-open", args)
     }
     
     /**
      * termux-open-url: Open a URL in the default browser
      */
-    fun openUrl(context: Context, url: String): ToolResult {
-        return executeTool(context, "termux-open-url", listOf(url))
+    fun openUrl(url: String): ToolResult {
+        return executeTool("termux-open-url", listOf(url))
     }
     
     /**
      * termux-reload-settings: Reload Termux settings
      */
-    fun reloadSettings(context: Context): ToolResult {
-        return executeTool(context, "termux-reload-settings")
+    fun reloadSettings(): ToolResult {
+        return executeTool("termux-reload-settings")
     }
     
     /**
      * termux-reset: Reset Termux to default state
      */
-    fun reset(context: Context): ToolResult {
-        return executeTool(context, "termux-reset")
+    fun reset(): ToolResult {
+        return executeTool("termux-reset")
     }
     
     /**
      * termux-wake-lock: Acquire wake lock
      */
-    fun wakeLock(context: Context): ToolResult {
-        return executeTool(context, "termux-wake-lock")
+    fun wakeLock(): ToolResult {
+        return executeTool("termux-wake-lock")
     }
     
     /**
      * termux-wake-unlock: Release wake lock
      */
-    fun wakeUnlock(context: Context): ToolResult {
-        return executeTool(context, "termux-wake-unlock")
+    fun wakeUnlock(): ToolResult {
+        return executeTool("termux-wake-unlock")
     }
     
     /**
      * termux-fix-shebang: Fix script shebangs to use Termux paths
      */
-    fun fixShebang(context: Context, file: String): ToolResult {
-        return executeTool(context, "termux-fix-shebang", listOf(file))
+    fun fixShebang(file: String): ToolResult {
+        return executeTool("termux-fix-shebang", listOf(file))
     }
     
     /**
      * termux-backup: Create backup of Termux home directory
      */
-    fun backup(context: Context, outputPath: String): ToolResult {
-        return executeTool(context, "termux-backup", listOf(outputPath))
+    fun backup(outputPath: String): ToolResult {
+        return executeTool("termux-backup", listOf(outputPath))
     }
     
     /**
      * termux-restore: Restore Termux from backup
      */
-    fun restore(context: Context, backupPath: String): ToolResult {
-        return executeTool(context, "termux-restore", listOf(backupPath))
+    fun restore(backupPath: String): ToolResult {
+        return executeTool("termux-restore", listOf(backupPath))
     }
     
     /**
