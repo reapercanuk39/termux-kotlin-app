@@ -1,0 +1,73 @@
+Package: apt
+Architecture: arm
+Installed-Size: 2848
+Maintainer: @termux
+Version: 2.8.1-2
+Homepage: https://packages.debian.org/apt
+Depends: coreutils, dpkg, findutils, gpgv, grep, libandroid-glob, libbz2, libc++, libiconv, libgcrypt, libgnutls, liblz4, liblzma, sed, termux-keyring, termux-licenses, xxhash, zlib, zstd
+Essential: yes
+Conflicts: apt-transport-https, libapt-pkg, unstable-repo, game-repo, science-repo
+Replaces: apt-transport-https, libapt-pkg, unstable-repo, game-repo, science-repo
+Provides: unstable-repo, game-repo, science-repo
+Suggests: gnupg
+Description: Front-end for the dpkg package manager
+Filename: arm/apt_2.8.1-2_arm.deb
+Size: 1000708
+SHA256: db7eb497b97f4172128b9d03c46dc61a05444711366bfb84763646e3d1784931
+
+Package: dpkg
+Architecture: arm
+Installed-Size: 1016
+Maintainer: @termux
+Version: 1.22.6-5
+Homepage: https://packages.debian.org/dpkg
+Breaks: dpkg-dev
+Depends: bzip2, coreutils, diffutils, gzip, less, libbz2, liblzma, libmd, tar, xz-utils, zlib, zstd
+Essential: yes
+Replaces: dpkg-dev
+Description: Debian package management system
+Filename: arm/dpkg_1.22.6-5_arm.deb
+Size: 273464
+SHA256: f74b09f282f8bb05d834d116a2e6e525ee37f9ec99e771c952fb46081708b042
+
+Package: termux-core
+Architecture: arm
+Installed-Size: 1768
+Maintainer: @termux
+Version: 0.4.0-1
+Homepage: https://github.com/termux/termux-core-package
+Essential: yes
+Description: Utils and libraries for Termux core
+Filename: arm/termux-core_0.4.0-1_arm.deb
+Size: 223476
+SHA256: 5cc78df510f7d4040ae18a36ea2da4807ccc88e87f55627b28a813675f0be532
+
+Package: termux-exec
+Architecture: arm
+Installed-Size: 1772
+Maintainer: @termux
+Version: 1:2.4.0-1
+Homepage: https://github.com/termux/termux-exec-package
+Essential: yes
+Description: Utils and libraries for Termux exec including a LD_PRELOAD shared library for proper functioning of the Termux execution environment
+Filename: arm/termux-exec_1:2.4.0-1_arm.deb
+Size: 362052
+SHA256: 6000f8fca8fb9659604542106238c26c01d1a7c0f4e7ae468c33788b89b46f4b
+
+Package: termux-tools
+Architecture: arm
+Installed-Size: 552
+Maintainer: @termux
+Version: 1.46.0+really1.45.0-1
+Homepage: https://termux.dev/
+Breaks: termux-keyring (<< 1.9)
+Depends: bzip2, coreutils, curl, dash, diffutils, findutils, gawk, grep, gzip, less, procps, psmisc, sed, tar, termux-am (>= 0.8.0), termux-am-socket (>= 1.5.0), termux-core, termux-exec, util-linux, xz-utils, dialog
+Essential: yes
+Conflicts: procps (<< 3.3.15-2)
+Recommends: ed, dos2unix, inetutils, net-tools, patch, unzip
+Suggests: termux-api
+Description: Basic system tools for Termux
+Filename: arm/termux-tools_1.46.0+really1.45.0-1_arm.deb
+Size: 33452
+SHA256: 3d60d706e402bef93913c628850c93fdb207a21e0254205b1ac82449bb2e061d
+

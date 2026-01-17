@@ -1,0 +1,85 @@
+Package: apt
+Architecture: aarch64
+Installed-Size: 4044
+Maintainer: @termux
+Version: 2.8.1-2
+Homepage: https://packages.debian.org/apt
+Depends: coreutils, dpkg, findutils, gpgv, grep, libandroid-glob, libbz2, libc++, libiconv, libgcrypt, libgnutls, liblz4, liblzma, sed, termux-keyring, termux-licenses, xxhash, zlib, zstd
+Essential: yes
+Conflicts: apt-transport-https, libapt-pkg, unstable-repo, game-repo, science-repo
+Replaces: apt-transport-https, libapt-pkg, unstable-repo, game-repo, science-repo
+Provides: unstable-repo, game-repo, science-repo
+Suggests: gnupg
+Description: Front-end for the dpkg package manager
+Filename: aarch64/apt_2.8.1-2_aarch64.deb
+Size: 1034032
+SHA256: 9e0c779eb61d3c888960ed18af209f41c5c1ad2581b13f567e8e78cc2675fec5
+
+Package: dpkg
+Architecture: aarch64
+Installed-Size: 1368
+Maintainer: @termux
+Version: 1.22.6-5
+Homepage: https://packages.debian.org/dpkg
+Breaks: dpkg-dev
+Depends: bzip2, coreutils, diffutils, gzip, less, libbz2, liblzma, libmd, tar, xz-utils, zlib, zstd
+Essential: yes
+Replaces: dpkg-dev
+Description: Debian package management system
+Filename: aarch64/dpkg_1.22.6-5_aarch64.deb
+Size: 308644
+SHA256: 2bd0b2894db0f076f59890850a30cd16f4a45a29e7d8b1dbd6734a77497ecb48
+
+Package: termux-api
+Architecture: aarch64
+Installed-Size: 364
+Maintainer: @termux
+Version: 0.59.1-1
+Homepage: https://wiki.termux.com/wiki/Termux:API
+Depends: bash, util-linux, termux-am (>= 0.8.0)
+Description: Termux API commands (install also the Termux:API app)
+Filename: aarch64/termux-api_0.59.1-1_aarch64.deb
+Size: 28904
+SHA256: 409f9ae0570a08bbd112e6f8975db6bb5d96469295ad9e4fd47eb5525a121309
+
+Package: termux-core
+Architecture: aarch64
+Installed-Size: 1948
+Maintainer: @termux
+Version: 0.4.0-1
+Homepage: https://github.com/termux/termux-core-package
+Essential: yes
+Description: Utils and libraries for Termux core
+Filename: aarch64/termux-core_0.4.0-1_aarch64.deb
+Size: 196692
+SHA256: 9013cfdfbf3048be1b21fbc35dfdf5ce82f87b70c0570a7a6c6140b9e4593041
+
+Package: termux-exec
+Architecture: aarch64
+Installed-Size: 2092
+Maintainer: @termux
+Version: 1:2.4.0-1
+Homepage: https://github.com/termux/termux-exec-package
+Essential: yes
+Description: Utils and libraries for Termux exec including a LD_PRELOAD shared library for proper functioning of the Termux execution environment
+Filename: aarch64/termux-exec_1:2.4.0-1_aarch64.deb
+Size: 286088
+SHA256: a3da714da96490d45cbbeea314e6bb6eb94ee56bb45ac46fbe2b57ac6fb70566
+
+Package: termux-tools
+Architecture: aarch64
+Installed-Size: 552
+Maintainer: @termux
+Version: 1.46.0+really1.45.0-1
+Homepage: https://termux.dev/
+Breaks: termux-keyring (<< 1.9)
+Depends: bzip2, coreutils, curl, dash, diffutils, findutils, gawk, grep, gzip, less, procps, psmisc, sed, tar, termux-am (>= 0.8.0), termux-am-socket (>= 1.5.0), termux-core, termux-exec, util-linux, xz-utils, dialog
+Essential: yes
+Conflicts: procps (<< 3.3.15-2)
+Recommends: ed, dos2unix, inetutils, net-tools, patch, unzip
+Suggests: termux-api
+Description: Basic system tools for Termux
+Filename: aarch64/termux-tools_1.46.0+really1.45.0-1_aarch64.deb
+Size: 33696
+SHA256: 85ff320e29ae352c86d4a151f1ab555dec4bb6e12b0fcb093f66ad8e2c3d7b6d
+

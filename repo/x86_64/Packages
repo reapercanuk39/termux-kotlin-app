@@ -1,0 +1,53 @@
+Package: termux-am
+Architecture: all
+Installed-Size: 620
+Maintainer: Michal Bednarski @michalbednarski
+Version: 0.8.0-2
+Homepage: https://github.com/termux/TermuxAm
+Conflicts: termux-tools (<< 0.51)
+Description: Android Oreo-compatible am command reimplementation
+Filename: x86_64/termux-am_0.8.0-2_all.deb
+Size: 576992
+SHA256: ce62644573f7ce9d32d46cfeff9e228b96054d7b797855535b0fdcf7c2ffa065
+
+Package: termux-core
+Architecture: x86_64
+Installed-Size: 2008
+Maintainer: @termux
+Version: 0.4.0-1
+Homepage: https://github.com/termux/termux-core-package
+Essential: yes
+Description: Utils and libraries for Termux core
+Filename: x86_64/termux-core_0.4.0-1_x86_64.deb
+Size: 215944
+SHA256: 6697477d7074aae251163de033852c85b502df3739ae16c32dcc65377013de8f
+
+Package: termux-exec
+Architecture: x86_64
+Installed-Size: 2144
+Maintainer: @termux
+Version: 1:2.4.0-1
+Homepage: https://github.com/termux/termux-exec-package
+Essential: yes
+Description: Utils and libraries for Termux exec including a LD_PRELOAD shared library for proper functioning of the Termux execution environment
+Filename: x86_64/termux-exec_1:2.4.0-1_x86_64.deb
+Size: 329896
+SHA256: c9a5cf478d1b887e279c1f32e2aacdb9aa91e6ac9c4127455d904eee1e26d086
+
+Package: termux-tools
+Architecture: x86_64
+Installed-Size: 552
+Maintainer: @termux
+Version: 1.46.0+really1.45.0-1
+Homepage: https://termux.dev/
+Breaks: termux-keyring (<< 1.9)
+Depends: bzip2, coreutils, curl, dash, diffutils, findutils, gawk, grep, gzip, less, procps, psmisc, sed, tar, termux-am (>= 0.8.0), termux-am-socket (>= 1.5.0), termux-core, termux-exec, util-linux, xz-utils, dialog
+Essential: yes
+Conflicts: procps (<< 3.3.15-2)
+Recommends: ed, dos2unix, inetutils, net-tools, patch, unzip
+Suggests: termux-api
+Description: Basic system tools for Termux
+Filename: x86_64/termux-tools_1.46.0+really1.45.0-1_x86_64.deb
+Size: 33632
+SHA256: 2cebd1661c4b38513c03db799706da28387725a577d0f9d476e15955217ab182
+

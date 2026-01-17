@@ -1,0 +1,36 @@
+Package: termux-am
+Architecture: all
+Installed-Size: 620
+Maintainer: Michal Bednarski @michalbednarski
+Version: 0.8.0-2
+Homepage: https://github.com/termux/TermuxAm
+Conflicts: termux-tools (<< 0.51)
+Description: Android Oreo-compatible am command reimplementation
+Filename: all/termux-am_0.8.0-2_all.deb
+Size: 576972
+SHA256: 1cfd292ff86d48fc4db52dd6210a3f7a096865701e46e4d30631176542125e43
+
+Package: termux-keyring
+Architecture: all
+Installed-Size: 192
+Maintainer: @termux
+Version: 3.13
+Homepage: https://github.com/termux
+Essential: yes
+Description: GPG public keys for the official Termux repositories
+Filename: all/termux-keyring_3.13_all.deb
+Size: 39800
+SHA256: e7cf687dfc46866a648dcba243f7a2fd1197eda55ed5e6b44873225f8331837a
+
+Package: termux-licenses
+Architecture: all
+Installed-Size: 612
+Maintainer: @termux
+Version: 2.1
+Homepage: https://termux.dev
+Essential: yes
+Description: Contains LICENSE files for common licenses
+Filename: all/termux-licenses_2.1_all.deb
+Size: 52552
+SHA256: 2ccc83d7e11a2d92dba1896dc5f82612739ff5473d655f0e47628f51a9a0d9b2
+
