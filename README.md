@@ -38,6 +38,21 @@
 
 This repository is a **complete Kotlin conversion** of the official [termux-app](https://github.com/termux/termux-app). Every Java file has been meticulously converted to idiomatic Kotlin while maintaining 100% compatibility with the original app.
 
+### 📦 Independent Package Identity
+
+Termux Kotlin uses its own package name (`com.termux.kotlin`) and can be installed **alongside the original Termux app**. All system paths use the new prefix:
+
+```
+/data/data/com.termux.kotlin/files/usr
+```
+
+**Key packages rebuilt from source with native paths:**
+- `apt`, `dpkg` - Package management
+- `termux-exec`, `termux-tools`, `termux-core` - Core utilities
+- `termux-api` - Device API integration
+
+This means `pkg update` and all package operations work natively without any path-patching hacks.
+
 ### 🎯 Why Kotlin?
 
 | Feature | Benefit |
@@ -243,6 +258,23 @@ cd termux-kotlin-app
 |---------|-------------|
 | `debug` | Development build with debugging enabled |
 | `release` | Production build (requires signing) |
+
+### 🔧 Custom Bootstrap
+
+The app includes custom-built bootstraps with native `com.termux.kotlin` paths. To rebuild them:
+
+```bash
+# See full documentation
+cat docs/CUSTOM_BOOTSTRAP_BUILD.md
+
+# Quick overview:
+# 1. Use Docker with termux/package-builder
+# 2. Set TERMUX_APP__PACKAGE_NAME="com.termux.kotlin" in properties.sh
+# 3. Build apt, dpkg, termux-exec, termux-tools, termux-core
+# 4. Integrate into bootstrap zips
+```
+
+Pre-built packages are available in the `repo/` directory.
 
 ## 🔗 Related Repositories
 
