@@ -180,19 +180,47 @@ After building, replace binaries in bootstrap:
 3. Re-zip bootstrap
 4. Copy to app/src/main/cpp/
 
-### Current Build Status (2026-01-17)
+### Build Status (2026-01-17)
 
-- **Container:** Running (`termux-package-builder`)
-- **Build:** In progress (building apt for x86_64)
-- **Dependencies:** Building (libxcb, gnutls, etc.)
-- **Estimated time:** Several hours
+#### x86_64 - ✅ COMPLETE
+- **apt 2.8.1-2** built with native `com.termux.kotlin` paths
+- **dpkg 1.22.6-5** built with native paths
+- All apt methods have correct path: `/data/data/com.termux.kotlin/files/usr/lib/apt/methods`
+- Integrated into v1.0.32 APK
+
+#### aarch64 - 🔄 In Progress
+- Build started, currently building dependencies
+- Required for production Android devices
+
+#### arm, i686 - ⏳ Pending
+- Will build after aarch64 completes
+
+### Automation Scripts
+
+**Local build script:**
+```bash
+./scripts/build-bootstrap.sh [architecture|all]
+```
+
+**GitHub Actions workflow:**
+`.github/workflows/build-bootstrap.yml` - Manually triggered workflow that:
+1. Downloads upstream Termux bootstrap
+2. Builds apt/dpkg from source with com.termux.kotlin paths
+3. Replaces binaries in bootstrap
+4. Commits updated bootstrap to repo
 
 ### Monitoring Build
 
 ```bash
-# Watch build output
-docker exec termux-package-builder tail -f /home/builder/termux-packages/build.log
+# Check container status
+docker ps --filter name=termux-package-builder
 
-# Check if apt is built
-ls /root/termux-packages/output/apt_*.deb
+# Monitor build progress
+docker exec termux-package-builder bash -c '
+  ls /data/data/.built-packages/ | wc -l
+  cat /data/data/.built-packages/apt 2>/dev/null && echo "APT DONE!"
+'
+
+# Check output packages
+docker exec termux-package-builder ls /home/builder/termux-packages/output/apt*.deb
 ```

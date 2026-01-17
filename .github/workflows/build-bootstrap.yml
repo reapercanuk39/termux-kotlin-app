@@ -1,0 +1,200 @@
+name: Build Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Architecture to build (aarch64, arm, x86_64, i686, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - aarch64
+          - arm
+          - x86_64
+          - i686
+
+permissions:
+  contents: write
+
+jobs:
+  build-bootstrap:
+    name: Build Bootstrap (${{ github.event.inputs.architecture }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          df -h
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pull termux-packages builder image
+        run: docker pull termux/package-builder
+
+      - name: Download upstream bootstrap
+        run: |
+          mkdir -p /tmp/termux-kotlin-bootstrap/upstream
+          
+          ARCH="${{ github.event.inputs.architecture }}"
+          if [[ "$ARCH" == "all" ]]; then
+            ARCHS="aarch64 arm x86_64 i686"
+          else
+            ARCHS="$ARCH"
+          fi
+          
+          for arch in $ARCHS; do
+            echo "Downloading bootstrap for $arch..."
+            curl -L -o "/tmp/termux-kotlin-bootstrap/upstream/bootstrap-${arch}.zip" \
+              "https://github.com/AstroSnail/termux-bootstrap/releases/latest/download/bootstrap-${arch}.zip"
+          done
+          
+          ls -lh /tmp/termux-kotlin-bootstrap/upstream/
+
+      - name: Build native apt packages
+        run: |
+          ARCH="${{ github.event.inputs.architecture }}"
+          if [[ "$ARCH" == "all" ]]; then
+            ARCHS="aarch64 arm x86_64 i686"
+          else
+            ARCHS="$ARCH"
+          fi
+          
+          for arch in $ARCHS; do
+            echo "=== Building apt for $arch ==="
+            
+            # Map architecture names
+            case $arch in
+              aarch64) termux_arch="aarch64" ;;
+              arm) termux_arch="arm" ;;
+              x86_64) termux_arch="x86_64" ;;
+              i686) termux_arch="i686" ;;
+            esac
+            
+            docker run --name "builder-${arch}" \
+              termux/package-builder \
+              bash -c "
+                cd /home/builder/termux-packages
+                sed -i 's/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/' scripts/properties.sh
+                grep TERMUX_APP__PACKAGE_NAME scripts/properties.sh
+                ./clean.sh 2>/dev/null || true
+                ./build-package.sh -a $termux_arch apt
+              "
+            
+            # Extract outputs
+            mkdir -p "/tmp/termux-kotlin-bootstrap/native-packages/${arch}"
+            docker cp "builder-${arch}:/home/builder/termux-packages/output/." "/tmp/termux-kotlin-bootstrap/native-packages/${arch}/"
+            docker rm -f "builder-${arch}"
+            
+            echo "Built packages for $arch:"
+            ls -lh "/tmp/termux-kotlin-bootstrap/native-packages/${arch}/"*.deb | head -10
+          done
+
+      - name: Process bootstrap with native packages
+        run: |
+          ARCH="${{ github.event.inputs.architecture }}"
+          if [[ "$ARCH" == "all" ]]; then
+            ARCHS="aarch64 arm x86_64 i686"
+          else
+            ARCHS="$ARCH"
+          fi
+          
+          for arch in $ARCHS; do
+            echo "=== Processing bootstrap for $arch ==="
+            
+            # Extract upstream bootstrap
+            mkdir -p "/tmp/termux-kotlin-bootstrap/extracted/${arch}"
+            unzip -q -o "/tmp/termux-kotlin-bootstrap/upstream/bootstrap-${arch}.zip" \
+              -d "/tmp/termux-kotlin-bootstrap/extracted/${arch}"
+            
+            # Replace text files with com.termux.kotlin
+            find "/tmp/termux-kotlin-bootstrap/extracted/${arch}" -type f | while read -r file; do
+              if file "$file" | grep -qE "text|ASCII|script"; then
+                if grep -q "com\.termux" "$file" 2>/dev/null; then
+                  sed -i 's/com\.termux\([^.]\)/com.termux.kotlin\1/g' "$file"
+                  sed -i 's/com\.termux$/com.termux.kotlin/g' "$file"
+                fi
+              fi
+            done
+            
+            # Extract and copy native apt
+            APT_DEB=$(find "/tmp/termux-kotlin-bootstrap/native-packages/${arch}" -name "apt_*.deb" -not -name "*ftparchive*" | head -1)
+            DPKG_DEB=$(find "/tmp/termux-kotlin-bootstrap/native-packages/${arch}" -name "dpkg_*.deb" -not -name "*perl*" -not -name "*scanpackages*" | head -1)
+            
+            if [[ -n "$APT_DEB" ]]; then
+              echo "Extracting $APT_DEB"
+              mkdir -p "/tmp/apt-extract/${arch}"
+              cd "/tmp/apt-extract/${arch}"
+              ar x "$APT_DEB"
+              tar -xf data.tar.xz
+              
+              APT_USR=$(find . -type d -name "usr" -path "*/com.termux.kotlin/*" | head -1)
+              if [[ -n "$APT_USR" ]]; then
+                cp -v "$APT_USR/bin/apt"* "/tmp/termux-kotlin-bootstrap/extracted/${arch}/bin/" 2>/dev/null || true
+                cp -v "$APT_USR/lib/libapt-pkg.so" "/tmp/termux-kotlin-bootstrap/extracted/${arch}/lib/" 2>/dev/null || true
+                cp -v "$APT_USR/lib/libapt-private.so" "/tmp/termux-kotlin-bootstrap/extracted/${arch}/lib/" 2>/dev/null || true
+                cp -v "$APT_USR/lib/apt/methods/"* "/tmp/termux-kotlin-bootstrap/extracted/${arch}/lib/apt/methods/" 2>/dev/null || true
+              fi
+            fi
+            
+            if [[ -n "$DPKG_DEB" ]]; then
+              echo "Extracting $DPKG_DEB"
+              mkdir -p "/tmp/dpkg-extract/${arch}"
+              cd "/tmp/dpkg-extract/${arch}"
+              ar x "$DPKG_DEB"
+              tar -xf data.tar.xz
+              
+              DPKG_USR=$(find . -type d -name "usr" -path "*/com.termux.kotlin/*" | head -1)
+              if [[ -n "$DPKG_USR" ]]; then
+                cp -v "$DPKG_USR/bin/dpkg"* "/tmp/termux-kotlin-bootstrap/extracted/${arch}/bin/" 2>/dev/null || true
+              fi
+            fi
+            
+            # Verify paths
+            echo "Verifying libapt-pkg.so paths:"
+            strings "/tmp/termux-kotlin-bootstrap/extracted/${arch}/lib/libapt-pkg.so" | grep "com.termux" | head -5
+            
+            # Create final zip
+            cd "/tmp/termux-kotlin-bootstrap/extracted/${arch}"
+            zip -q -r "${GITHUB_WORKSPACE}/app/src/main/cpp/bootstrap-${arch}.zip" .
+            
+            echo "Created bootstrap-${arch}.zip:"
+            ls -lh "${GITHUB_WORKSPACE}/app/src/main/cpp/bootstrap-${arch}.zip"
+          done
+
+      - name: Commit updated bootstrap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add app/src/main/cpp/bootstrap-*.zip
+          
+          if git diff --cached --quiet; then
+            echo "No changes to bootstrap files"
+          else
+            git commit -m "build: Update bootstrap with native com.termux.kotlin packages
+
+            - Built apt/dpkg from source with com.termux.kotlin paths
+            - Architecture: ${{ github.event.inputs.architecture }}
+            - Fixes apt methods path issue"
+            
+            git push origin HEAD:main
+          fi
+
+      - name: Upload bootstrap artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: bootstrap-${{ github.event.inputs.architecture }}
+          path: app/src/main/cpp/bootstrap-*.zip
+          retention-days: 30

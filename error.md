@@ -1096,3 +1096,42 @@ docker exec termux-package-builder tail -f /home/builder/termux-packages/output/
 docker exec -it termux-package-builder bash
 cd /home/builder/termux-packages
 ```
+
+---
+
+## Session Update: 2026-01-17 02:12 UTC
+
+### APT Native Build Complete ✅
+
+**Built from source with `com.termux.kotlin` paths compiled in:**
+
+1. Docker container built apt using termux-packages build system
+2. Modified `scripts/properties.sh` to set `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`
+3. All paths now natively compiled:
+   - `/data/data/com.termux.kotlin/files/usr/lib/apt/methods` ✅
+   - `/data/data/com.termux.kotlin/cache/apt` ✅
+   - All dpkg paths ✅
+
+**Build artifacts:**
+- `/root/apt-kotlin-build/apt_2.8.1-2_x86_64.deb`
+- `/root/apt-kotlin-build/dpkg_1.22.6-5_x86_64.deb`
+- `/root/apt-kotlin-build/gpgv_2.5.16_x86_64.deb`
+
+**New release:**
+- **v1.0.32**: Contains native-built apt/dpkg with correct paths
+- Location: `/root/termux-kotlin-v1.0.32.apk`
+
+### Next Steps:
+1. Test v1.0.32 on Android emulator
+2. Verify `pkg update` works without Error #12
+3. If successful, build for all architectures (aarch64, arm, i686)
+
+### Docker Build Command Used:
+```bash
+docker run -it --name termux-package-builder termux/package-builder bash -c '
+  cd /home/builder/termux-packages
+  sed -i "s/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/" scripts/properties.sh
+  ./clean.sh 2>/dev/null || true
+  ./build-package.sh -a x86_64 apt
+'
+```
