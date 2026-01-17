@@ -121,3 +121,78 @@ If you need binaries with native paths (no wrappers), you must build from source
 - Switched to generate-bootstraps.sh + post-processing approach
 - Successfully created x86_64 bootstrap with correct paths
 - Integrated into app
+
+---
+
+## Building APT from Source (Native Paths)
+
+### Why Build from Source?
+
+ELF binaries (apt, dpkg, update-alternatives) have paths compiled into them:
+- Cannot modify ELF binaries without corruption
+- Wrapper scripts work but are a workaround
+- Native paths = cleaner, more reliable solution
+
+### Setup
+
+1. **Configure package name:**
+```bash
+cd /root/termux-packages
+sed -i 's/TERMUX_APP__PACKAGE_NAME="com.termux"/TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"/' scripts/properties.sh
+```
+
+2. **Start Docker container:**
+```bash
+docker run -it --name termux-package-builder \
+    -v /root/termux-packages:/home/builder/termux-packages \
+    ghcr.io/termux/package-builder bash
+```
+
+3. **Build apt:**
+```bash
+cd /home/builder/termux-packages
+./build-package.sh -a x86_64 apt
+```
+
+### Build Output
+
+Built packages go to `/root/termux-packages/output/`:
+- `apt_*.deb`
+- `libapt-pkg_*.deb` (if separate)
+
+### Extracting Binaries
+
+```bash
+cd /root/termux-packages/output
+ar x apt_*.deb
+tar xf data.tar.xz
+
+# Binaries are in:
+# ./data/data/com.termux.kotlin/files/usr/bin/apt*
+# ./data/data/com.termux.kotlin/files/usr/lib/libapt-pkg.so*
+```
+
+### Integration
+
+After building, replace binaries in bootstrap:
+1. Unzip bootstrap
+2. Replace apt binaries and libapt-pkg.so
+3. Re-zip bootstrap
+4. Copy to app/src/main/cpp/
+
+### Current Build Status (2026-01-17)
+
+- **Container:** Running (`termux-package-builder`)
+- **Build:** In progress (building apt for x86_64)
+- **Dependencies:** Building (libxcb, gnutls, etc.)
+- **Estimated time:** Several hours
+
+### Monitoring Build
+
+```bash
+# Watch build output
+docker exec termux-package-builder tail -f /home/builder/termux-packages/build.log
+
+# Check if apt is built
+ls /root/termux-packages/output/apt_*.deb
+```

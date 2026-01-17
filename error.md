@@ -918,3 +918,181 @@ rm -rf "$TMPDIR"
 - 🔄 Generate bootstraps for arm64, arm, i686
 - 🔄 Test pkg update on real device
 - 🔄 Test package installation
+
+---
+
+## Error #12: APT Methods Path Not Found
+
+**Date:** 2026-01-17  
+**Error Message:**
+```
+E: The method driver /data/data/com.termux/files/usr/lib/apt/methods/http could not be found.
+W: Unable to read /data/data/com.termux/files/usr/etc/apt/apt.conf.d/ - DirectoryExists (13: Permission denied)
+```
+
+**Status:** 🔄 Fix in v1.0.31 (testing) + Building apt from source (in progress)
+
+**Root Cause:** The `apt` binary and `libapt-pkg.so` library have paths compiled into them at build time. Even with our pre-processed bootstrap and wrapper scripts, some paths are still hardcoded in the ELF binaries.
+
+**Fix Attempted (v1.0.31):**
+Added `Dir::Bin::Methods` override to the apt wrapper script:
+```bash
+-o Dir::Bin::Methods="$PREFIX/lib/apt/methods"
+```
+
+**Permanent Fix (In Progress):**
+Building `apt` package from source with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"` so paths are natively compiled with correct prefix.
+
+---
+
+# Session Documentation - 2026-01-17
+
+## Summary of Work Done This Session
+
+### 1. Custom Bootstrap Creation (Completed ✅)
+
+Downloaded upstream Termux bootstrap and post-processed it to replace all `/data/data/com.termux` paths with `/data/data/com.termux.kotlin`.
+
+**Process:**
+1. Cloned termux-packages repository to `/root/termux-packages/`
+2. Used `generate-bootstraps.sh` to download prebuilt bootstraps for all 4 architectures
+3. Created post-processor script `/root/termux-kotlin-bootstrap/process-bootstrap-v3.sh`
+4. Processed each bootstrap to replace paths in text files (not ELF binaries)
+5. Copied processed bootstraps to `app/src/main/cpp/bootstrap-*.zip`
+
+**Files Created:**
+| File | Description |
+|------|-------------|
+| `/root/termux-kotlin-bootstrap/process-bootstrap-v3.sh` | Post-processor script |
+| `/root/termux-kotlin-bootstrap/bootstrap-aarch64-kotlin.zip` | Processed arm64 bootstrap |
+| `/root/termux-kotlin-bootstrap/bootstrap-arm-kotlin.zip` | Processed arm bootstrap |
+| `/root/termux-kotlin-bootstrap/bootstrap-x86_64-kotlin.zip` | Processed x86_64 bootstrap |
+| `/root/termux-kotlin-bootstrap/bootstrap-i686-kotlin.zip` | Processed x86 bootstrap |
+
+**Post-Processor Script Logic:**
+```bash
+#!/bin/bash
+# Replaces /data/data/com.termux with /data/data/com.termux.kotlin
+# in all text files (not ELF binaries) and SYMLINKS.txt
+
+INPUT="$(realpath "$1")"
+OUTPUT="$(realpath -m "$2")"
+
+# Extract, find text files, sed replace, repackage
+```
+
+### 2. Bootstrap Integration (Completed ✅)
+
+Initially placed bootstraps in wrong location (`jniLibs/`), causing duplicate file errors in CI.
+
+**Correct Location:** `app/src/main/cpp/bootstrap-*.zip`
+- These are embedded into `libtermux-bootstrap.so` via NDK build using `termux-bootstrap-zip.S`
+
+**Architecture Mapping:**
+| Bootstrap | Directory |
+|-----------|-----------|
+| bootstrap-aarch64.zip | arm64-v8a |
+| bootstrap-arm.zip | armeabi-v7a |
+| bootstrap-x86_64.zip | x86_64 |
+| bootstrap-i686.zip | x86 |
+
+### 3. Releases Created This Session
+
+| Version | Status | Changes |
+|---------|--------|---------|
+| v1.0.29 | ❌ Failed | Bootstraps in wrong location (jniLibs/) |
+| v1.0.30 | ✅ Built | Bootstraps in correct location (cpp/) |
+| v1.0.31 | 🔄 Building | Added Dir::Bin::Methods to apt wrapper |
+
+### 4. Testing Results (v1.0.30)
+
+**Bootstrap Second Stage:** ✅ Completed successfully
+- All paths show `/data/data/com.termux.kotlin/`
+- update-alternatives working
+- termux-exec initialized correctly
+- postinst scripts executed
+
+**pkg update:** ⚠️ Partial success
+- Mirror selection works (found mirror.mephi.ru)
+- Still fails with apt methods path error (Error #12)
+
+### 5. Building APT from Source (In Progress 🔄)
+
+Started building apt package with native `com.termux.kotlin` paths.
+
+**Configuration:**
+```bash
+# In /root/termux-packages/scripts/properties.sh line 467:
+TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"
+```
+
+**Build Command:**
+```bash
+docker exec -it termux-package-builder bash -c "
+  cd /home/builder/termux-packages
+  ./build-package.sh -a x86_64 apt
+"
+```
+
+**Current Status:** Building dependencies (libxcb, etc.)
+
+**Expected Output:** 
+- `output/apt_*.deb` - Debian package with native com.termux.kotlin paths
+- Can extract and replace apt/libapt-pkg.so in bootstrap
+
+**Estimated Time:** Several hours (apt has 19+ dependencies)
+
+---
+
+## Next Steps (For Future Sessions)
+
+### If apt build succeeds:
+1. Extract built apt binaries from output/*.deb
+2. Replace apt, apt-get, apt-cache, apt-config, apt-mark in bootstrap
+3. Replace libapt-pkg.so in bootstrap
+4. Rebuild bootstrap ZIP files
+5. Remove apt wrappers from TermuxInstaller.kt (no longer needed)
+6. Test pkg update
+
+### If apt build fails:
+1. Debug build errors
+2. Consider building just libapt-pkg (main culprit)
+3. Fall back to wrapper approach if necessary
+
+### Other binaries that may need rebuilding:
+- dpkg (has hardcoded paths, currently using wrapper)
+- update-alternatives (has hardcoded paths, currently using wrapper)
+
+---
+
+## Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `/root/termux-kotlin-app/app/src/main/kotlin/com/termux/app/TermuxInstaller.kt` | Bootstrap extraction, wrapper creation |
+| `/root/termux-kotlin-app/app/src/main/cpp/bootstrap-*.zip` | Pre-processed bootstrap files |
+| `/root/termux-kotlin-bootstrap/process-bootstrap-v3.sh` | Bootstrap post-processor |
+| `/root/termux-packages/scripts/properties.sh` | Package name config (line 467) |
+| `/root/termux-packages/packages/apt/build.sh` | APT build script |
+| `/root/termux-packages/packages/apt/0004-no-hardcoded-paths.patch` | Patch that replaces @TERMUX_PREFIX@ |
+
+---
+
+## Docker Build Environment
+
+**Container:** `termux-package-builder`
+**Image:** `ghcr.io/termux/package-builder`
+**Status:** Running
+
+**To check build progress:**
+```bash
+docker logs -f termux-package-builder
+# or
+docker exec termux-package-builder tail -f /home/builder/termux-packages/output/build.log
+```
+
+**To enter container:**
+```bash
+docker exec -it termux-package-builder bash
+cd /home/builder/termux-packages
+```
