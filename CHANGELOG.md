@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.38] - 2026-01-17
+
+### 🐛 Bug Fixes
+- **environment:** Add `TERMINFO` variable to fix `clear` command ("terminals database is inaccessible")
+- **environment:** Add `SSL_CERT_FILE` and `CURL_CA_BUNDLE` for HTTPS mirror support
+
+### 🔧 Environment
+- `TERMINFO` → `/data/data/com.termux.kotlin/files/usr/share/terminfo`
+- `SSL_CERT_FILE` → `/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem`
+- `CURL_CA_BUNDLE` → `/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem`
+
+
 ## [v1.0.37] - 2026-01-17
 
 ### 🎉 Major Achievement

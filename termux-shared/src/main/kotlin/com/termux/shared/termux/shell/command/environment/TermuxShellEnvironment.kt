@@ -58,6 +58,15 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
             // DPKG_DATADIR: where dpkg data files are stored
             environment[ENV_DPKG_ADMINDIR] = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/var/lib/dpkg"
             environment[ENV_DPKG_DATADIR] = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/share/dpkg"
+            
+            // TERMINFO: path to terminal capability database (required for clear, tput, ncurses apps)
+            environment[ENV_TERMINFO] = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/share/terminfo"
+            
+            // SSL/TLS certificate bundle paths for curl, wget, and other SSL-enabled apps
+            // This enables HTTPS connections to work properly (package mirrors, etc.)
+            val caCertPath = "${TermuxConstants.TERMUX_PREFIX_DIR_PATH}/etc/tls/cert.pem"
+            environment[ENV_SSL_CERT_FILE] = caCertPath
+            environment[ENV_CURL_CA_BUNDLE] = caCertPath
         }
 
         return environment
@@ -86,6 +95,15 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
         
         /** Environment variable for dpkg data directory. */
         const val ENV_DPKG_DATADIR = "DPKG_DATADIR"
+        
+        /** Environment variable for terminal info database location. */
+        const val ENV_TERMINFO = "TERMINFO"
+        
+        /** Environment variable for SSL certificate bundle (used by curl, wget, openssl). */
+        const val ENV_SSL_CERT_FILE = "SSL_CERT_FILE"
+        
+        /** Environment variable for curl CA bundle path. */
+        const val ENV_CURL_CA_BUNDLE = "CURL_CA_BUNDLE"
 
         /** Init [TermuxShellEnvironment] constants and caches. */
         @JvmStatic

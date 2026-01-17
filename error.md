@@ -100,6 +100,8 @@ For best compatibility, **uninstall the original Termux app** before using Termu
 ## Version History & Fixes
 | Version | Date | Issues Fixed | Key Changes |
 |---------|------|--------------|-------------|
+| 1.0.38 | 2026-01-17 | `clear` command, HTTPS mirrors | Added TERMINFO, SSL_CERT_FILE, CURL_CA_BUNDLE env vars |
+| 1.0.37 | 2026-01-17 | Error #12 (apt methods path) | Native com.termux.kotlin paths for all 4 architectures |
 | 1.0.10 | 2026-01-16 | DT_HASH/DT_GNU_HASH error | LD_LIBRARY_PATH override, stopped corrupting ELF binaries |
 | 1.0.11 | 2026-01-16 | Login script shebang paths | Extended path fixing to include bin/ scripts |
 | 1.0.12 | 2026-01-16 | dpkg/bash hardcoded paths | DPKG env vars, login script rewrite, dpkg wrapper |
