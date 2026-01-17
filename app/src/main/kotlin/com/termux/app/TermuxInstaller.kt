@@ -834,6 +834,7 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
     -o Dir::Cache::archives="${'$'}CACHE/apt/archives" \
     -o Dir::Log="${'$'}PREFIX/var/log/apt" \
     -o Dir::Bin::dpkg="${'$'}PREFIX/bin/dpkg" \
+    -o Dir::Bin::Methods="${'$'}PREFIX/lib/apt/methods" \
     "${'$'}@"
 """
                 aptFile.writeText(wrapperScript)
