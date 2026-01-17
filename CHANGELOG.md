@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.41] - 2026-01-17
+
+### 🐛 Critical Bug Fix
+
+Fixed bootstrap extraction crash caused by symlink conflicts.
+
+**Error:** `symlink failed: EEXIST (File exists)` when creating `lib/terminfo` symlink
+
+**Cause:** When integrating 66 rebuilt packages into the bootstrap, some files were duplicated - they existed both as real files AND as symlink entries in SYMLINKS.txt. The ncurses package was the primary culprit with `lib/terminfo`, `lib/libncurses.so*`, and many man page symlinks.
+
+**Fix:** Removed all files that conflict with SYMLINKS.txt entries, allowing symlinks to be created correctly during bootstrap extraction.
+
+### 📦 Bootstrap Sizes (Fixed)
+
+| Architecture | APK Size | Bootstrap Size |
+|-------------|----------|----------------|
+| `arm64-v8a` | ~35 MB | 30 MB |
+| `armeabi-v7a` | ~32 MB | 27 MB |
+| `x86_64` | ~34 MB | 29 MB |
+| `x86` | ~34 MB | 29 MB |
+
+Bootstrap sizes are now more reasonable after removing duplicate files.
+
+
 ## [v1.0.40] - 2026-01-17
 
 ### 🎉 Major Milestone: Full Native Path Support

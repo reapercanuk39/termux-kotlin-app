@@ -31,8 +31,8 @@ android {
         applicationId "com.termux.kotlin"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 38
-        versionName "1.0.40"
+        versionCode 39
+        versionName "1.0.41"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -290,10 +290,10 @@ task downloadBootstraps() {
             // Custom bootstrap with native com.termux.kotlin paths for ALL architectures
             // Built apt/dpkg/termux-tools/termux-exec from source with TERMUX_APP__PACKAGE_NAME=com.termux.kotlin
             // All paths compiled natively into binaries - no runtime patching needed
-            downloadBootstrap("aarch64", "11563475c817a253a72962a95d6b2651949d97795a165be99b0ad262c8f9765a", version, bootstrapProjectDir)
-            downloadBootstrap("arm", "5cbae7162858bb153c4350110bef1282902f2a8fd0f4f1db0b33b0ea776d51fa", version, bootstrapProjectDir)
-            downloadBootstrap("i686", "1af7a51b38400ef68e7f1069aedf3ff874421777fd9ed01759fc0ec128c51386", version, bootstrapProjectDir)
-            downloadBootstrap("x86_64", "d3cc211d78e19fd807bff482ad1b25f14a8ecc06dd91f1a6bc68ce07b9f4e8bd", version, bootstrapProjectDir)
+            downloadBootstrap("aarch64", "15bfb7de8ea7c86cc0e9adeb0e836529c06ecdb489de80533e5c4c8d16e423db", version, bootstrapProjectDir)
+            downloadBootstrap("arm", "4f5f630b95a4735488af496f8a2d6438795ebe4646255256d56930db80e7f017", version, bootstrapProjectDir)
+            downloadBootstrap("i686", "1ad9c1192f681c1aff5a0cbca16d7bc1d12d90e05764e873d665502b4bb8bb10", version, bootstrapProjectDir)
+            downloadBootstrap("x86_64", "eb0550e20466dd16f1eaf38265636608c853588f663ba8ce64ce9917a7f175a6", version, bootstrapProjectDir)
         } else if (bootstrapPackageVariant == "apt-android-5") {
             // Note: apt-android-5 is no longer actively maintained by Termux.
             // Using legacy checksums for compatibility with Android 5/6 devices.

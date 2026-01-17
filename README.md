@@ -62,11 +62,11 @@ This means `pkg update` and all package operations work natively without any pat
 
 | Architecture | APK Size | Bootstrap Size |
 |-------------|----------|----------------|
-| `arm64-v8a` | ~103 MB | 97 MB |
-| `armeabi-v7a` | ~90 MB | 84 MB |
-| `x86_64` | ~103 MB | 97 MB |
-| `x86` | ~101 MB | 95 MB |
-| `universal` | ~386 MB | All 4 combined |
+| `arm64-v8a` | ~35 MB | 30 MB |
+| `armeabi-v7a` | ~32 MB | 27 MB |
+| `x86_64` | ~34 MB | 29 MB |
+| `x86` | ~34 MB | 29 MB |
+| `universal` | ~130 MB | All 4 combined |
 
 **Why is it larger than original Termux?**
 
