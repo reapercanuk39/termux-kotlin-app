@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.42] - 2026-01-17
+
+### 🎉 Major Fix: Full Upstream Package Compatibility
+
+This release enables installation of ANY package from upstream Termux repositories. Previously, `pkg install python` and similar commands would fail with "Permission denied" errors.
+
+**Error Fixed:** 
+```
+dpkg: error processing archive ... (--unpack):
+ unable to stat './data/data/com.termux' (which was about to be installed): Permission denied
+```
+
+### 🔧 Root Cause
+
+Upstream Termux packages contain files with absolute paths inside their archives:
+- `./data/data/com.termux/files/usr/bin/python`
+- `./data/data/com.termux/files/usr/lib/libffi.so`
+
+When dpkg tries to extract these in `com.termux.kotlin`, it attempts to create `/data/data/com.termux/` which is blocked by Android's app sandboxing.
+
+### ✅ Solution: On-the-fly Package Path Rewriting
+
+Enhanced the dpkg wrapper to intercept package installation and rewrite paths before extraction:
+
+1. Detects if .deb contains `./data/data/com.termux/` paths
+2. Extracts and restructures the archive:
+   - `./data/data/com.termux/` → `./data/data/com.termux.kotlin/`
+3. Fixes hardcoded paths in text files (scripts, configs, .pc files)
+4. Repacks and passes to dpkg.real
+
+### 🐛 Additional Fixes
+
+- **Path Replacement:** Fixed `fixPathsInTextFile()` to handle ALL `com.termux` paths, not just `/data/data/com.termux/files`:
+  - Now also handles `/data/data/com.termux/cache/` paths
+  - Fixes the `pkg` script which had unpatched cache directory references
+
+### ⚡ Performance Note
+
+Package rewriting adds ~1-2 seconds per package. Large packages may take longer. Rewritten packages are cached in `$TMPDIR` during installation.
+
+### 📦 Now Works
+
+```bash
+pkg install python     # ✅ Works!
+pkg install nodejs     # ✅ Works!
+pkg install vim        # ✅ Works!
+pkg install git        # ✅ Works!
+# All 3000+ packages in Termux repository
+```
+
+
 ## [v1.0.41] - 2026-01-17
 
 ### 🐛 Critical Bug Fix

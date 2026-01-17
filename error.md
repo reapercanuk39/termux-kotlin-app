@@ -1280,3 +1280,94 @@ done
 5. [ ] Integrate new packages into bootstrap
 6. [ ] Consider native Kotlin implementations for termux-auth, termux-services
 
+
+---
+
+## Error #13: Upstream Package Path Incompatibility (pkg install fails)
+
+**Date:** 2026-01-17  
+**Version:** v1.0.41 → v1.0.42  
+**Error Message:**
+```
+dpkg: error processing archive .../libcompiler-rt_21.1.8_aarch64.deb (--unpack):
+ unable to stat './data/data/com.termux' (which was about to be installed): Permission denied
+```
+
+**Status:** 🔧 Fixed in v1.0.42  
+
+### Root Cause Analysis
+
+**CRITICAL DISCOVERY:** Upstream Termux packages are **fundamentally incompatible** with Termux Kotlin because:
+
+1. **Package Archive Structure:** Upstream .deb packages contain files with ABSOLUTE paths inside the tar archive:
+   ```
+   ./data/data/com.termux/files/usr/bin/python
+   ./data/data/com.termux/files/usr/lib/libffi.so
+   ```
+
+2. **dpkg Extraction:** When dpkg extracts these packages, it tries to create the directory structure exactly as stored:
+   - Creates `/data/data/com.termux/files/usr/...`
+   - But `com.termux.kotlin` app has no permission to access `/data/data/com.termux/`
+   - Result: "Permission denied"
+
+3. **Package Identity:** The `com.termux.kotlin` package name means we have a completely different data directory:
+   - Our path: `/data/data/com.termux.kotlin/files/usr/`
+   - Upstream path: `/data/data/com.termux/files/usr/`
+
+### Why Previous Fixes Didn't Address This
+
+- Previous fixes (env vars, wrappers) only handled **binary execution** issues
+- This error occurs during **package extraction** before any binary runs
+- The paths are inside the .deb archive itself, not just in binaries
+
+### Solution: dpkg Package Path Rewriter
+
+Created an enhanced dpkg wrapper that intercepts package installation and rewrites paths on-the-fly:
+
+1. **Intercept Installation:** When dpkg receives `-i`, `--install`, `-x`, `--extract`, or `--unpack` commands
+2. **Detect Old Paths:** Check if .deb contains `./data/data/com.termux/` paths
+3. **Rewrite Archive:** 
+   - Extract .deb components (ar -x)
+   - Extract data.tar.* 
+   - Move files from `com.termux` to `com.termux.kotlin` directory structure
+   - Fix text file paths (scripts, configs, .pc files, etc.)
+   - Repack data archive
+   - Rebuild .deb with new structure
+4. **Install Rewritten Package:** Pass the path-corrected .deb to dpkg.real
+
+### Additional Fix: Comprehensive Path Replacement
+
+Also fixed `fixPathsInTextFile()` to replace ALL `com.termux` paths, not just `/data/data/com.termux/files`:
+- `/data/data/com.termux/files/...` → `/data/data/com.termux.kotlin/files/...`
+- `/data/data/com.termux/cache/...` → `/data/data/com.termux.kotlin/cache/...`
+
+### Files Modified
+
+1. **TermuxInstaller.kt**
+   - Enhanced `createDpkgWrapper()` with package rewriting logic
+   - Enhanced `fixPathsInTextFile()` to handle base path replacement
+
+### Technical Details
+
+The dpkg wrapper script flow:
+```
+pkg install python
+  └─→ apt-get install python
+        └─→ dpkg -i /tmp/python_3.12.12_aarch64.deb
+              └─→ dpkg wrapper detects installation
+                    └─→ rewrite_deb() function:
+                          1. ar -x (extract .deb)
+                          2. tar -xf data.tar.* (extract files)
+                          3. mv com.termux/ com.termux.kotlin/
+                          4. sed -i paths in text files
+                          5. tar -cf (repack)
+                          6. ar -rc (rebuild .deb)
+                    └─→ dpkg.real -i rewritten.deb
+```
+
+### Performance Note
+
+The rewriting adds ~1-2 seconds per package. For large packages (100+ MB), this may take longer. The rewritten packages are stored in `$TMPDIR` and cleaned up after installation.
+
+---
+

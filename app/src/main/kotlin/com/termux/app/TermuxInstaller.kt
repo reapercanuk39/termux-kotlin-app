@@ -524,12 +524,40 @@ object TermuxInstaller {
     
     /**
      * Replace hardcoded upstream package paths with our package paths in a text file.
+     * 
+     * This handles BOTH path patterns:
+     * - /data/data/com.termux/files/usr/... -> /data/data/com.termux.kotlin/files/usr/...
+     * - /data/data/com.termux/cache/... -> /data/data/com.termux.kotlin/cache/...
+     * - /data/data/com.termux (at end of string or before non-alphanum) -> /data/data/com.termux.kotlin
+     * 
+     * The upstreamPrefix is typically "/data/data/com.termux/files" but we also need to
+     * handle "/data/data/com.termux/cache" and other paths.
      */
     private fun fixPathsInTextFile(file: File, upstreamPrefix: String, ourPrefix: String) {
         try {
             val content = file.readText()
-            if (content.contains(upstreamPrefix)) {
-                val fixedContent = content.replace(upstreamPrefix, ourPrefix)
+            
+            // Also fix the base package path (without /files suffix)
+            // e.g. /data/data/com.termux/cache -> /data/data/com.termux.kotlin/cache
+            val upstreamBase = upstreamPrefix.removeSuffix("/files")
+            val ourBase = ourPrefix.removeSuffix("/files")
+            
+            var fixedContent = content
+            var modified = false
+            
+            // Replace base path first (this covers both /files and /cache paths)
+            if (fixedContent.contains(upstreamBase)) {
+                fixedContent = fixedContent.replace(upstreamBase, ourBase)
+                modified = true
+            }
+            
+            // Also handle any remaining specific paths (shouldn't be needed but just in case)
+            if (fixedContent.contains(upstreamPrefix)) {
+                fixedContent = fixedContent.replace(upstreamPrefix, ourPrefix)
+                modified = true
+            }
+            
+            if (modified) {
                 file.writeText(fixedContent)
                 Logger.logDebug(LOG_TAG, "Fixed paths in ${file.name}")
             }
@@ -636,26 +664,147 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
             // The wrapper intercepts --version to avoid calling dpkg.real which has
             // hardcoded config paths. When original Termux is installed, dpkg.real
             // can't even run because it tries to access the other app's config dir.
+            //
+            // CRITICAL FIX (v1.0.42): Also intercepts package installation to rewrite
+            // paths in upstream packages. Upstream .deb files contain paths like:
+            //   ./data/data/com.termux/files/usr/...
+            // which need to be rewritten to:
+            //   ./data/data/com.termux.kotlin/files/usr/...
+            // before dpkg can extract them.
             val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
 # dpkg wrapper script for com.termux.kotlin
-# Handles hardcoded path issues in the dpkg binary
+# Handles hardcoded path issues in the dpkg binary AND upstream packages
 # 
-# IMPORTANT: The dpkg binary has /data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d 
-# hardcoded. There is NO env var to override this. When original Termux is installed,
-# dpkg will try to access that directory and fail with "Permission denied".
-# 
-# Workaround: For --version (needed by bootstrap second stage), we return a 
-# hardcoded version string without calling the real binary.
+# ISSUE 1: The dpkg binary has /data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d 
+# hardcoded. There is NO env var to override this.
+#
+# ISSUE 2: Upstream Termux packages contain files with paths like:
+#   ./data/data/com.termux/files/usr/bin/python
+# When dpkg tries to extract these, it fails with "Permission denied" because
+# com.termux.kotlin app cannot write to /data/data/com.termux/.
+#
+# SOLUTION: Intercept .deb file installation and rewrite paths on-the-fly.
+
+set -e
+
+PREFIX="${ourFilesPrefix}/usr"
+TMPDIR="${ourFilesPrefix}/usr/tmp"
 
 # Set dpkg directories to our package paths
 export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
 export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 
+# Path patterns to rewrite
+OLD_PREFIX="/data/data/com.termux"
+NEW_PREFIX="/data/data/com.termux.kotlin"
+
+# Function to rewrite paths in a .deb package
+rewrite_deb() {
+    local deb_file="${'$'}1"
+    local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
+    local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
+    
+    # Check if package needs rewriting (contains old paths)
+    if ! ar -p "${'$'}deb_file" data.tar.xz 2>/dev/null | xz -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+        # Also check data.tar.gz and data.tar.zst
+        if ! ar -p "${'$'}deb_file" data.tar.gz 2>/dev/null | gzip -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+            if ! ar -p "${'$'}deb_file" data.tar.zst 2>/dev/null | zstd -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+                # Package doesn't contain old paths, use as-is
+                echo "${'$'}deb_file"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Package needs rewriting
+    mkdir -p "${'$'}work_dir"
+    cd "${'$'}work_dir"
+    
+    # Extract .deb components
+    ar -x "${'$'}deb_file"
+    
+    # Determine data archive format
+    local data_archive=""
+    local compress_cmd=""
+    local decompress_cmd=""
+    if [ -f data.tar.xz ]; then
+        data_archive="data.tar.xz"
+        decompress_cmd="xz -d"
+        compress_cmd="xz"
+    elif [ -f data.tar.gz ]; then
+        data_archive="data.tar.gz"
+        decompress_cmd="gzip -d"
+        compress_cmd="gzip"
+    elif [ -f data.tar.zst ]; then
+        data_archive="data.tar.zst"
+        decompress_cmd="zstd -d"
+        compress_cmd="zstd"
+    elif [ -f data.tar ]; then
+        data_archive="data.tar"
+        decompress_cmd="cat"
+        compress_cmd="cat"
+    else
+        echo "ERROR: Unknown data archive format in ${'$'}deb_file" >&2
+        rm -rf "${'$'}work_dir"
+        echo "${'$'}deb_file"
+        return 0
+    fi
+    
+    # Extract data archive
+    mkdir data_extracted
+    if [ "${'$'}decompress_cmd" = "cat" ]; then
+        tar -xf "${'$'}data_archive" -C data_extracted
+    else
+        ${'$'}decompress_cmd < "${'$'}data_archive" | tar -xf - -C data_extracted
+    fi
+    
+    # Rewrite directory structure
+    if [ -d "data_extracted/data/data/com.termux" ]; then
+        mkdir -p "data_extracted/data/data/com.termux.kotlin"
+        # Move contents from old path to new path
+        if [ -d "data_extracted/data/data/com.termux/files" ]; then
+            mv "data_extracted/data/data/com.termux/files" "data_extracted/data/data/com.termux.kotlin/"
+        fi
+        if [ -d "data_extracted/data/data/com.termux/cache" ]; then
+            mv "data_extracted/data/data/com.termux/cache" "data_extracted/data/data/com.termux.kotlin/"
+        fi
+        # Remove old empty directory
+        rm -rf "data_extracted/data/data/com.termux"
+    fi
+    
+    # Fix hardcoded paths in text files
+    find data_extracted -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" -o -name "*.pc" -o -name "*.la" -o -name "*.cmake" -o -name "*.cfg" -o -name "*.conf" \) 2>/dev/null | while read file; do
+        if grep -q "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
+            sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file"
+        fi
+    done
+    
+    # Recreate data archive with new paths
+    rm -f "${'$'}data_archive"
+    cd data_extracted
+    if [ "${'$'}compress_cmd" = "cat" ]; then
+        tar -cf "../${'$'}data_archive" .
+    else
+        tar -cf - . | ${'$'}compress_cmd > "../${'$'}data_archive"
+    fi
+    cd ..
+    rm -rf data_extracted
+    
+    # Recreate .deb package
+    # The order must be: debian-binary, control.tar.*, data.tar.*
+    rm -f "${'$'}rewritten_deb"
+    ar -rc "${'$'}rewritten_deb" debian-binary control.tar.* "${'$'}data_archive"
+    
+    # Cleanup
+    cd /
+    rm -rf "${'$'}work_dir"
+    
+    echo "${'$'}rewritten_deb"
+}
+
 # Handle --version specially to avoid config dir access error
-# The bootstrap second-stage only needs this for a version check
 case "${'$'}1" in
     --version|-V)
-        # Return fake version output matching real dpkg format
         echo "Debian 'dpkg' package management program version 1.22.6 (arm64)."
         echo ""
         echo "This is free software; see the GNU General Public License version 2 or"
@@ -663,16 +812,36 @@ case "${'$'}1" in
         exit 0
         ;;
     --help|-\?)
-        # Also handle help to avoid errors
         "${ourFilesPrefix}/usr/bin/dpkg.real" --help 2>/dev/null || \
         echo "dpkg - Debian package management system"
         exit 0
         ;;
 esac
 
-# For all other commands, try calling the real binary
-# This may still fail if original Termux is installed due to config path access
-exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
+# Check if this is a package installation command
+install_mode=0
+case "${'$'}1" in
+    -i|--install|-x|--extract|--unpack)
+        install_mode=1
+        ;;
+esac
+
+if [ "${'$'}install_mode" = "1" ]; then
+    # Rewrite .deb files that contain old paths
+    new_args=()
+    for arg in "${'$'}@"; do
+        if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
+            rewritten=${'$'}(rewrite_deb "${'$'}arg")
+            new_args+=("${'$'}rewritten")
+        else
+            new_args+=("${'$'}arg")
+        fi
+    done
+    exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
+else
+    # For all other commands, call the real binary directly
+    exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
+fi
 """
             dpkgFile.writeText(wrapperScript)
             Os.chmod(dpkgFile.absolutePath, 448) // 0700

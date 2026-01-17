@@ -31,8 +31,8 @@ android {
         applicationId "com.termux.kotlin"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 39
-        versionName "1.0.41"
+        versionCode 40
+        versionName "1.0.42"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)

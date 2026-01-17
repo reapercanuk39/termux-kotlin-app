@@ -261,3 +261,13 @@ repo/
 ---
 
 *Last updated: 2026-01-17*
+
+### 2026-01-17: Upstream Package Compatibility (RESOLVED)
+- **Problem:** `pkg install python` fails with "Permission denied" on `./data/data/com.termux`
+- **Discovery:** Upstream .deb packages contain files with absolute paths inside archives
+- **Solution:** Enhanced dpkg wrapper to rewrite package paths on-the-fly during installation
+- **Status:** ✅ Fixed in v1.0.42
+
+---
+
+*Last updated: 2026-01-17*
