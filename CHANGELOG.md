@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.32] - 2026-01-17
+
+### 🐛 Bug Fixes
+- **bootstrap:** Native apt/dpkg build with com.termux.kotlin paths
+
+### 📚 Documentation
+-  Comprehensive session documentation for 2026-01-17
+-  Update CHANGELOG for v1.0.31 [skip ci]
+
+
 ## [v1.0.31] - 2026-01-17
 
 ### 🐛 Bug Fixes
