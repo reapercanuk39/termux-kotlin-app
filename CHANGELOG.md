@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.40] - 2026-01-17
+
+### 🎉 Major Milestone: Full Native Path Support
+
+This release completes the native path migration by rebuilding ALL 66 packages that had hardcoded `com.termux` paths. Now 716+ binaries have native `com.termux.kotlin` paths compiled in.
+
+### 🔧 Packages Rebuilt (66 packages)
+All packages that had hardcoded `/data/data/com.termux/` paths have been rebuilt with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`:
+
+**Core:** apt, bash, coreutils, curl, dash, dpkg, grep, sed, tar, gzip, xz-utils, zstd, bzip2
+**Utilities:** diffutils, findutils, gawk, less, nano, patch, procps, psmisc, unzip, util-linux
+**Network:** inetutils, net-tools, openssl, libcurl, libssh2, libgnutls, libnghttp2, libnghttp3
+**Libraries:** libacl, libandroid-*, libassuan, libbz2, libcap-ng, libevent, libgcrypt, libgmp, libgpg-error, libiconv, libidn2, liblz4, liblzma, libmd, libmpfr, libnettle, libnpth, libsmartcols, libtirpc, libunbound, libunistring, libgnutls-dane, libgnutlsxx
+**Termux:** termux-am-socket, termux-exec, termux-tools, termux-api
+
+### ✅ Key Improvements
+- **SSL Certificate Verification**: libgnutls now uses native cert path
+- **Package Management**: apt/dpkg fully functional with native paths
+- **716+ binaries** now have correct paths compiled in
+- **All 4 architectures** (aarch64, arm, x86_64, i686) updated
+
+### 📝 Technical Notes
+- Text files (shell scripts) are fixed at runtime by TermuxInstaller's `fixPathsInTextFile()` function
+- ELF binaries have paths compiled in via Docker build with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`
+
+
 ## [v1.0.39] - 2026-01-17
 
 ### 🐛 Bug Fixes

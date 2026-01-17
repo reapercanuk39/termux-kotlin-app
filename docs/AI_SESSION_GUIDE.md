@@ -97,23 +97,37 @@ Built packages appear in:
 
 ## 📊 Package Status
 
-### ✅ Already Rebuilt with Native Paths
-| Package | Version | Location |
-|---------|---------|----------|
-| apt | 2.8.1-2 | repo/, bootstrap |
-| dpkg | 1.22.6-5 | repo/, bootstrap |
-| termux-exec | 1:2.4.0-1 | repo/, bootstrap |
-| termux-tools | 1.46.0+really1.45.0-1 | repo/, bootstrap |
-| termux-core | 0.4.0-1 | repo/, bootstrap |
-| termux-api | 0.59.1-1 | repo/, bootstrap |
-| libgnutls | 3.8.11 | repo/, bootstrap |
-| libcurl | 8.18.0 | repo/, bootstrap |
-| libgpg-error | 1.58 | repo/, bootstrap |
+### ✅ v1.0.40 - Full Native Path Support Complete!
+
+As of v1.0.40, **ALL 66 packages** with hardcoded paths have been rebuilt with native `com.termux.kotlin` paths. This includes **716+ binaries** across all 4 architectures.
+
+#### Complete Rebuilt Package List (66 packages):
+
+**Core System:**
+- apt, bash, coreutils, curl, dash, debianutils, dpkg, grep, sed, tar, gzip, xz-utils, zstd, bzip2
+
+**Utilities:**
+- diffutils, dos2unix, ed, findutils, gawk, less, lsof, nano, patch, procps, psmisc, unzip, util-linux, xxhash
+
+**Network:**
+- inetutils, net-tools, openssl, libcurl, libssh2, libgnutls, libnghttp2, libnghttp3, libunbound
+
+**Compression:**
+- liblz4, liblzma, libbz2, zlib
+
+**Libraries:**
+- libacl, libandroid-glob, libandroid-posix-semaphore, libandroid-selinux, libandroid-support
+- libassuan, libcap-ng, libevent, libgcrypt, libgmp, libgpg-error
+- libiconv, libidn2, libmd, libmpfr, libnettle, libnpth
+- libsmartcols, libtirpc, libunistring, ncurses, pcre2, readline
+
+**Termux-specific:**
+- termux-am-socket, termux-exec, termux-tools, termux-api
 
 ### ❌ Need Rebuilding (Have Hardcoded com.termux Paths)
 | Package | Hardcoded Path | Impact |
 |---------|----------------|--------|
-| *(None currently known)* | - | - |
+| *(None - all packages rebuilt!)* | - | - |
 
 ### How to Check for Hardcoded Paths
 ```bash
