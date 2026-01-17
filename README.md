@@ -46,12 +46,36 @@ Termux Kotlin uses its own package name (`com.termux.kotlin`) and can be install
 /data/data/com.termux.kotlin/files/usr
 ```
 
-**Key packages rebuilt from source with native paths:**
-- `apt`, `dpkg` - Package management
-- `termux-exec`, `termux-tools`, `termux-core` - Core utilities
-- `termux-api` - Device API integration
+**All 66 packages rebuilt from source with native paths (v1.0.40):**
+
+| Category | Packages |
+|----------|----------|
+| **Core** | apt, dpkg, bash, coreutils, grep, sed, tar, gzip |
+| **Network** | curl, openssl, libgnutls, libcurl, libssh2 |
+| **Utilities** | nano, less, findutils, diffutils, procps |
+| **Termux** | termux-exec, termux-tools, termux-api |
+| **+50 more** | See [CHANGELOG.md](CHANGELOG.md) for complete list |
 
 This means `pkg update` and all package operations work natively without any path-patching hacks.
+
+### 📦 APK Size Explanation
+
+| Architecture | APK Size | Bootstrap Size |
+|-------------|----------|----------------|
+| `arm64-v8a` | ~103 MB | 97 MB |
+| `armeabi-v7a` | ~90 MB | 84 MB |
+| `x86_64` | ~103 MB | 97 MB |
+| `x86` | ~101 MB | 95 MB |
+| `universal` | ~386 MB | All 4 combined |
+
+**Why is it larger than original Termux?**
+
+The APK includes **66 packages rebuilt from source** with native `com.termux.kotlin` paths. These packages have the correct paths compiled directly into the ELF binaries, ensuring:
+- ✅ SSL/TLS works immediately (libgnutls uses correct cert path)
+- ✅ Package management works out-of-box (apt/dpkg)
+- ✅ No runtime path-patching needed
+
+The original Termux downloads these packages from their repository, while we bundle them for immediate functionality.
 
 ### 🌍 Proper Environment Configuration
 

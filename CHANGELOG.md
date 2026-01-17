@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release completes the native path migration by rebuilding ALL 66 packages that had hardcoded `com.termux` paths. Now 716+ binaries have native `com.termux.kotlin` paths compiled in.
 
+### 📦 APK Size Increase Explained
+
+| Architecture | APK Size | Bootstrap Size |
+|-------------|----------|----------------|
+| `arm64-v8a` | ~103 MB | 97 MB |
+| `armeabi-v7a` | ~90 MB | 84 MB |
+| `x86_64` | ~103 MB | 97 MB |
+| `x86` | ~101 MB | 95 MB |
+| `universal` | ~386 MB | All 4 combined |
+
+**Why larger than before?** The APK now includes 66 packages rebuilt from source with native `com.termux.kotlin` paths. These are bundled in the bootstrap to ensure:
+- SSL/TLS works immediately (no certificate errors)
+- Package management works out-of-box
+- No dependency on upstream Termux repositories for core functionality
+
 ### 🔧 Packages Rebuilt (66 packages)
 All packages that had hardcoded `/data/data/com.termux/` paths have been rebuilt with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`:
 
