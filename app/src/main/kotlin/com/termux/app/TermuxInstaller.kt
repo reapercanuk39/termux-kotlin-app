@@ -986,6 +986,7 @@ mkdir -p "${'$'}PREFIX/var/log/apt" 2>/dev/null
 mkdir -p "${'$'}CACHE/apt/archives/partial" 2>/dev/null
 
 # Call real binary with overridden paths
+# NOTE: Acquire::https::CaInfo points to the SSL CA bundle for HTTPS verification
 exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
     -o Dir::Etc="${'$'}PREFIX/etc/apt" \
     -o Dir::Etc::sourcelist="${'$'}PREFIX/etc/apt/sources.list" \
@@ -1004,6 +1005,8 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
     -o Dir::Log="${'$'}PREFIX/var/log/apt" \
     -o Dir::Bin::dpkg="${'$'}PREFIX/bin/dpkg" \
     -o Dir::Bin::Methods="${'$'}PREFIX/lib/apt/methods" \
+    -o Acquire::https::CaInfo="${'$'}PREFIX/etc/tls/cert.pem" \
+    -o Acquire::http::CaInfo="${'$'}PREFIX/etc/tls/cert.pem" \
     "${'$'}@"
 """
                 aptFile.writeText(wrapperScript)

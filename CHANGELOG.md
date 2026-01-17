@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.43] - 2026-01-17
+
+### 🔧 Fix: APT HTTPS Certificate Verification
+
+This release fixes SSL certificate verification errors when running `pkg update` or `pkg install`.
+
+**Error Fixed:** 
+```
+Certificate verification failed: The certificate is NOT trusted.
+The certificate issuer is unknown. Could not handshake: Error in the certificate verification.
+W: https://packages.termux.dev/apt/termux-main/dists/stable/InRelease: No system certificates available. Try installing ca-certificates.
+```
+
+### Root Cause
+The APT wrapper was missing the `Acquire::https::CaInfo` configuration option to tell APT where to find the SSL CA bundle (`/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem`).
+
+### Solution
+Added `Acquire::https::CaInfo` and `Acquire::http::CaInfo` options to the APT wrapper script, pointing to the correct CA bundle path.
+
+---
+
 ## [v1.0.42] - 2026-01-17
 
 ### 🎉 Major Fix: Full Upstream Package Compatibility
