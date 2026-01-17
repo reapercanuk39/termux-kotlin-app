@@ -44,3 +44,7 @@ Thumbs.db
 *.keystore
 *.jks
 signing.properties
+
+# Binary packages
+*.deb
+repo/**/*.deb

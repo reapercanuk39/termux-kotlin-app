@@ -1,0 +1,207 @@
+name: Build Termux Tools
+
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Architecture to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - aarch64
+          - x86_64
+      packages:
+        description: 'Packages to build (comma-separated or "all")'
+        required: true
+        default: 'termux-exec,termux-tools,termux-am,termux-api'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-tools:
+    name: Build Termux Tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          df -h
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pull termux-packages builder
+        run: docker pull termux/package-builder
+
+      - name: Build packages
+        run: |
+          ARCH="${{ github.event.inputs.architecture }}"
+          PACKAGES="${{ github.event.inputs.packages }}"
+          
+          if [[ "$ARCH" == "all" ]]; then
+            ARCHS="aarch64 x86_64"
+          else
+            ARCHS="$ARCH"
+          fi
+          
+          # Convert package list to array
+          IFS=',' read -ra PKG_ARRAY <<< "$PACKAGES"
+          
+          for arch in $ARCHS; do
+            echo "=== Building for $arch ==="
+            
+            docker run --name "builder-${arch}" \
+              termux/package-builder \
+              bash -c "
+                cd /home/builder/termux-packages
+                
+                # Set package name to com.termux.kotlin
+                sed -i 's/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/' scripts/properties.sh
+                
+                # Verify
+                grep 'TERMUX_APP__PACKAGE_NAME=' scripts/properties.sh
+                
+                # Build each package
+                for pkg in ${PKG_ARRAY[@]}; do
+                  echo \"Building \$pkg for $arch...\"
+                  ./build-package.sh -a $arch \$pkg || echo \"Failed to build \$pkg\"
+                done
+                
+                echo 'BUILDS COMPLETE'
+              "
+            
+            # Extract outputs
+            mkdir -p output/$arch
+            docker cp "builder-${arch}:/home/builder/termux-packages/output/." "output/$arch/" || true
+            docker rm -f "builder-${arch}"
+            
+            echo "Built packages for $arch:"
+            ls -lh output/$arch/*.deb 2>/dev/null | head -20
+          done
+
+      - name: Verify package paths
+        run: |
+          echo "=== Verifying com.termux.kotlin paths in packages ==="
+          
+          for deb in output/*/*.deb; do
+            if [[ -f "$deb" ]]; then
+              pkg_name=$(basename "$deb")
+              
+              # Extract and check
+              mkdir -p /tmp/verify
+              cd /tmp/verify
+              ar x "$GITHUB_WORKSPACE/$deb" 2>/dev/null || continue
+              tar -xf data.tar.* 2>/dev/null || continue
+              
+              # Check for old paths in text files
+              old_paths=$(find . -type f -exec grep -l "com\.termux[^.]" {} \; 2>/dev/null | head -5)
+              if [[ -n "$old_paths" ]]; then
+                echo "⚠️  $pkg_name may have old paths in: $old_paths"
+              else
+                echo "✅ $pkg_name - paths OK"
+              fi
+              
+              cd - > /dev/null
+              rm -rf /tmp/verify/*
+            fi
+          done
+
+      - name: Update bootstrap with new packages
+        run: |
+          echo "=== Updating bootstrap with rebuilt packages ==="
+          
+          for arch in aarch64 x86_64; do
+            bootstrap_zip="app/src/main/cpp/bootstrap-${arch}.zip"
+            
+            if [[ -f "$bootstrap_zip" ]]; then
+              echo "Updating $arch bootstrap..."
+              
+              # Extract bootstrap
+              mkdir -p /tmp/bootstrap-$arch
+              unzip -q "$bootstrap_zip" -d /tmp/bootstrap-$arch
+              
+              # Extract and copy new packages
+              for deb in output/$arch/termux-*.deb; do
+                if [[ -f "$deb" ]]; then
+                  pkg_name=$(basename "$deb" .deb)
+                  echo "  Extracting $pkg_name..."
+                  
+                  mkdir -p /tmp/pkg-extract
+                  cd /tmp/pkg-extract
+                  ar x "$GITHUB_WORKSPACE/$deb"
+                  tar -xf data.tar.*
+                  
+                  # Find the usr directory and copy contents
+                  usr_dir=$(find . -type d -name "usr" -path "*/com.termux.kotlin/*" | head -1)
+                  if [[ -n "$usr_dir" ]]; then
+                    cp -r "$usr_dir/"* /tmp/bootstrap-$arch/ 2>/dev/null || true
+                  fi
+                  
+                  cd - > /dev/null
+                  rm -rf /tmp/pkg-extract
+                fi
+              done
+              
+              # Repackage bootstrap
+              cd /tmp/bootstrap-$arch
+              rm -f "$GITHUB_WORKSPACE/$bootstrap_zip"
+              zip -q -r "$GITHUB_WORKSPACE/$bootstrap_zip" .
+              cd - > /dev/null
+              
+              echo "Updated $arch bootstrap"
+            fi
+          done
+
+      - name: Run path rewrite script
+        run: |
+          chmod +x scripts/rewrite-paths.sh
+          
+          for arch in aarch64 x86_64; do
+            if [[ -f "app/src/main/cpp/bootstrap-${arch}.zip" ]]; then
+              echo "Running path rewrite for $arch bootstrap..."
+              
+              mkdir -p /tmp/rewrite-$arch
+              unzip -q "app/src/main/cpp/bootstrap-${arch}.zip" -d /tmp/rewrite-$arch
+              
+              ./scripts/rewrite-paths.sh /tmp/rewrite-$arch --verbose
+              
+              # Repackage
+              cd /tmp/rewrite-$arch
+              rm -f "${GITHUB_WORKSPACE}/app/src/main/cpp/bootstrap-${arch}.zip"
+              zip -q -r "${GITHUB_WORKSPACE}/app/src/main/cpp/bootstrap-${arch}.zip" .
+              cd - > /dev/null
+            fi
+          done
+
+      - name: Generate checksums
+        run: |
+          echo "=== Bootstrap checksums ==="
+          for zip in app/src/main/cpp/bootstrap-*.zip; do
+            sha256sum "$zip"
+          done
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: termux-tools-packages
+          path: output/**/*.deb
+          retention-days: 30
+
+      - name: Upload bootstrap artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: updated-bootstrap
+          path: app/src/main/cpp/bootstrap-*.zip
+          retention-days: 30

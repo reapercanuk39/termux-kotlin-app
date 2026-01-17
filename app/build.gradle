@@ -32,7 +32,7 @@ android {
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
         versionCode 35
-        versionName "1.0.35"
+        versionName "1.0.36"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -293,8 +293,8 @@ task downloadBootstraps() {
             downloadBootstrap("aarch64", "68fff6791c7a673790ec3d050956619e096fd3babb7c84cfe241cb3ce7d64467", version, bootstrapProjectDir)
             downloadBootstrap("arm", "f4940fc3e2cfe74db47eea4747e066ef522ac45dfdcf1088529e772d05d109e2", version, bootstrapProjectDir)
             downloadBootstrap("i686", "59a1e9546a87bcb4de65089d0f82d04c664ae33a99926d7a2c203a2c4f0230ed", version, bootstrapProjectDir)
-            // x86_64: Native build with com.termux.kotlin paths
-            downloadBootstrap("x86_64", "f375f6a13fa657e835c998c98a97dc5a2e4b4ff1a457ec27ff6035a4f87d667d", version, bootstrapProjectDir)
+            // x86_64: Native build with com.termux.kotlin paths + rebuilt termux-tools
+            downloadBootstrap("x86_64", "1e0b08beb01b4f4b420e135901e2ef2a18c8490d586e204c275adef4f03bc756", version, bootstrapProjectDir)
         } else if (bootstrapPackageVariant == "apt-android-5") {
             // Note: apt-android-5 is no longer actively maintained by Termux.
             // Using legacy checksums for compatibility with Android 5/6 devices.
