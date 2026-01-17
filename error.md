@@ -1137,3 +1137,146 @@ docker run -it --name termux-package-builder termux/package-builder bash -c '
   ./build-package.sh -a x86_64 apt
 '
 ```
+
+---
+
+## Session Summary: 2026-01-17 (Package Integration Analysis)
+
+### ✅ v1.0.38 Released
+
+**Fixes Applied:**
+| Fix | Description |
+|-----|-------------|
+| TERMINFO | Added env var for `clear`, `tput`, ncurses apps |
+| SSL_CERT_FILE | Added for HTTPS mirror support |
+| CURL_CA_BUNDLE | Added for curl CA certificate path |
+
+**Environment Variables Added:**
+```
+TERMINFO=/data/data/com.termux.kotlin/files/usr/share/terminfo
+SSL_CERT_FILE=/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem
+CURL_CA_BUNDLE=/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem
+```
+
+**GitHub Workflow:** Release workflow triggered for v1.0.38
+
+---
+
+## Package Integration Status
+
+### ✅ Fully Integrated INTO the App (Kotlin-Native)
+
+| Package | Integration Type | Notes |
+|---------|-----------------|-------|
+| termux-api | Built-in device APIs | Battery, clipboard, location (WIP) via `termuxctl device` |
+
+### ✅ Rebuilt with Native `com.termux.kotlin` Paths (In Bootstrap)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| apt | 2.8.1-2 | Package manager with native paths |
+| dpkg | 1.22.6-5 | Debian package manager |
+| termux-exec | 1:2.4.0-1 | LD_PRELOAD shebang fix |
+| termux-tools | 1.46.0+really1.45.0-1 | Core utilities (pkg, termux-info, etc.) |
+| termux-core | 0.4.0-1 | Core libraries |
+| termux-api (CLI) | 0.59.1-1 | CLI commands for device APIs |
+| termux-am | 0.8.0-2 | Activity manager |
+
+### 🔄 Already Built (Available in Docker output/)
+
+| Package | Version | Build Status |
+|---------|---------|--------------|
+| termux-keyring | 3.13 | ✅ Built |
+| termux-licenses | 2.1 | ✅ Built |
+
+### ⏳ Require LLVM Dependency (30-60 min build time)
+
+These packages require libllvm as a build dependency:
+- termux-apt-repo
+- termux-create-package
+- termux-elf-cleaner
+- termux-services
+
+### 📋 Not Started (Simple Scripts - Quick Build)
+
+| Package | Type | Estimated Build Time |
+|---------|------|---------------------|
+| sudo | Shell script | <1 min |
+| tsu | Shell script | <1 min |
+| tudo | Shell script | <1 min |
+| proot-distro | Shell script | <1 min |
+| proot | ELF binary | ~5 min |
+
+---
+
+## To Continue Package Building
+
+### Quick Packages (No LLVM):
+
+```bash
+# Start Docker if not running
+docker start termux-package-builder
+
+# Clear lock if stuck
+docker exec termux-package-builder bash -c "rm -f /home/builder/.termux-build/_lock"
+
+# Build simple packages
+docker exec termux-package-builder bash -c "cd /home/builder/termux-packages && \
+  ./build-package.sh -a aarch64 sudo tsu tudo 2>&1"
+```
+
+### LLVM-Dependent Packages:
+
+```bash
+# These will take 30-60 minutes each
+docker exec termux-package-builder bash -c "cd /home/builder/termux-packages && \
+  ./build-package.sh -a aarch64 termux-services 2>&1"
+```
+
+### After Building - Integrate into Bootstrap:
+
+```bash
+# 1. Find built packages
+ls /root/termux-packages/output/
+
+# 2. Extract and integrate
+cd /root/termux-kotlin-bootstrap
+for deb in /root/termux-packages/output/*.deb; do
+  dpkg-deb -x "$deb" extracted/
+done
+
+# 3. Add to repo/ directory in termux-kotlin-app
+```
+
+---
+
+## Build Environment Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Docker | ✅ Running | Container: termux-package-builder |
+| termux-packages | ✅ Configured | TERMUX_APP__PACKAGE_NAME="com.termux.kotlin" |
+| Properties | ✅ Set | /home/builder/termux-packages/scripts/properties.sh |
+
+---
+
+## Files Modified This Session
+
+1. **TermuxShellEnvironment.kt** - Added TERMINFO, SSL_CERT_FILE, CURL_CA_BUNDLE
+2. **CHANGELOG.md** - Added v1.0.38 entry
+3. **error.md** - Updated version history
+4. **README.md** - Added environment configuration section, new features
+5. **ARCHITECTURE.md** - Added comprehensive environment variables documentation
+6. **app/build.gradle** - Bumped version to 1.0.38
+
+---
+
+## Next Steps
+
+1. [ ] Wait for v1.0.38 release workflow to complete
+2. [ ] Test v1.0.38 - verify `clear` command works
+3. [ ] Test v1.0.38 - verify HTTPS mirrors work
+4. [ ] Build remaining quick packages (sudo, tsu, tudo, proot-distro)
+5. [ ] Integrate new packages into bootstrap
+6. [ ] Consider native Kotlin implementations for termux-auth, termux-services
+
