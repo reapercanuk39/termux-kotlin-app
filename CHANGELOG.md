@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.39] - 2026-01-17
+
+### 🐛 Bug Fixes
+- **ssl:** Rebuild libgnutls with native `com.termux.kotlin` paths to fix SSL certificate verification
+- **ssl:** Rebuild libcurl with native paths
+- **gpg:** Rebuild libgpg-error with native paths
+
+### 🔧 Libraries Updated
+- `libgnutls` 3.8.11 - Now uses `/data/data/com.termux.kotlin/files/usr/etc/tls/cert.pem`
+- `libcurl` 8.18.0 - Fixed HOME and cert paths
+- `libgpg-error` 1.58 - Fixed /etc path
+
+### 📝 Notes
+GnuTLS does NOT support `SSL_CERT_FILE` environment variable (unlike OpenSSL).
+The certificate path must be compiled into the binary, hence the rebuild.
+
+
 ## [v1.0.38] - 2026-01-17
 
 ### 🐛 Bug Fixes

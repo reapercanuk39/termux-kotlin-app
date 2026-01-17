@@ -1,0 +1,249 @@
+# AI Session Guide for Termux Kotlin App
+
+> **CRITICAL FOR ALL AI SESSIONS**: Read this document first. Always use deep/extended thinking (UltraThink) for complex problems. Document everything you do and discover.
+
+---
+
+## 🧠 Session Rules
+
+### 1. Always Use UltraThink
+- For **any non-trivial problem**, use extended/deep thinking mode
+- Don't make assumptions - investigate thoroughly
+- Check hardcoded paths in binaries with `strings` command
+- Trace issues to root cause before proposing solutions
+
+### 2. Always Document
+- Update this guide with new discoveries
+- Add to CHANGELOG.md for code changes
+- Update error.md with troubleshooting history
+- Create session notes in docs/ if needed
+
+### 3. Ask Before Acting
+- Get user approval before making significant changes
+- Present options and recommendations
+- Explain trade-offs clearly
+
+---
+
+## 📦 Project Overview
+
+**Termux Kotlin App** is a complete Kotlin conversion of the official Termux Android terminal emulator.
+
+### Key Difference from Original Termux
+| Aspect | Original Termux | Termux Kotlin |
+|--------|-----------------|---------------|
+| Package name | `com.termux` | `com.termux.kotlin` |
+| Data path | `/data/data/com.termux/files/usr` | `/data/data/com.termux.kotlin/files/usr` |
+| Language | Java | 100% Kotlin |
+
+### The Path Problem
+Many upstream Termux packages have **hardcoded paths** compiled into ELF binaries:
+```
+/data/data/com.termux/files/usr/...
+```
+
+These paths **cannot be changed** via:
+- Environment variables
+- Wrapper scripts
+- Symlinks (in many cases)
+
+**The ONLY solution is rebuilding packages from source** with:
+```bash
+TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"
+```
+
+---
+
+## 🔧 Build Environment
+
+### Docker Setup (Already Available)
+```bash
+# Location: Docker container with termux-packages
+docker run -d --name termux-package-builder \
+    -v ~/termux-packages:/home/builder/termux-packages \
+    termux/package-builder tail -f /dev/null
+
+# Configure for com.termux.kotlin
+docker exec termux-package-builder bash -c '
+cd /home/builder/termux-packages
+sed -i "s/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/" scripts/properties.sh
+'
+```
+
+### Building Packages
+```bash
+# Build a package for all architectures
+for arch in aarch64 arm x86_64 i686; do
+    docker exec termux-package-builder bash -c "
+        cd /home/builder/termux-packages
+        ./build-package.sh -a $arch <package-name>
+    "
+done
+```
+
+### Package Output Location
+Built packages appear in:
+```
+/home/builder/termux-packages/output/
+```
+
+### Integrating into Bootstrap
+1. Extract .deb packages
+2. Copy files to bootstrap directory
+3. Update bootstrap zip files in `app/src/main/cpp/`
+4. Add to custom repo in `repo/`
+
+---
+
+## 📊 Package Status
+
+### ✅ Already Rebuilt with Native Paths
+| Package | Version | Location |
+|---------|---------|----------|
+| apt | 2.8.1-2 | repo/, bootstrap |
+| dpkg | 1.22.6-5 | repo/, bootstrap |
+| termux-exec | 1:2.4.0-1 | repo/, bootstrap |
+| termux-tools | 1.46.0+really1.45.0-1 | repo/, bootstrap |
+| termux-core | 0.4.0-1 | repo/, bootstrap |
+| termux-api | 0.59.1-1 | repo/, bootstrap |
+| libgnutls | 3.8.11 | repo/, bootstrap |
+| libcurl | 8.18.0 | repo/, bootstrap |
+| libgpg-error | 1.58 | repo/, bootstrap |
+
+### ❌ Need Rebuilding (Have Hardcoded com.termux Paths)
+| Package | Hardcoded Path | Impact |
+|---------|----------------|--------|
+| *(None currently known)* | - | - |
+
+### How to Check for Hardcoded Paths
+```bash
+# Check a library in the bootstrap
+cd app/src/main/cpp
+unzip -p bootstrap-aarch64.zip lib/libgnutls.so | strings | grep "com.termux"
+
+# Check all libraries
+unzip -l bootstrap-aarch64.zip | grep "\.so" | awk '{print $4}' | while read lib; do
+  result=$(unzip -p bootstrap-aarch64.zip "$lib" 2>/dev/null | strings 2>/dev/null | grep "com\.termux/files")
+  if [ -n "$result" ]; then
+    echo "=== $lib ===" 
+    echo "$result" | head -5
+  fi
+done
+```
+
+---
+
+## 🐛 Known Issues & Solutions
+
+### Issue: "Certificate verification failed" / "No system certificates available"
+**Symptom:**
+```
+W: https://mirrors.../InRelease: No system certificates available. Try installing ca-certificates.
+Certificate verification failed: The certificate is NOT trusted.
+```
+
+**Root Cause:** `libgnutls.so` has hardcoded path to `/data/data/com.termux/files/usr/etc/tls/cert.pem`
+
+**Solution:** Rebuild `gnutls` package with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`
+
+**Note:** GnuTLS does NOT support `SSL_CERT_FILE` environment variable (unlike OpenSSL)
+
+### Issue: "Error #12" / APT methods error
+**Symptom:** `pkg update` fails with method-related errors
+
+**Root Cause:** `libapt-pkg.so` has hardcoded APT methods path
+
+**Solution:** Already fixed - apt is rebuilt with native paths
+
+### Issue: `clear` command fails / "terminals database is inaccessible"
+**Symptom:** Terminal commands like `clear`, `tput` fail
+
+**Root Cause:** Missing `TERMINFO` environment variable
+
+**Solution:** Already fixed in v1.0.38 - `TERMINFO` is set in TermuxShellEnvironment.kt
+
+---
+
+## 📁 Key Files
+
+### Environment Variables
+```
+termux-shared/src/main/kotlin/com/termux/shared/termux/shell/command/environment/TermuxShellEnvironment.kt
+```
+Sets: HOME, PREFIX, PATH, LD_LIBRARY_PATH, TMPDIR, TERMINFO, DPKG_ADMINDIR, DPKG_DATADIR, SSL_CERT_FILE, CURL_CA_BUNDLE
+
+### Bootstrap Installation
+```
+app/src/main/kotlin/com/termux/app/TermuxInstaller.kt
+```
+Handles: Bootstrap extraction, symlink creation, wrapper scripts, path fixing
+
+### Bootstrap Files
+```
+app/src/main/cpp/bootstrap-aarch64.zip
+app/src/main/cpp/bootstrap-arm.zip
+app/src/main/cpp/bootstrap-x86_64.zip
+app/src/main/cpp/bootstrap-i686.zip
+```
+
+### Custom Package Repository
+```
+repo/
+├── aarch64/     # ARM64 packages
+├── arm/         # ARMv7 packages
+├── x86_64/      # Intel/AMD 64-bit packages
+├── i686/        # Intel/AMD 32-bit packages
+├── all/         # Architecture-independent packages
+└── Release      # Repository metadata
+```
+
+---
+
+## 🔄 Typical Workflow for Fixing Hardcoded Paths
+
+1. **Identify the issue** - User reports error
+2. **Trace to root cause** - Use `strings` to find hardcoded paths in binaries
+3. **Check if package is already rebuilt** - Look in `repo/`
+4. **Rebuild package** - Use Docker termux-packages builder
+5. **Extract and integrate** - Add to bootstrap zips and repo
+6. **Update documentation** - CHANGELOG, this guide, error.md
+7. **Test** - Build APK, install, verify fix
+
+---
+
+## 📝 Documentation Files
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Public-facing project documentation |
+| `ARCHITECTURE.md` | Technical architecture details |
+| `CHANGELOG.md` | Version history and changes |
+| `ROADMAP.md` | Development priorities and progress |
+| `CONTRIBUTING.md` | How to contribute |
+| `error.md` | Troubleshooting history and solutions |
+| `docs/CUSTOM_BOOTSTRAP_BUILD.md` | Package rebuild instructions |
+| `docs/AI_SESSION_GUIDE.md` | **This file** - AI session continuity |
+
+---
+
+## 🚨 Important Reminders
+
+1. **Binary paths cannot be environment-overridden** - Must rebuild from source
+2. **GnuTLS ≠ OpenSSL** - Different cert path mechanisms, no env var override
+3. **LD_LIBRARY_PATH overrides RUNPATH** - This is why most libs work despite wrong RUNPATH
+4. **Test on real device** - Emulators may behave differently
+5. **All 4 architectures** - aarch64, arm, x86_64, i686 must be updated together
+
+---
+
+## 📅 Session History
+
+### 2026-01-17: SSL Certificate Issue (RESOLVED)
+- **Problem:** `pkg update` fails with certificate verification error
+- **Discovery:** libgnutls.so has hardcoded `/data/data/com.termux/files/usr/etc/tls/cert.pem`
+- **Solution:** Rebuilt libgnutls, libcurl, libgpg-error with native com.termux.kotlin paths
+- **Status:** ✅ Fixed in v1.0.39
+
+---
+
+*Last updated: 2026-01-17*

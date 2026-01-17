@@ -15,6 +15,9 @@ Custom-built Termux packages with native `com.termux.kotlin` paths.
 | termux-am | 0.8.0-2 | Activity manager |
 | termux-keyring | 3.13 | GPG keyring |
 | termux-licenses | 2.1 | License files |
+| libgnutls | 3.8.11 | GnuTLS SSL/TLS library |
+| libcurl | 8.18.0 | URL transfer library |
+| libgpg-error | 1.58 | GPG error handling library |
 
 ## Architectures
 
