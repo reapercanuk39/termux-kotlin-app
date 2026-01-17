@@ -545,15 +545,12 @@ object TermuxInstaller {
             var fixedContent = content
             var modified = false
             
-            // Replace base path first (this covers both /files and /cache paths)
-            if (fixedContent.contains(upstreamBase)) {
-                fixedContent = fixedContent.replace(upstreamBase, ourBase)
-                modified = true
-            }
-            
-            // Also handle any remaining specific paths (shouldn't be needed but just in case)
-            if (fixedContent.contains(upstreamPrefix)) {
-                fixedContent = fixedContent.replace(upstreamPrefix, ourPrefix)
+            // IMPORTANT: Use regex with negative lookahead to avoid double-replacement
+            // This ensures we don't replace "com.termux.kotlin" -> "com.termux.kotlin.kotlin"
+            // Only replace "com.termux" when NOT followed by ".kotlin"
+            val upstreamPattern = Regex(Regex.escape(upstreamBase) + "(?!\\.kotlin)")
+            if (upstreamPattern.containsMatchIn(fixedContent)) {
+                fixedContent = upstreamPattern.replace(fixedContent, ourBase)
                 modified = true
             }
             
