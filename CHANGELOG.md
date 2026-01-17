@@ -8,8 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.0.37] - 2026-01-17
 
+### 🎉 Major Achievement
+- **Native com.termux.kotlin paths for ALL 4 architectures!**
+- `pkg update` now works without Error #12
+
+### ✨ Features
+- Custom package repository with rebuilt packages (`repo/` directory)
+- All critical packages rebuilt from source with native paths:
+  - `apt` 2.8.1-2
+  - `dpkg` 1.22.6-5
+  - `termux-exec` 1:2.4.0-1
+  - `termux-tools` 1.46.0+really1.45.0-1
+  - `termux-core` 0.4.0-1
+  - `termux-api` 0.59.1-1
+
+### 🏗️ Bootstrap
+- aarch64, arm, x86_64, i686 bootstraps all updated
+- No runtime path patching required - paths compiled into binaries
+
 ### 📚 Documentation
--  Update CHANGELOG for v1.0.36 [skip ci]
+- Updated `docs/CUSTOM_BOOTSTRAP_BUILD.md` with native build approach
+- Updated README with package identity info
 
 
 ## [v1.0.36] - 2026-01-17
