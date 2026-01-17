@@ -175,6 +175,38 @@ APKs are split by ABI for smaller download sizes:
 | `FOREGROUND_SERVICE` | Background terminal service |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent battery optimization |
 
+## 🌍 Environment Variables
+
+The app sets these environment variables automatically for proper terminal operation:
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `HOME` | `/data/data/com.termux.kotlin/files/home` | User home directory |
+| `PREFIX` | `/data/data/com.termux.kotlin/files/usr` | Termux prefix directory |
+| `PATH` | `$PREFIX/bin` | Executable search path |
+| `LD_LIBRARY_PATH` | `$PREFIX/lib` | Library search path (overrides RUNPATH) |
+| `TMPDIR` | `$PREFIX/tmp` | Temporary files directory |
+| `TERMINFO` | `$PREFIX/share/terminfo` | Terminal capability database (for `clear`, `tput`, ncurses) |
+| `LANG` | `en_US.UTF-8` | Locale setting |
+| `COLORTERM` | `truecolor` | 24-bit color support |
+| `TERM` | `xterm-256color` | Terminal type |
+
+### Package Manager Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `DPKG_ADMINDIR` | `$PREFIX/var/lib/dpkg` | dpkg database location |
+| `DPKG_DATADIR` | `$PREFIX/share/dpkg` | dpkg data files |
+
+### SSL/TLS Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `SSL_CERT_FILE` | `$PREFIX/etc/tls/cert.pem` | CA certificate bundle for curl/wget |
+| `CURL_CA_BUNDLE` | `$PREFIX/etc/tls/cert.pem` | curl-specific CA bundle path |
+
+These SSL variables enable HTTPS connections to package mirrors and other secure endpoints.
+
 ## 📚 Resources
 
 - [Termux Wiki](https://wiki.termux.com/)

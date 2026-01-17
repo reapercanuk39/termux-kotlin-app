@@ -53,6 +53,20 @@ Termux Kotlin uses its own package name (`com.termux.kotlin`) and can be install
 
 This means `pkg update` and all package operations work natively without any path-patching hacks.
 
+### 🌍 Proper Environment Configuration
+
+The app automatically configures all necessary environment variables:
+
+| Category | Variables | Purpose |
+|----------|-----------|---------|
+| **Core** | `HOME`, `PREFIX`, `PATH`, `TMPDIR` | Basic terminal operation |
+| **Libraries** | `LD_LIBRARY_PATH` | Override hardcoded RUNPATH in binaries |
+| **Terminal** | `TERMINFO`, `TERM`, `COLORTERM` | Full terminal capability support |
+| **Package Manager** | `DPKG_ADMINDIR`, `DPKG_DATADIR` | dpkg/apt path overrides |
+| **SSL/TLS** | `SSL_CERT_FILE`, `CURL_CA_BUNDLE` | HTTPS mirror support |
+
+See [ARCHITECTURE.md](ARCHITECTURE.md#-environment-variables) for the complete list.
+
 ### 🎯 Why Kotlin?
 
 | Feature | Benefit |
@@ -108,6 +122,8 @@ New features only available in the Kotlin version:
 | 🩺 **Package Doctor** | Health checks with auto-repair suggestions |
 | 🛠️ **termuxctl CLI** | Unified CLI for backup, doctor, and profile management |
 | 📱 **Integrated Device API** | Built-in Termux:API - no separate APK needed |
+| 🔒 **HTTPS Support** | Proper SSL/TLS certificate configuration for secure mirrors |
+| 🖥️ **Full Terminal Support** | TERMINFO configured for clear, tput, ncurses apps |
 
 ### 📱 Integrated Device API (No Separate APK!)
 
