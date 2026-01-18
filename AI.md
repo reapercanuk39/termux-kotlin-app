@@ -450,29 +450,34 @@ docker exec termux-package-builder bash -c '
 
 ---
 
-### 2026-01-18: v1.0.48 - Fix dpkg-deb Maintainer Script Permissions (Error #18)
+### 2026-01-18: v1.0.48-v1.0.50 - Complete dpkg Wrapper Fix
 
-**Problem Found:** After v1.0.47 fix, `pkg install vim` still failed with:
-```
-dpkg-deb: error: maintainer script 'postinst' has bad permissions 644 (must be >=0555 and <=0775)
-```
+**Session Summary:** Fixed 3 errors blocking `pkg install vim` from working.
 
-**Root Cause:** When dpkg wrapper extracts .deb packages with `dpkg-deb --control`, the DEBIAN control scripts (postinst, prerm, etc.) lose executable permissions and end up with 644. dpkg-deb --build requires >=0555.
+| Version | Error | Problem | Fix |
+|---------|-------|---------|-----|
+| v1.0.48 | #18 | postinst has bad permissions 644 | chmod 0755 DEBIAN scripts |
+| v1.0.49 | #19 | conffile path doesn't exist in package | sed DEBIAN/conffiles paths |
+| v1.0.50 | #20 | dpkg-deb stdout mixed with return value | redirect stdout to log file |
 
-**Fix Applied:** Added `chmod 0755` for DEBIAN control scripts after extraction in TermuxInstaller.kt.
-
-**Testing Results (v1.0.47):**
+**Testing Results (v1.0.50):**
 | Test | Result |
 |------|--------|
 | Bootstrap completion | ✅ All paths use com.termux.kotlin |
 | `pkg update` | ✅ Mirrors detected, packages fetched |
-| `pkg install vim` | ❌ Failed (Error #18 - now fixed in v1.0.48) |
+| `pkg install vim` | ✅ **WORKS!** |
+| update-alternatives | ✅ All paths correct |
+
+**Key Technical Insight:** The dpkg wrapper's `rewrite_deb()` function was correctly rewriting package paths, but had 3 issues:
+1. DEBIAN scripts lost executable permissions during extraction
+2. DEBIAN/conffiles still referenced old paths
+3. dpkg-deb --build stdout was captured by caller, corrupting return path
 
 **Files Modified:**
-- `app/src/main/kotlin/com/termux/app/TermuxInstaller.kt` - Added chmod for DEBIAN scripts
-- `CHANGELOG.md` - Documented v1.0.48 changes
-- `error.md` - Added Error #18 documentation
+- `app/src/main/kotlin/com/termux/app/TermuxInstaller.kt` - All 3 fixes
+- `CHANGELOG.md` - v1.0.48, v1.0.49, v1.0.50
+- `error.md` - Errors #18, #19, #20
 
 ---
 
-*Last updated: 2026-01-18 (v1.0.48 Error #18 Fix Session)*
+*Last updated: 2026-01-18 (v1.0.50 - pkg install vim SUCCESS)*
