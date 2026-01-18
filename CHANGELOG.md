@@ -1,3 +1,15 @@
+## [2026-01-18] Build #166
+
+### Changes
+- 669f947 fix: actually apply MOTD fix to bootstrap zips
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-18] Build #164
 
 ### Changes
