@@ -1597,3 +1597,24 @@ Two issues combined:
    This catches scripts regardless of extension.
 
 **Status:** ✅ Fixed in v1.0.54
+
+**Fix Attempt #2 (v1.0.55):**
+The `file` command used to detect text files is NOT available in the bootstrap environment!
+
+New approach:
+```bash
+# Simple: try grep on each file, only sed if grep succeeds
+while IFS= read -r -d '' file; do
+    if grep -q "$OLD_PREFIX" "$file" 2>/dev/null; then
+        sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+    fi
+done < <(find pkg_root -type f -print0)
+```
+
+This:
+1. Uses `find -print0` + `read -d ''` for safe filename handling
+2. Tries `grep` on every file - binary files will fail silently
+3. Only runs `sed` if grep finds the pattern
+4. No dependency on `file` command
+
+---
