@@ -569,3 +569,53 @@ done < <(find pkg_root -type f -print0)
 ---
 
 *Last updated: 2026-01-18 (v1.0.56 - testing pip fix)*
+
+### 2026-01-18: v1.0.57-v1.0.59 - Double Replacement Fix 🎉
+
+**Session Summary:** Fixed the final critical bug - double sed replacement causing `com.termux.kotlin.kotlin`.
+
+| Version | Error | Problem | Fix | Result |
+|---------|-------|---------|-----|--------|
+| v1.0.57 | #25 | rewrite_deb exit kills wrapper | `\|\| fallback` pattern | ❌ Still failing |
+| v1.0.58 | #26 | `set -e` causes silent exit | Remove `set -e` | ❌ Still failing |
+| v1.0.59 | #27 | Double sed replacement | Trailing slash fix | ✅ **ALL TESTS PASS!** |
+
+**Root Cause Analysis (Error #27):**
+The sed pattern `s|/data/data/com.termux|/data/data/com.termux.kotlin|g` was applied TWICE:
+1. First pass: `/data/data/com.termux/` → `/data/data/com.termux.kotlin/`
+2. Second pass: `com.termux` still matched as substring of `com.termux.kotlin`!
+3. Result: `/data/data/com.termux.kotlin.kotlin/` (DOUBLE!)
+
+**Critical Fix (v1.0.59):**
+```bash
+# Before (matches com.termux as substring):
+OLD_PREFIX="/data/data/com.termux"
+
+# After (trailing slash prevents substring match):
+OLD_PREFIX="/data/data/com.termux/"
+NEW_PREFIX="/data/data/com.termux.kotlin/"
+```
+
+**v1.0.59 Test Results - ALL PASSED! ✅**
+| Test | Result |
+|------|--------|
+| Bootstrap | ✅ com.termux.kotlin paths |
+| pkg update | ✅ Mirrors work |
+| pkg install vim | ✅ Works |
+| pkg install python | ✅ Python 3.12.12 |
+| pip --version | ✅ pip 25.3 |
+| pip shebang | ✅ `#!/data/data/com.termux.kotlin/files/usr/bin/python3.12` (SINGLE .kotlin!) |
+
+**Key Files Modified:**
+- `TermuxInstaller.kt` - Lines 703-705: Added trailing slash to OLD_PREFIX/NEW_PREFIX
+- `error.md` - Errors #25, #26, #27 documented
+- `CHANGELOG.md` - v1.0.57-v1.0.59
+
+**Screenshots:**
+- v1059_python.png - Python install success
+- v1059_pip.png - pip --version works
+- v1059_shebang2.png - Correct shebang with single .kotlin
+
+---
+
+*Last updated: 2026-01-18 (v1.0.59 - ALL CORE FUNCTIONALITY WORKING!)*
