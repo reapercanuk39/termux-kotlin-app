@@ -1,3 +1,15 @@
+## [2026-01-18] Build #169
+
+### Changes
+- 0d26a4e docs: Document v1.1.3 dpkg wrapper performance fix
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [v1.1.3] - 2026-01-18
 
 ### 🚀 Performance
