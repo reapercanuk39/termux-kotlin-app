@@ -299,6 +299,35 @@ repo/
 
 ## 📅 Session History
 
+### 2026-01-18: CI/CD Fixes & Debug APK Testing
+- **Task:** Fix version numbering in releases and change workflow to debug builds
+- **Issues Found & Fixed:**
+  1. **Version Format Bug:** `grep -oP` failed on CI (not portable), falling back to date-based version (`v1.0.20260118-build.158`). Fixed by using `sed` instead.
+  2. **.md Files in Releases:** Workflow copied all `*.md` files to release assets. Removed from upload steps.
+  3. **Auto-releases:** Changed workflow to build debug APKs by default; releases now require manual `workflow_dispatch` with `create_release=true`.
+  
+- **CI Changes Made:**
+  | Change | Details |
+  |--------|---------|
+  | Version extraction | Changed from `grep -oP` to `sed -n 's/.*versionName\s*"\([^"]*\)".*/\1/p'` |
+  | Release assets | Removed `*.md` from both prep and upload steps |
+  | Build mode | Default to debug APKs; release builds only on manual trigger |
+  | Debug retention | Increased from 14 to 30 days |
+  
+- **Testing Results (v1.0.60 Debug APK):**
+  | Test | Status | Notes |
+  |------|--------|-------|
+  | App Launch | ✅ | Starts correctly |
+  | Bootstrap Install | ✅ | All wrapper scripts created |
+  | `pkg update` | ✅ | Mirror selected, packages fetched |
+  | `pkg install vim` | ✅ | dpkg wrapper rewriting paths |
+  | `pkg install python` | ✅ | 20 packages (114MB) installed |
+  | `python --version` | ✅ | Python 3.12.12 |
+  | `pip --version` | ✅ | pip 25.3 (correct com.termux.kotlin path) |
+  | `python -c "print(42)"` | ✅ | Executes correctly |
+
+- **Status:** ✅ Complete - All core functionality working, ready for release when desired
+
 ### 2026-01-18: Complete CI/CD Pipeline Implementation
 - **Task:** Create fully automated CI/CD pipeline for Termux-Kotlin OS project
 - **Created Scripts:**
