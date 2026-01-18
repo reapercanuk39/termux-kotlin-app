@@ -1726,3 +1726,41 @@ mkdir -p "$TMPDIR" 2>/dev/null || true
 ```
 
 ---
+
+## Error #27: Double sed replacement causes com.termux.kotlin.kotlin
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+#!/data/data/com.termux.kotlin.kotlin/files/usr/bin/bash
+(note the DOUBLE .kotlin.kotlin)
+```
+
+**Status:** ✅ Fixed in v1.0.59
+
+**Root Cause:**
+The sed replacement pattern was:
+- OLD_PREFIX="/data/data/com.termux"
+- NEW_PREFIX="/data/data/com.termux.kotlin"
+
+After first replacement: `/data/data/com.termux.kotlin/...`
+The pattern `/data/data/com.termux` still matches as a SUBSTRING!
+Second replacement creates: `/data/data/com.termux.kotlin.kotlin/...`
+
+This happened because:
+1. General text file loop processed DEBIAN/postinst
+2. Specific DEBIAN script loop ALSO processed it
+3. Each sed run doubled the .kotlin suffix
+
+**Fix Applied (v1.0.59):**
+Add trailing slash to pattern to prevent substring matching:
+```bash
+# Before (matches com.termux in com.termux.kotlin):
+OLD_PREFIX="/data/data/com.termux"
+
+# After (won't match com.termux.kotlin/):
+OLD_PREFIX="/data/data/com.termux/"
+NEW_PREFIX="/data/data/com.termux.kotlin/"
+```
+
+---

@@ -701,8 +701,10 @@ LOG_FILE="${'$'}TMPDIR/dpkg_rewrite.log"
 echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
 
 # Path patterns to rewrite
-OLD_PREFIX="/data/data/com.termux"
-NEW_PREFIX="/data/data/com.termux.kotlin"
+# IMPORTANT: Match with trailing slash to avoid double replacement
+# (e.g., com.termux/ won't match com.termux.kotlin/)
+OLD_PREFIX="/data/data/com.termux/"
+NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 # Function to rewrite paths in a .deb package
 # Uses dpkg-deb instead of ar (binutils not in bootstrap)
