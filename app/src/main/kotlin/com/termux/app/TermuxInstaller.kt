@@ -685,11 +685,15 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
 set -e
 
 PREFIX="${ourFilesPrefix}/usr"
-TMPDIR="${ourFilesPrefix}/usr/tmp"
+export TMPDIR="${ourFilesPrefix}/usr/tmp"
+export HOME="${ourFilesPrefix}"
 
 # Set dpkg directories to our package paths
 export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
 export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
+
+# Create temp directory if it doesn't exist
+mkdir -p "${'$'}TMPDIR" 2>/dev/null
 
 # Path patterns to rewrite
 OLD_PREFIX="/data/data/com.termux"
@@ -701,23 +705,37 @@ rewrite_deb() {
     local deb_file="${'$'}1"
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
     local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
+    local log_file="${'$'}TMPDIR/dpkg_rewrite.log"
     
     # Check if package needs rewriting (contains old paths)
     # Use dpkg-deb --fsys-tarfile which outputs the data tarball directly
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}log_file" | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
         # Package doesn't contain old paths, use as-is
         echo "${'$'}deb_file"
         return 0
     fi
     
+    echo "[dpkg-wrapper] Rewriting package: ${'$'}(basename "${'$'}deb_file")" >> "${'$'}log_file"
+    
     # Package needs rewriting
     mkdir -p "${'$'}work_dir"
-    cd "${'$'}work_dir"
+    cd "${'$'}work_dir" || { echo "${'$'}deb_file"; return 1; }
     
     # Extract .deb using dpkg-deb (works without binutils/ar)
     mkdir -p pkg_root/DEBIAN
-    "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN
-    "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}log_file"; then
+        echo "[dpkg-wrapper] Failed to extract control from ${'$'}deb_file" >> "${'$'}log_file"
+        cd /; rm -rf "${'$'}work_dir"
+        echo "${'$'}deb_file"
+        return 1
+    fi
+    
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}log_file"; then
+        echo "[dpkg-wrapper] Failed to extract data from ${'$'}deb_file" >> "${'$'}log_file"
+        cd /; rm -rf "${'$'}work_dir"
+        echo "${'$'}deb_file"
+        return 1
+    fi
     
     # Rewrite directory structure
     if [ -d "pkg_root/data/data/com.termux" ]; then
@@ -731,6 +749,7 @@ rewrite_deb() {
         fi
         # Remove old empty directory
         rm -rf "pkg_root/data/data/com.termux"
+        echo "[dpkg-wrapper] Rewrote paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}log_file"
     fi
     
     # Fix hardcoded paths in text files (scripts, configs, pkg-config files)
@@ -749,7 +768,12 @@ rewrite_deb() {
     
     # Rebuild .deb package using dpkg-deb
     rm -f "${'$'}rewritten_deb"
-    "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" 2>/dev/null
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" 2>>"${'$'}log_file"; then
+        echo "[dpkg-wrapper] Failed to rebuild ${'$'}deb_file" >> "${'$'}log_file"
+        cd /; rm -rf "${'$'}work_dir"
+        echo "${'$'}deb_file"
+        return 1
+    fi
     
     # Cleanup
     cd /
@@ -757,8 +781,10 @@ rewrite_deb() {
     
     # Return rewritten path if build succeeded, otherwise original
     if [ -f "${'$'}rewritten_deb" ]; then
+        echo "[dpkg-wrapper] Successfully rewrote to ${'$'}rewritten_deb" >> "${'$'}log_file"
         echo "${'$'}rewritten_deb"
     else
+        echo "[dpkg-wrapper] Rewritten deb not found, using original" >> "${'$'}log_file"
         echo "${'$'}deb_file"
     fi
 }
