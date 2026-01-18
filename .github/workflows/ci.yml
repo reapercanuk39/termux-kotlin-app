@@ -21,6 +21,10 @@ on:
         description: 'Skip emulator tests'
         type: boolean
         default: false
+      create_release:
+        description: 'Create a GitHub release (otherwise just builds debug APK)'
+        type: boolean
+        default: false
   schedule:
     # Nightly build at 2 AM UTC
     - cron: '0 2 * * *'
@@ -406,24 +410,12 @@ jobs:
         id: build
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon
-        continue-on-error: true
-
       - name: Upload Debug APKs
         uses: actions/upload-artifact@v6
         with:
           name: debug-apks
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 14
-
-      - name: Upload Release APKs
-        uses: actions/upload-artifact@v6
-        with:
-          name: release-apks
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 14
-          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Collect failure logs
         if: failure()
@@ -658,7 +650,7 @@ jobs:
           retention-days: 14
 
   # ============================================================
-  # JOB 8: Create Release
+  # JOB 8: Create Release (Manual only via workflow_dispatch)
   # ============================================================
   release:
     name: Create Release
@@ -666,8 +658,8 @@ jobs:
     needs: [validate_prefix, build_apk, build_bootstrap, emulator_test]
     if: |
       always() &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.create_release == true &&
       needs.validate_prefix.result == 'success' &&
       needs.build_apk.result == 'success'
     outputs:
@@ -679,6 +671,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Generate version
         id: version
@@ -694,23 +693,60 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Download all artifacts
+      - name: Download bootstraps
         uses: actions/download-artifact@v6
         with:
-          path: ./release-artifacts
+          pattern: bootstrap-*
+          path: ./bootstraps
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Copy bootstraps to app
+        run: |
+          mkdir -p app/src/main/cpp
+          find ./bootstraps -name "bootstrap-*.zip" -exec cp {} app/src/main/cpp/ \; 2>/dev/null || true
+          ls -la app/src/main/cpp/
+
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/termux-release.keystore
+          else
+            echo "Warning: KEYSTORE_BASE64 not set, will build unsigned APK"
+          fi
+
+      - name: Create signing.properties
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_PASSWORD" ]; then
+            cat > signing.properties << EOF
+          storeFile=termux-release.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
           
-          # Copy APKs
-          find release-artifacts -name "*.apk" -exec cp {} release-assets/ \;
+          # Copy release APKs
+          find app/build/outputs/apk/release -name "*.apk" -exec cp {} release-assets/ \;
           
           # Copy bootstraps
-          find release-artifacts -name "bootstrap-*.zip" -exec cp {} release-assets/ \;
-          
-          # Create package list
-          find release-artifacts -name "*.deb" > release-assets/packages.txt
+          find ./bootstraps -name "bootstrap-*.zip" -exec cp {} release-assets/ \; 2>/dev/null || true
           
           ls -la release-assets/
 
@@ -791,7 +827,7 @@ jobs:
   update_docs:
     name: Update Docs
     runs-on: ubuntu-latest
-    needs: [validate_prefix, build_apk, emulator_test, release]
+    needs: [validate_prefix, build_apk, emulator_test]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
       status: ${{ steps.update.outcome }}
@@ -822,7 +858,6 @@ jobs:
           - Prefix Validation: ${{ needs.validate_prefix.result }}
           - APK Build: ${{ needs.build_apk.result }}
           - Emulator Tests: ${{ needs.emulator_test.result }}
-          - Release: ${{ needs.release.result }}
           
           ---
           "
@@ -949,7 +984,7 @@ jobs:
   cleanup:
     name: Cleanup
     runs-on: ubuntu-latest
-    needs: [release, update_docs]
+    needs: [update_docs]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
