@@ -1,3 +1,15 @@
+## [2026-01-18] Build #167
+
+### Changes
+- 90cb218 docs: Document v1.1.2 MOTD welcome message fix
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [v1.1.2] - 2026-01-18
 
 ### 🐛 Bug Fixes
