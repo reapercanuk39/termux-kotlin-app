@@ -39,7 +39,7 @@ data class ProfileEntity(
     val ligaturesEnabled: Boolean = TermuxSettings.Defaults.LIGATURES_ENABLED,
     
     // Shell configuration
-    val shell: String = "/data/data/com.termux/files/usr/bin/bash",
+    val shell: String = com.termux.shared.termux.TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash",
     @ColumnInfo(name = "startup_commands")
     val startupCommandsJson: String = "[]",
     @ColumnInfo(name = "environment_variables")

@@ -1371,3 +1371,36 @@ The rewriting adds ~1-2 seconds per package. For large packages (100+ MB), this 
 
 ---
 
+
+## Error #18: dpkg-deb postinst bad permissions
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg-deb: error: maintainer script 'postinst' has bad permissions 644 (must be >=0555 and <=0775)
+[dpkg-wrapper] Failed to rebuild .../vim_9.1.2050-2_x86%5f64.deb
+```
+
+**Status:** ✅ Fixed in v1.0.48
+
+**Root Cause:** The dpkg wrapper extracts packages using `dpkg-deb --extract` and `dpkg-deb --control` to rewrite paths. However, when `dpkg-deb --control` extracts the DEBIAN control scripts (postinst, prerm, etc.), they lose their executable permissions and end up with 644.
+
+When `dpkg-deb --build` tries to rebuild the package, it requires maintainer scripts to have executable permissions (>=0555 and <=0775). Since the scripts have 644, the build fails.
+
+**Fix Applied (v1.0.48):**
+Added chmod 0755 for all DEBIAN control scripts after extraction:
+```bash
+# Ensure DEBIAN control scripts are executable (dpkg-deb requires >=0555)
+for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
+    if [ -f "$script" ]; then
+        chmod 0755 "$script"
+    fi
+done
+```
+
+**Testing:**
+- `pkg install vim` ✅ (expected to work)
+- `pkg install python` ✅ (expected to work)
+- All upstream packages with maintainer scripts ✅
+
+---

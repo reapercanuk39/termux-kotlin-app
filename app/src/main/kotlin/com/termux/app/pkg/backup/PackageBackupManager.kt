@@ -3,6 +3,7 @@ package com.termux.app.pkg.backup
 import android.content.Context
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.termux.shared.termux.TermuxConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,8 +44,8 @@ class PackageBackupManager @Inject constructor(
     private val _progress = MutableStateFlow<BackupProgress>(BackupProgress.Idle)
     val progress: StateFlow<BackupProgress> = _progress.asStateFlow()
     
-    private val termuxPrefix = "/data/data/com.termux/files/usr"
-    private val termuxHome = "/data/data/com.termux/files/home"
+    private val termuxPrefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH
+    private val termuxHome = TermuxConstants.TERMUX_HOME_DIR_PATH
     
     /**
      * Create a backup with the specified configuration.

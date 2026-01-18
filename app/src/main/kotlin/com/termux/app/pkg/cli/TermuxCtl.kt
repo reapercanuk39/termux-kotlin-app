@@ -419,7 +419,7 @@ class TermuxCtl(
     )
     
     private fun parseBackupCreateOptions(args: List<String>): BackupCreateOptions {
-        var output = "/data/data/com.termux/files/home/termux-backup-${System.currentTimeMillis()}.json"
+        var output = com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH + "/termux-backup-${System.currentTimeMillis()}.json"
         var type = BackupType.FULL
         var includeDotfiles = true
         

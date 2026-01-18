@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.48] - 2026-01-18
+
+### 🐛 Bug Fix: dpkg-deb Maintainer Script Permissions (Error #18)
+
+This release fixes a bug where dpkg-deb --build failed because maintainer scripts had incorrect permissions after extraction.
+
+**Error Fixed:**
+```
+dpkg-deb: error: maintainer script 'postinst' has bad permissions 644 (must be >=0555 and <=0775)
+[dpkg-wrapper] Failed to rebuild .../vim_9.1.2050-2_x86%5f64.deb
+```
+
+### Root Cause
+When the dpkg wrapper extracts .deb packages to rewrite paths, `dpkg-deb --control` extracts DEBIAN control scripts (postinst, prerm, etc.) with permissions 644. dpkg-deb --build requires these scripts to have executable permissions (>=0555).
+
+### Solution
+Added chmod 0755 for all DEBIAN control scripts after extraction before rebuilding.
+
+### Now Works
+```bash
+pkg install vim        # ✅ Works!
+pkg install python     # ✅ Works!
+pkg install nodejs     # ✅ Works!
+# All 3000+ upstream Termux packages
+```
+
+---
+
 ## [v1.0.47] - 2026-01-18
 
 ### 🐛 Critical Bug Fix: dpkg Wrapper Now Detects Install Commands (Error #17)

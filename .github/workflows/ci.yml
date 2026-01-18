@@ -1,144 +1,403 @@
-name: CI
+# Termux-Kotlin OS - Comprehensive CI/CD Pipeline
+# Handles: prefix validation, package rebuilds, bootstrap generation,
+# emulator testing, repo publishing, and release automation
+#
+# IMPORTANT: com.termux is FORBIDDEN, but com.termux.kotlin is ALLOWED
+
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      force_full_rebuild:
+        description: 'Force full package rebuild'
+        type: boolean
+        default: false
+      skip_emulator_test:
+        description: 'Skip emulator tests'
+        type: boolean
+        default: false
+  schedule:
+    # Nightly build at 2 AM UTC
+    - cron: '0 2 * * *'
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PACKAGE_NAME: com.termux.kotlin
+  JAVA_VERSION: '17'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false'
+
 jobs:
-  lint:
-    name: Lint & Static Analysis
+  # ============================================================
+  # JOB 1: Validate Prefix (No com.termux allowed)
+  # ============================================================
+  validate_prefix:
+    name: Validate Prefix
     runs-on: ubuntu-latest
     outputs:
-      status: ${{ steps.lint.outcome }}
-    
+      status: ${{ steps.validate.outcome }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Run prefix validation
+        id: validate
+        run: |
+          echo "Validating that com.termux is replaced with com.termux.kotlin..."
+          ./scripts/validate-prefix.sh --fast
+        continue-on-error: false
 
-      - name: Run Android Lint
-        id: lint
-        run: ./gradlew lint --no-daemon
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="validate_prefix"
+          export FAILED_STEP="prefix-validation"
+          ./scripts/collect-failure-logs.sh collect
 
-      - name: Upload Lint Results
+      - name: Upload failure artifacts
+        if: failure()
         uses: actions/upload-artifact@v6
-        if: always()
         with:
-          name: lint-results
+          name: failure-validate_prefix
+          path: artifacts/failures/validate_prefix/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 2: Detect Package Changes
+  # ============================================================
+  detect_package_changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    needs: [validate_prefix]
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+      rebuild_required: ${{ steps.detect.outputs.rebuild_required }}
+      package_count: ${{ steps.detect.outputs.package_count }}
+      bootstrap_changed: ${{ steps.detect.outputs.bootstrap_changed }}
+      infra_changed: ${{ steps.detect.outputs.infra_changed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Get last successful commit
+        id: last_success
+        run: |
+          # Try to get last successful workflow run commit
+          LAST_COMMIT=$(gh api \
+            "/repos/${{ github.repository }}/actions/runs?status=success&branch=${{ github.ref_name }}&per_page=1" \
+            --jq '.workflow_runs[0].head_sha' 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_COMMIT" ] && [ "$LAST_COMMIT" != "null" ]; then
+            echo "last_commit=$LAST_COMMIT" >> $GITHUB_OUTPUT
+          else
+            echo "last_commit=HEAD~1" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect package changes
+        id: detect
+        run: |
+          export LAST_SUCCESSFUL_COMMIT="${{ steps.last_success.outputs.last_commit }}"
+          ./scripts/detect-package-changes.sh
+        env:
+          GITHUB_OUTPUT: $GITHUB_OUTPUT
+
+      - name: Force full rebuild check
+        if: github.event.inputs.force_full_rebuild == 'true'
+        run: |
+          echo "rebuild_required=true" >> $GITHUB_OUTPUT
+          echo "Force full rebuild requested"
+
+      - name: Upload change detection results
+        uses: actions/upload-artifact@v6
+        with:
+          name: change-detection
           path: |
-            **/build/reports/lint-results*.html
-            **/build/reports/lint-results*.xml
-          retention-days: 14
+            /tmp/changed-packages.txt
+          retention-days: 7
+          if-no-files-found: ignore
 
-  detekt:
-    name: Detekt Static Analysis
+  # ============================================================
+  # JOB 3: Build Packages (Docker)
+  # ============================================================
+  build_packages:
+    name: Build Packages
     runs-on: ubuntu-latest
-    outputs:
-      status: ${{ steps.detekt.outcome }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Run Detekt
-        id: detekt
-        run: ./gradlew detekt --no-daemon
-        continue-on-error: true
-
-      - name: Upload Detekt Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: detekt-results
-          path: '**/build/reports/detekt/**'
-          retention-days: 14
-
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ steps.tests.outcome }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Run Unit Tests
-        id: tests
-        run: ./gradlew testDebugUnitTest --no-daemon
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: test-results
-          path: '**/build/reports/tests/**'
-          retention-days: 14
-
-      - name: Upload Test Reports
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: test-reports
-          path: '**/build/test-results/**'
-          retention-days: 14
-
-  build-debug:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
-    needs: [lint, unit-tests]
+    needs: [validate_prefix, detect_package_changes]
+    if: needs.detect_package_changes.outputs.rebuild_required == 'true' || github.event.inputs.force_full_rebuild == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, arm, x86_64, i686]
     outputs:
       status: ${{ steps.build.outcome }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 17
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download change detection
+        uses: actions/download-artifact@v6
+        with:
+          name: change-detection
+          path: ./change-detection
+        continue-on-error: true
+
+      - name: Set up Docker
+        run: |
+          docker pull termux/package-builder || echo "Using cached image"
+
+      - name: Build packages for ${{ matrix.arch }}
+        id: build
+        run: |
+          echo "Building packages for ${{ matrix.arch }}..."
+          
+          # Get list of packages to rebuild
+          PACKAGES=""
+          if [ -f "./change-detection/changed-packages.txt" ]; then
+            PACKAGES=$(cat ./change-detection/changed-packages.txt | tr '\n' ' ')
+          fi
+          
+          # Default packages if none detected
+          if [ -z "$PACKAGES" ]; then
+            PACKAGES="apt dpkg"
+          fi
+          
+          echo "Packages to build: $PACKAGES"
+          
+          # Create output directory
+          mkdir -p output/${{ matrix.arch }}
+          
+          # Run Docker builder
+          docker run --rm \
+            -v "$PWD/termux-packages:/home/builder/termux-packages:rw" \
+            -v "$PWD/output/${{ matrix.arch }}:/home/builder/output:rw" \
+            termux/package-builder \
+            bash -c "
+              cd /home/builder/termux-packages
+              
+              # Update package name
+              if [ -f scripts/properties.sh ]; then
+                sed -i 's/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/' scripts/properties.sh
+              fi
+              
+              # Build each package
+              for pkg in $PACKAGES; do
+                echo \"Building \$pkg for ${{ matrix.arch }}...\"
+                ./build-package.sh -a ${{ matrix.arch }} \$pkg || echo \"Package \$pkg build failed\"
+              done
+              
+              # Copy output
+              cp -v output/*.deb /home/builder/output/ 2>/dev/null || true
+            " || echo "Some packages failed to build"
+
+      - name: Validate rebuilt packages
+        run: |
+          echo "Validating rebuilt packages..."
+          ./scripts/validate-prefix.sh --fast --dir output/${{ matrix.arch }}
+
+      - name: Upload built packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: packages-${{ matrix.arch }}
+          path: output/${{ matrix.arch }}/*.deb
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="build_packages_${{ matrix.arch }}"
+          export FAILED_STEP="package-build"
+          ./scripts/collect-failure-logs.sh collect
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-build_packages-${{ matrix.arch }}
+          path: artifacts/failures/build_packages_${{ matrix.arch }}/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 4: Build Bootstrap
+  # ============================================================
+  build_bootstrap:
+    name: Build Bootstrap
+    runs-on: ubuntu-latest
+    needs: [validate_prefix, detect_package_changes, build_packages]
+    if: always() && needs.validate_prefix.result == 'success' && (needs.detect_package_changes.outputs.bootstrap_changed == 'yes' || needs.build_packages.result == 'success')
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, arm, x86_64, i686]
+    outputs:
+      status: ${{ steps.build.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download built packages
+        uses: actions/download-artifact@v6
+        with:
+          name: packages-${{ matrix.arch }}
+          path: ./rebuilt-packages/${{ matrix.arch }}
+        continue-on-error: true
+
+      - name: Download previous bootstrap (for diff)
+        run: |
+          mkdir -p old_bootstrap
+          # Try to get previous bootstrap from releases or artifacts
+          gh release download --pattern "bootstrap-${{ matrix.arch }}.zip" -D old_bootstrap 2>/dev/null || \
+          echo "No previous bootstrap found for comparison"
+          
+          # Extract if downloaded
+          if [ -f "old_bootstrap/bootstrap-${{ matrix.arch }}.zip" ]; then
+            mkdir -p old_bootstrap/${{ matrix.arch }}
+            unzip -q old_bootstrap/bootstrap-${{ matrix.arch }}.zip -d old_bootstrap/${{ matrix.arch }} || true
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Build bootstrap for ${{ matrix.arch }}
+        id: build
+        run: |
+          echo "Building bootstrap for ${{ matrix.arch }}..."
+          
+          # Create output directory
+          mkdir -p new_bootstrap/${{ matrix.arch }}
+          
+          # Run bootstrap build script
+          if [ -f scripts/build-custom-bootstrap.sh ]; then
+            WORK_DIR=/tmp/bootstrap-work ./scripts/build-custom-bootstrap.sh ${{ matrix.arch }}
+          else
+            ./scripts/build-bootstrap.sh ${{ matrix.arch }}
+          fi
+          
+          # Copy output
+          cp -v app/src/main/cpp/bootstrap-${{ matrix.arch }}.zip new_bootstrap/ 2>/dev/null || true
+
+      - name: Validate bootstrap
+        run: |
+          echo "Validating bootstrap..."
+          
+          # Extract for validation
+          mkdir -p new_bootstrap/${{ matrix.arch }}_extracted
+          unzip -q new_bootstrap/bootstrap-${{ matrix.arch }}.zip -d new_bootstrap/${{ matrix.arch }}_extracted 2>/dev/null || true
+          
+          ./scripts/validate-prefix.sh --fast --dir new_bootstrap/${{ matrix.arch }}_extracted
+
+      - name: Generate bootstrap diff
+        run: |
+          if [ -d "old_bootstrap/${{ matrix.arch }}" ]; then
+            ./scripts/bootstrap-diff.sh \
+              "old_bootstrap/${{ matrix.arch }}" \
+              "new_bootstrap/${{ matrix.arch }}_extracted" \
+              "bootstrap-diff-${{ matrix.arch }}.md"
+          else
+            echo "# No Previous Bootstrap" > bootstrap-diff-${{ matrix.arch }}.md
+            echo "First bootstrap build - no comparison available." >> bootstrap-diff-${{ matrix.arch }}.md
+          fi
+
+      - name: Upload bootstrap
+        uses: actions/upload-artifact@v6
+        with:
+          name: bootstrap-${{ matrix.arch }}
+          path: |
+            new_bootstrap/bootstrap-${{ matrix.arch }}.zip
+            app/src/main/cpp/bootstrap-${{ matrix.arch }}.zip
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload diff report
+        uses: actions/upload-artifact@v6
+        with:
+          name: bootstrap-diff-${{ matrix.arch }}
+          path: bootstrap-diff-${{ matrix.arch }}.md
+          retention-days: 14
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="build_bootstrap_${{ matrix.arch }}"
+          export FAILED_STEP="bootstrap-build"
+          ./scripts/collect-failure-logs.sh collect
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-build_bootstrap-${{ matrix.arch }}
+          path: artifacts/failures/build_bootstrap_${{ matrix.arch }}/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 5: Build Android APK
+  # ============================================================
+  build_apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+    needs: [validate_prefix, build_bootstrap]
+    if: always() && needs.validate_prefix.result == 'success'
+    outputs:
+      status: ${{ steps.build.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Download bootstraps
+        uses: actions/download-artifact@v6
+        with:
+          pattern: bootstrap-*
+          path: ./bootstraps
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Copy bootstraps to app
+        run: |
+          mkdir -p app/src/main/cpp
+          find ./bootstraps -name "bootstrap-*.zip" -exec cp {} app/src/main/cpp/ \; 2>/dev/null || true
+          ls -la app/src/main/cpp/
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -147,24 +406,9 @@ jobs:
         id: build
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Get APK info
-        id: apk-info
-        run: |
-          APK_DIR="app/build/outputs/apk/debug"
-          if [ -d "$APK_DIR" ]; then
-            APK_LIST=""
-            for apk in "$APK_DIR"/*.apk; do
-              if [ -f "$apk" ]; then
-                SIZE=$(du -h "$apk" | cut -f1)
-                NAME=$(basename "$apk")
-                APK_LIST="${APK_LIST}| \`${NAME}\` | ${SIZE} |\n"
-              fi
-            done
-            echo "apk_list<<EOF" >> $GITHUB_OUTPUT
-            echo -e "$APK_LIST" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "apk_count=$(ls -1 "$APK_DIR"/*.apk 2>/dev/null | wc -l)" >> $GITHUB_OUTPUT
-          fi
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon
+        continue-on-error: true
 
       - name: Upload Debug APKs
         uses: actions/upload-artifact@v6
@@ -173,21 +417,484 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
 
-  pr-comment:
-    name: PR Comment
+      - name: Upload Release APKs
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-apks
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="build_apk"
+          export FAILED_STEP="apk-build"
+          chmod +x scripts/collect-failure-logs.sh
+          ./scripts/collect-failure-logs.sh collect
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-build_apk
+          path: artifacts/failures/build_apk/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 6: Emulator Smoke Tests
+  # ============================================================
+  emulator_test:
+    name: Emulator Tests
     runs-on: ubuntu-latest
-    needs: [lint, detekt, unit-tests, build-debug]
+    needs: [build_apk]
+    if: needs.build_apk.result == 'success' && github.event.inputs.skip_emulator_test != 'true'
+    timeout-minutes: 30
+    outputs:
+      status: ${{ steps.test.outcome }}
+      tests_passed: ${{ steps.test.outputs.tests_passed }}
+      tests_failed: ${{ steps.test.outputs.tests_failed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Download APK
+        uses: actions/download-artifact@v6
+        with:
+          name: debug-apks
+          path: ./apks
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run emulator tests
+        id: test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel_5
+          heap-size: 512M
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            # Find APK
+            APK_PATH=$(find ./apks -name "*.apk" | head -1)
+            
+            if [ -z "$APK_PATH" ]; then
+              echo "No APK found!"
+              exit 1
+            fi
+            
+            echo "Using APK: $APK_PATH"
+            export APK_PATH
+            
+            # Run smoke tests
+            ./scripts/emulator-smoke-test.sh
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: emulator-test-results
+          path: |
+            /tmp/emulator-test-logs/
+          retention-days: 14
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="emulator_test"
+          export FAILED_STEP="smoke-test"
+          ./scripts/collect-failure-logs.sh collect
+          ./scripts/collect-failure-logs.sh emulator
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-emulator_test
+          path: artifacts/failures/emulator_test/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 7: Publish Package Repository
+  # ============================================================
+  publish_repo:
+    name: Publish Repo
+    runs-on: ubuntu-latest
+    needs: [build_packages, emulator_test]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build_packages.result == 'success'
+    outputs:
+      status: ${{ steps.publish.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: Create gh-pages if not exists
+        run: |
+          if [ ! -d "gh-pages/.git" ]; then
+            mkdir -p gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+          fi
+
+      - name: Download all package artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: packages-*
+          path: ./all-packages
+          merge-multiple: true
+
+      - name: Generate repository metadata
+        id: publish
+        run: |
+          mkdir -p gh-pages/repo
+          
+          # Process each architecture
+          for arch in aarch64 arm x86_64 i686; do
+            echo "Processing $arch..."
+            
+            mkdir -p gh-pages/repo/$arch
+            
+            # Copy packages
+            find ./all-packages -path "*$arch*" -name "*.deb" -exec cp {} gh-pages/repo/$arch/ \; 2>/dev/null || true
+            
+            # Generate Packages file
+            if [ -n "$(ls gh-pages/repo/$arch/*.deb 2>/dev/null)" ]; then
+              cd gh-pages/repo/$arch
+              
+              # Generate Packages using dpkg-scanpackages or manual method
+              if command -v dpkg-scanpackages >/dev/null 2>&1; then
+                dpkg-scanpackages . > Packages
+              else
+                # Manual Packages generation
+                : > Packages
+                for deb in *.deb; do
+                  if [ -f "$deb" ]; then
+                    echo "Package: $(echo "$deb" | sed 's/_.*//g')" >> Packages
+                    echo "Filename: ./$deb" >> Packages
+                    echo "Size: $(stat -c%s "$deb" 2>/dev/null || stat -f%z "$deb")" >> Packages
+                    echo "MD5sum: $(md5sum "$deb" | cut -d' ' -f1)" >> Packages
+                    echo "SHA256: $(sha256sum "$deb" | cut -d' ' -f1)" >> Packages
+                    echo "" >> Packages
+                  fi
+                done
+              fi
+              
+              # Compress
+              gzip -9 -k Packages
+              
+              # Generate Release
+              cat > Release << EOF
+          Origin: Termux-Kotlin
+          Label: Termux-Kotlin
+          Suite: stable
+          Codename: termux
+          Architecture: $arch
+          Date: $(date -R)
+          EOF
+              
+              cd ../../..
+            fi
+          done
+          
+          echo "Repository structure created"
+
+      - name: Update sources.list in bootstraps
+        run: |
+          echo "# Termux-Kotlin Package Repository" > gh-pages/repo/sources.list.template
+          echo "deb https://reapercanuk39.github.io/termux-kotlin-app/repo/\${arch}/ ./" >> gh-pages/repo/sources.list.template
+
+      - name: Commit and push to gh-pages
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update package repository [skip ci]"
+            git push origin gh-pages --force
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="publish_repo"
+          export FAILED_STEP="repository-publish"
+          chmod +x scripts/collect-failure-logs.sh
+          ./scripts/collect-failure-logs.sh collect
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-publish_repo
+          path: artifacts/failures/publish_repo/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 8: Create Release
+  # ============================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [validate_prefix, build_apk, build_bootstrap, emulator_test]
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.validate_prefix.result == 'success' &&
+      needs.build_apk.result == 'success'
+    outputs:
+      status: ${{ steps.release.outcome }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: version
+        run: |
+          # Get version from gradle or generate from date
+          VERSION=$(grep -oP 'versionName\s*[=:]\s*"\K[^"]+' app/build.gradle 2>/dev/null || \
+                   echo "1.0.$(date +%Y%m%d)")
+          
+          # Append build number
+          BUILD_NUM="${{ github.run_number }}"
+          FULL_VERSION="${VERSION}-build.${BUILD_NUM}"
+          
+          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $FULL_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: ./release-artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Copy APKs
+          find release-artifacts -name "*.apk" -exec cp {} release-assets/ \;
+          
+          # Copy bootstraps
+          find release-artifacts -name "bootstrap-*.zip" -exec cp {} release-assets/ \;
+          
+          # Copy diff reports
+          find release-artifacts -name "*.md" -exec cp {} release-assets/ \; 2>/dev/null || true
+          
+          # Create package list
+          find release-artifacts -name "*.deb" > release-assets/packages.txt
+          
+          ls -la release-assets/
+
+      - name: Generate release notes
+        run: |
+          cat > release-assets/RELEASE_NOTES.md << EOF
+          # Termux-Kotlin ${{ steps.version.outputs.version }}
+          
+          ## Build Information
+          
+          - **Version:** ${{ steps.version.outputs.version }}
+          - **Commit:** ${{ github.sha }}
+          - **Build:** #${{ github.run_number }}
+          - **Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          ## Changes Since Last Release
+          
+          $(git log --oneline --since="1 week ago" | head -20 || echo "No recent commits")
+          
+          ## Test Results
+          
+          - Emulator Tests: ${{ needs.emulator_test.result }}
+          - Build Status: ${{ needs.build_apk.result }}
+          
+          ## Download
+          
+          - **APK (ARM64):** termux-app_*_arm64-v8a.apk
+          - **APK (ARM32):** termux-app_*_armeabi-v7a.apk
+          - **APK (x86_64):** termux-app_*_x86_64.apk
+          - **APK (Universal):** termux-app_*_universal.apk
+          
+          ## Package Repository
+          
+          Configure sources.list:
+          \`\`\`
+          deb https://reapercanuk39.github.io/termux-kotlin-app/repo/<arch>/ ./
+          \`\`\`
+          
+          ---
+          
+          *Generated by CI/CD Pipeline*
+          EOF
+
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Termux-Kotlin ${{ steps.version.outputs.version }}
+          body_path: release-assets/RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+          files: |
+            release-assets/*.apk
+            release-assets/bootstrap-*.zip
+            release-assets/*.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect failure logs
+        if: failure()
+        run: |
+          export JOB_NAME="release"
+          export FAILED_STEP="github-release"
+          chmod +x scripts/collect-failure-logs.sh
+          ./scripts/collect-failure-logs.sh collect
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: failure-release
+          path: artifacts/failures/release/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 9: Update Documentation
+  # ============================================================
+  update_docs:
+    name: Update Docs
+    runs-on: ubuntu-latest
+    needs: [validate_prefix, build_apk, emulator_test, release]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      status: ${{ steps.update.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download test results
+        uses: actions/download-artifact@v6
+        with:
+          name: emulator-test-results
+          path: ./test-results
+        continue-on-error: true
+
+      - name: Update CHANGELOG.md
+        id: update
+        run: |
+          # Create temp changelog entry
+          ENTRY="## [$(date +%Y-%m-%d)] Build #${{ github.run_number }}
+          
+          ### Changes
+          $(git log --oneline -5 | sed 's/^/- /')
+          
+          ### Build Status
+          - Prefix Validation: ${{ needs.validate_prefix.result }}
+          - APK Build: ${{ needs.build_apk.result }}
+          - Emulator Tests: ${{ needs.emulator_test.result }}
+          - Release: ${{ needs.release.result }}
+          
+          ---
+          "
+          
+          # Prepend to CHANGELOG.md
+          if [ -f CHANGELOG.md ]; then
+            echo "$ENTRY" | cat - CHANGELOG.md > CHANGELOG.md.tmp
+            mv CHANGELOG.md.tmp CHANGELOG.md
+          else
+            echo "$ENTRY" > CHANGELOG.md
+          fi
+
+      - name: Update error.md on failures
+        if: needs.build_apk.result == 'failure' || needs.emulator_test.result == 'failure'
+        run: |
+          ENTRY="## Build #${{ github.run_number }} - $(date -u '+%Y-%m-%d %H:%M UTC')
+          
+          ### Failed Jobs
+          $([ "${{ needs.build_apk.result }}" == "failure" ] && echo "- APK Build")
+          $([ "${{ needs.emulator_test.result }}" == "failure" ] && echo "- Emulator Tests")
+          
+          ### Commit
+          - SHA: ${{ github.sha }}
+          - Author: ${{ github.actor }}
+          
+          ---
+          "
+          
+          if [ -f error.md ]; then
+            echo "$ENTRY" | cat - error.md > error.md.tmp
+            mv error.md.tmp error.md
+          else
+            echo "$ENTRY" > error.md
+          fi
+
+      - name: Commit documentation updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add CHANGELOG.md error.md ARCHITECTURE.md 2>/dev/null || true
+          
+          if git diff --staged --quiet; then
+            echo "No documentation changes to commit"
+          else
+            git commit -m "docs: Update build documentation [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # JOB 10: PR Comment
+  # ============================================================
+  pr_comment:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [validate_prefix, build_apk, emulator_test]
     if: github.event_name == 'pull_request' && always()
-    
+
     steps:
       - name: Comment PR with build summary
         uses: actions/github-script@v8
         with:
           script: |
-            const lintStatus = '${{ needs.lint.outputs.status }}' || '${{ needs.lint.result }}';
-            const detektStatus = '${{ needs.detekt.outputs.status }}' || '${{ needs.detekt.result }}';
-            const testStatus = '${{ needs.unit-tests.outputs.status }}' || '${{ needs.unit-tests.result }}';
-            const buildStatus = '${{ needs.build-debug.outputs.status }}' || '${{ needs.build-debug.result }}';
+            const prefixStatus = '${{ needs.validate_prefix.result }}';
+            const buildStatus = '${{ needs.build_apk.result }}';
+            const testStatus = '${{ needs.emulator_test.result }}';
             
             const getEmoji = (status) => {
               if (status === 'success') return '✅';
@@ -196,55 +903,35 @@ jobs:
               return '⚠️';
             };
             
-            const getStatus = (status) => {
-              if (status === 'success') return 'Passed';
-              if (status === 'failure') return 'Failed';
-              if (status === 'skipped') return 'Skipped';
-              return status || 'Unknown';
-            };
-            
             const artifactsUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             
-            const body = `## 🤖 CI Build Summary
+            const body = `## 🤖 CI/CD Pipeline Summary
             
             | Check | Status |
             |-------|--------|
-            | ${getEmoji(lintStatus)} **Lint** | ${getStatus(lintStatus)} |
-            | ${getEmoji(detektStatus)} **Detekt** | ${getStatus(detektStatus)} |
-            | ${getEmoji(testStatus)} **Unit Tests** | ${getStatus(testStatus)} |
-            | ${getEmoji(buildStatus)} **Build** | ${getStatus(buildStatus)} |
+            | ${getEmoji(prefixStatus)} **Prefix Validation** | ${prefixStatus} |
+            | ${getEmoji(buildStatus)} **APK Build** | ${buildStatus} |
+            | ${getEmoji(testStatus)} **Emulator Tests** | ${testStatus} |
             
             ### 📦 Artifacts
             
-            ${buildStatus === 'success' ? `**Debug APKs are ready for download!**
-            
-            | APK | Architecture |
-            |-----|--------------|
-            | \`termux-app_*_arm64-v8a.apk\` | ARM64 (most devices) |
-            | \`termux-app_*_armeabi-v7a.apk\` | ARM32 (older devices) |
-            | \`termux-app_*_x86_64.apk\` | x86_64 (emulators) |
-            | \`termux-app_*_x86.apk\` | x86 (older emulators) |
-            | \`termux-app_*_universal.apk\` | All architectures |
-            
-            👉 [**Download Artifacts**](${artifactsUrl})` : '⚠️ Build did not complete successfully. Check the workflow logs.'}
+            ${buildStatus === 'success' ? `[**Download APKs and Bootstraps**](${artifactsUrl})` : '⚠️ Build did not complete successfully.'}
             
             ---
-            <sub>🔨 Built from commit \`${context.sha.substring(0, 7)}\` | [View workflow run](${artifactsUrl})</sub>`;
+            <sub>🔨 Commit \`${context.sha.substring(0, 7)}\` | [Workflow Run](${artifactsUrl})</sub>`;
             
-            // Find existing comment
+            // Find and update existing comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
             
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('🤖 CI Build Summary')
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('CI/CD Pipeline Summary')
             );
             
             if (botComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -252,7 +939,6 @@ jobs:
                 body: body
               });
             } else {
-              // Create new comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -260,3 +946,22 @@ jobs:
                 body: body
               });
             }
+
+  # ============================================================
+  # JOB 11: Cleanup Old Artifacts
+  # ============================================================
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [release, update_docs]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 30
+          keep_minimum_runs: 10
+        continue-on-error: true

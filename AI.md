@@ -217,6 +217,16 @@ Certificate verification failed: The certificate is NOT trusted.
 
 ## 📁 Key Files
 
+### CI/CD Pipeline
+```
+.github/workflows/ci.yml              # Comprehensive CI/CD workflow (11 jobs)
+scripts/validate-prefix.sh            # Prefix validation (com.termux.kotlin required)
+scripts/detect-package-changes.sh     # Git-based package change detection
+scripts/bootstrap-diff.sh             # Bootstrap comparison report generator
+scripts/emulator-smoke-test.sh        # Automated emulator testing
+scripts/collect-failure-logs.sh       # Failure artifact collection for Copilot
+```
+
 ### Environment Variables
 ```
 termux-shared/src/main/kotlin/com/termux/shared/termux/shell/command/environment/TermuxShellEnvironment.kt
@@ -288,6 +298,82 @@ repo/
 ---
 
 ## 📅 Session History
+
+### 2026-01-18: Complete CI/CD Pipeline Implementation
+- **Task:** Create fully automated CI/CD pipeline for Termux-Kotlin OS project
+- **Created Scripts:**
+  | Script | Purpose |
+  |--------|---------|
+  | `scripts/validate-prefix.sh` | POSIX-compliant validator ensuring `com.termux.kotlin` prefix. Intelligently skips Java package declarations/imports while catching real violations in runtime paths |
+  | `scripts/detect-package-changes.sh` | Detects which packages need rebuilding based on git diff against last successful build |
+  | `scripts/bootstrap-diff.sh` | Generates Markdown diff reports comparing bootstrap versions (added/removed/changed files, size analysis) |
+  | `scripts/emulator-smoke-test.sh` | Automated headless Android emulator tests (pkg update, install coreutils, termux-info, etc.) |
+  | `scripts/collect-failure-logs.sh` | Collects failure artifacts with `SUMMARY.md` structured for Copilot debugging |
+
+- **Created Workflow:** `.github/workflows/ci.yml` with 11 jobs:
+  1. `validate_prefix` - Runs prefix validation
+  2. `detect_package_changes` - Identifies packages needing rebuild
+  3. `build_packages` - Docker-based package building (4 architectures)
+  4. `build_bootstrap` - Bootstrap regeneration with diff analysis
+  5. `build_apk` - Android APK build
+  6. `emulator_test` - Headless emulator smoke tests
+  7. `publish_repo` - Publishes packages to gh-pages at `repo/<arch>/`
+  8. `release` - Creates GitHub releases with APK, bootstraps, diff reports
+  9. `update_docs` - Updates CHANGELOG.md and error.md automatically
+  10. `pr_comment` - Adds build status summary to PRs
+  11. `cleanup` - Removes old workflow runs
+
+- **Prefix Validation Rules:**
+  - **FORBIDDEN:** `com.termux` (exact match, no suffix)
+  - **ALLOWED:** `com.termux.kotlin` (has .kotlin suffix)
+  - **ALLOWED:** Java package declarations like `package com.termux.app` (namespace, not application ID)
+  - **FORBIDDEN:** Runtime paths like `/data/data/com.termux/files/usr/bin/bash`
+
+- **Fixed Hardcoded Paths:**
+  | File | Change |
+  |------|--------|
+  | `ProfileRepository.kt:42` | Changed `/data/data/com.termux/files/usr/bin/bash` → `TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash"` |
+  | `TermuxCtl.kt:422` | Changed `/data/data/com.termux/files/home/...` → `TermuxConstants.TERMUX_HOME_DIR_PATH + "/..."` |
+  | `PackageDoctor.kt:39` | Changed hardcoded path → `TermuxConstants.TERMUX_PREFIX_DIR_PATH` |
+  | `PackageBackupManager.kt:46-47` | Changed hardcoded paths → `TermuxConstants.TERMUX_PREFIX_DIR_PATH` and `TERMUX_HOME_DIR_PATH` |
+
+- **Failure Log Collection:** On any CI failure, structured logs are collected to `artifacts/failures/<job-name>/SUMMARY.md` for easy Copilot debugging
+
+- **Status:** ✅ Complete - All scripts created, workflow configured, prefix validator passing
+
+### 2026-01-18: APK/ISO Debug Toolkit Installation (COMPLETED)
+- **Goal:** Set up complete APK and ISO debugging toolkit in VM
+- **APK Tools Installed (16 tools):**
+  - jadx, jadx-gui (Java decompiler)
+  - apktool (APK unpacking/repacking)
+  - smali/baksmali (DEX assembler/disassembler)
+  - dex2jar (DEX to JAR conversion)
+  - uber-apk-signer (APK signing)
+  - bytecode-viewer (multi-format viewer)
+  - androguard (Python APK analysis)
+  - frida, objection (dynamic instrumentation)
+  - quark-engine (malware analysis)
+  - apkleaks (API/secret leakage detection)
+  - ghidra (NSA reverse engineering)
+  - aapt2, apkanalyzer (Android SDK tools)
+- **ISO Tools Installed (18+ tools):**
+  - xorriso, isoinfo, genisoimage (ISO manipulation)
+  - 7z/p7zip (archive extraction)
+  - binwalk (firmware analysis)
+  - sleuthkit (fls, mmls - forensics)
+  - squashfs-tools (SquashFS handling)
+  - qemu-img (disk image conversion)
+  - testdisk, foremost (recovery)
+  - fdisk, gdisk, parted (partition tools)
+  - Custom helpers: iso-mount, iso-extract, iso-info, squashfs-extract, img-info
+- **Scripts Created:**
+  - `scripts/install-apk-tools.sh` - APK tools installer
+  - `scripts/install-iso-tools.sh` - ISO tools installer
+  - `scripts/validate-debug-env.sh` - Environment validator
+  - `debug.sh` - Interactive launcher menu
+  - `tools/registry.md` - Tool documentation
+- **Validation:** 49/49 tools passing ✅
+- **Status:** ✅ Complete - VM is fully equipped debugging workstation
 
 ### 2026-01-17: SSL Certificate Issue (RESOLVED)
 - **Problem:** `pkg update` fails with certificate verification error
@@ -364,4 +450,29 @@ docker exec termux-package-builder bash -c '
 
 ---
 
-*Last updated: 2026-01-18*
+### 2026-01-18: v1.0.48 - Fix dpkg-deb Maintainer Script Permissions (Error #18)
+
+**Problem Found:** After v1.0.47 fix, `pkg install vim` still failed with:
+```
+dpkg-deb: error: maintainer script 'postinst' has bad permissions 644 (must be >=0555 and <=0775)
+```
+
+**Root Cause:** When dpkg wrapper extracts .deb packages with `dpkg-deb --control`, the DEBIAN control scripts (postinst, prerm, etc.) lose executable permissions and end up with 644. dpkg-deb --build requires >=0555.
+
+**Fix Applied:** Added `chmod 0755` for DEBIAN control scripts after extraction in TermuxInstaller.kt.
+
+**Testing Results (v1.0.47):**
+| Test | Result |
+|------|--------|
+| Bootstrap completion | ✅ All paths use com.termux.kotlin |
+| `pkg update` | ✅ Mirrors detected, packages fetched |
+| `pkg install vim` | ❌ Failed (Error #18 - now fixed in v1.0.48) |
+
+**Files Modified:**
+- `app/src/main/kotlin/com/termux/app/TermuxInstaller.kt` - Added chmod for DEBIAN scripts
+- `CHANGELOG.md` - Documented v1.0.48 changes
+- `error.md` - Added Error #18 documentation
+
+---
+
+*Last updated: 2026-01-18 (v1.0.48 Error #18 Fix Session)*

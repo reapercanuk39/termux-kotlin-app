@@ -2,6 +2,7 @@ package com.termux.app.pkg.doctor
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.termux.shared.termux.TermuxConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +37,7 @@ class PackageDoctor @Inject constructor(
     private val _progress = MutableStateFlow<DiagnosticProgress>(DiagnosticProgress.Idle)
     val progress: StateFlow<DiagnosticProgress> = _progress.asStateFlow()
     
-    private val termuxPrefix = "/data/data/com.termux/files/usr"
+    private val termuxPrefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH
     
     /**
      * Run a full diagnostic scan of the package system.

@@ -766,6 +766,13 @@ rewrite_deb() {
         fi
     done
     
+    # Ensure DEBIAN control scripts are executable (dpkg-deb requires >=0555)
+    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
+        if [ -f "${'$'}script" ]; then
+            chmod 0755 "${'$'}script"
+        fi
+    done
+    
     # Rebuild .deb package using dpkg-deb
     rm -f "${'$'}rewritten_deb"
     if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" 2>>"${'$'}log_file"; then
