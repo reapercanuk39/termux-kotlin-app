@@ -1487,3 +1487,40 @@ dpkg: error processing archive .../17-pkg-config_0.29.2-3_x86%5f64.deb (--unpack
 - All large packages like libllvm ✅
 
 ---
+
+## Error #22: dpkg wrapper log file never created
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+tail: cannot open '/data/data/com.termux.kotlin/files/usr/tmp/dpkg_rewrite.log' for reading: No such file or directory
+```
+
+**Status:** 🔍 Under Investigation
+
+**Symptoms:**
+1. `pkg install python` fails with "error creating directory './data/data/com.termux': Permission denied"
+2. Package paths don't show `rewritten_` prefix (rewrite_deb not called)
+3. Log file `$TMPDIR/dpkg_rewrite.log` doesn't exist
+
+**Potential Causes:**
+1. `local log_file` was declared INSIDE rewrite_deb() function - if function never called, no log created
+2. `set -e` in wrapper might cause early exit before reaching rewrite_deb
+3. install_mode detection might not be matching `--unpack`
+4. .deb file check `[ -f "$arg" ] && [[ "$arg" == *.deb ]]` might fail for some paths
+
+**Debug Fix Applied (v1.0.52):**
+1. Created global `LOG_FILE` variable at script start (outside function)
+2. Log ALL dpkg calls immediately with arguments
+3. Log install_mode detection result
+4. Log each .deb file before calling rewrite_deb
+5. Log rewrite_deb results
+
+**Next Steps:**
+Check the log after running `pkg install python` to understand:
+- Is the wrapper being called at all?
+- What arguments are passed?
+- Is install_mode detected correctly?
+- Which .deb files are matched (or not matched)?
+
+---
