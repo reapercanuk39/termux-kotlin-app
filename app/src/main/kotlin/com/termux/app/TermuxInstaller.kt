@@ -750,19 +750,19 @@ rewrite_deb() {
         echo "[dpkg-wrapper] Rewrote directory paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
     fi
     
-    # Fix hardcoded paths in ALL files that contain the old prefix
-    # Simple approach: try grep on each file, only sed if grep succeeds
-    # This works without requiring 'file' command (not in bootstrap)
+    # Fix hardcoded paths in TEXT files only (not binaries!)
+    # Use grep -I to skip binary files (treats them as non-matching)
+    # Binary files have path strings embedded but must NOT be modified
     local fixed_count=0
     while IFS= read -r -d '' file; do
-        # Skip binary files by checking if grep can read it
-        if grep -q "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
+        # grep -I skips binary files (contains null bytes)
+        if grep -qI "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
             sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file" 2>/dev/null && fixed_count=${'$'}((fixed_count + 1))
         fi
     done < <(find pkg_root -type f -print0 2>/dev/null)
     
     if [ "${'$'}fixed_count" -gt 0 ]; then
-        echo "[dpkg-wrapper] Fixed paths in ${'$'}fixed_count files" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] Fixed paths in ${'$'}fixed_count text files" >> "${'$'}LOG_FILE"
     fi
     
     # Also fix paths in DEBIAN control scripts

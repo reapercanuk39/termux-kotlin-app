@@ -1618,3 +1618,35 @@ This:
 4. No dependency on `file` command
 
 ---
+
+## Error #24: Binary files corrupted by sed
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg (subprocess): unable to execute installed python package post-installation script
+(/data/data/com.termux.kotlin/files/usr/var/lib/dpkg/info/python.postinst): No such file or directory
+```
+
+**Status:** 🔄 Fixing in v1.0.56
+
+**Root Cause:**
+In v1.0.55, grep was matching binary files (ELF binaries have path strings embedded):
+```bash
+if grep -q "$OLD_PREFIX" "$file" 2>/dev/null; then
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+```
+
+The log showed "Fixed paths in 407 files" - way too many! sed was modifying binary files, corrupting package structure.
+
+**Fix Applied (v1.0.56):**
+Use `grep -I` flag to skip binary files:
+```bash
+# grep -I treats binary files as non-matching (skips them)
+if grep -qI "$OLD_PREFIX" "$file" 2>/dev/null; then
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+```
+
+The `-I` flag makes grep check for null bytes (binary indicator) and skip those files.
+
+---
