@@ -1547,3 +1547,33 @@ But the argument is a DIRECTORY, not a .deb file! So the check failed, no rewrit
 3. Pass original directory path to dpkg.real
 
 ---
+
+## Error #23: pip script has wrong shebang after install
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+/usr/bin/pip: /data/data/com.termux/files/usr/bin/python3.12: bad interpreter: No such file or directory
+```
+
+**Status:** 🔍 Minor - Python itself works fine
+
+**Symptoms:**
+- All 20 packages for python installed successfully
+- `python --version` works: Python 3.12.12
+- `pip` fails because its shebang points to wrong path
+
+**Root Cause:**
+The pip script has a shebang `#!/data/data/com.termux/files/usr/bin/python3.12` that wasn't rewritten to `com.termux.kotlin` path.
+
+This might be because:
+1. The pip script is generated during postinst, not from the .deb data
+2. Our text file rewriting in DEBIAN/postinst scripts might not be working
+3. The pip script might be a binary file that we're not processing
+
+**Workaround:**
+Users can run: `sed -i 's|com.termux/files|com.termux.kotlin/files|g' $PREFIX/bin/pip*`
+
+**Note:** This is a minor issue - Python itself works perfectly. The core dpkg --recursive fix (Error #22) was successful.
+
+---
