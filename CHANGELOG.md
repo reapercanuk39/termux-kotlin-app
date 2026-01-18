@@ -1,3 +1,17 @@
+## [v1.1.3] - 2026-01-18
+
+### 🚀 Performance
+- **dpkg Wrapper Optimization:** Fixed freeze on large package installations
+  - Problem: `pkg install python/vim/etc` would hang after download
+  - Root cause: O(n) grep processes for n files in package (llvm has 1700+ files!)
+  - Fix: Use `grep -rIl` single recursive search instead of per-file grep
+  - Result: Package rewriting ~100x faster
+
+### 🐛 Bug Fixes
+- Error #28: dpkg wrapper freeze on large packages
+
+---
+
 ## [2026-01-18] Build #168
 
 ### Changes

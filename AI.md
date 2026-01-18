@@ -768,4 +768,53 @@ x86_64:  a9b227aa5acdc3194044e3844dd7e5ab153c3fa049779f0d221eaa3b4b533bd2
 
 ---
 
-*Last updated: 2026-01-18 (v1.1.2 - MOTD WELCOME MESSAGE FIX!)*
+### 2026-01-18: v1.1.3 - dpkg Wrapper Performance Fix 🚀
+
+**Session Summary:** Fixed critical performance issue where `pkg install` would freeze on large packages.
+
+**Problem:**
+- User reported `pkg install python` and `pkg install termux-*` would freeze after downloading
+- App would hang indefinitely during the dpkg installation phase
+- Same issue affected any installation with large packages (llvm, clang, etc.)
+
+**Root Cause Analysis:**
+1. dpkg wrapper rewrites paths in .deb packages on-the-fly
+2. Used `find pkg_root -type f -print0 | while read file; do grep -qI...` pattern
+3. For llvm package: **1,701 files** = 1,701 separate grep processes!
+4. Each process has shell startup overhead
+5. Total time: minutes (or forever on slow devices)
+
+**Fix Applied:**
+```bash
+# Before (O(n) grep processes):
+while IFS= read -r -d '' file; do
+    if grep -qI "$OLD_PREFIX" "$file"; then
+        sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+    fi
+done < <(find pkg_root -type f -print0)
+
+# After (single recursive grep):
+while IFS= read -r file; do
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+done < <(grep -rIl "$OLD_PREFIX" pkg_root || true)
+```
+
+**Key Insight:**
+- `grep -rIl` does recursive search in ONE process
+- `-r` = recursive, `-I` = skip binary, `-l` = list filenames only
+- Same functionality, orders of magnitude faster
+
+**Test Results (v1.1.3):**
+| Test | Before | After |
+|------|--------|-------|
+| pkg install python (20 packages, 117MB) | ∞ (freeze) | ~3 minutes ✅ |
+| llvm package (1701 files) | ∞ (hang) | ~30 seconds ✅ |
+| pip --version | N/A | pip 25.3 ✅ |
+
+**Files Modified:**
+- `app/src/main/kotlin/com/termux/app/TermuxInstaller.kt` - Optimized grep pattern
+- `error.md` - Error #28 documented
+
+---
+
+*Last updated: 2026-01-18 (v1.1.3 - dpkg WRAPPER PERFORMANCE FIX!)*
