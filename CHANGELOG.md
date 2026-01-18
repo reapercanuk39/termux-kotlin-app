@@ -5,6 +5,12 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.0.59] - 2026-01-18
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 - Release: success
