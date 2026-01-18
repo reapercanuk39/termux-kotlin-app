@@ -481,3 +481,50 @@ docker exec termux-package-builder bash -c '
 ---
 
 *Last updated: 2026-01-18 (v1.0.50 - pkg install vim SUCCESS)*
+
+### 2026-01-18: v1.0.51-v1.0.53 - dpkg --recursive Fix
+
+**Session Summary:** Fixed critical bug where apt's `dpkg --recursive` mode wasn't handled.
+
+| Version | Error | Problem | Fix |
+|---------|-------|---------|-----|
+| v1.0.51 | #21 | tar detection assumes no rewrite | Assume rewrite needed if check fails |
+| v1.0.52 | #22 debug | No logging = couldn't debug | Add global LOG_FILE at script start |
+| v1.0.53 | #22 | dpkg --recursive not handled | Detect recursive mode, rewrite all debs in directory |
+
+**Root Cause Discovery (via v1.0.52 debug logs):**
+apt calls dpkg with: `dpkg --recursive /path/to/apt-dpkg-install-xxx/`
+Wrapper checked: `if [ -f "$arg" ] && [[ "$arg" == *.deb ]]`
+Result: Directory doesn't match → no rewrites → packages fail with "Permission denied"
+
+**Fix Applied (v1.0.53):**
+1. Detect `--recursive` or `-R` flag
+2. When directory arg found + recursive_mode=1:
+   - Loop through `*.deb` files in directory
+   - Rewrite each with rewrite_deb()
+   - Move rewritten deb back to original location
+3. Pass original directory to dpkg.real
+
+**Testing Results (v1.0.53):**
+| Test | Result |
+|------|--------|
+| Bootstrap completion | ✅ All paths use com.termux.kotlin |
+| `pkg update` | ✅ Mirrors work |
+| `pkg install vim` | ✅ Works |
+| `pkg install python` | ✅ **Python 3.12.12 WORKS!** |
+| pip | ⚠️ Shebang issue (Error #23, minor) |
+
+**Packages Successfully Installed:**
+- python, python-pip, python-ensurepip-wheels
+- libllvm (33.5 MB!), llvm, lld, clang, libcompiler-rt
+- libicu, libxml2, libffi, libexpat, libsqlite, glib
+- make, pkg-config, ndk-sysroot, ncurses-ui-libs, gdbm, libcrypt
+
+**Files Modified:**
+- `TermuxInstaller.kt` - Handle dpkg --recursive mode
+- `error.md` - Errors #21, #22, #23
+- `CHANGELOG.md` - v1.0.51-v1.0.53
+
+---
+
+*Last updated: 2026-01-18 (v1.0.53 - pkg install python SUCCESS)*
