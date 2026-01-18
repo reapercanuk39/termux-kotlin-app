@@ -682,7 +682,8 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
 #
 # SOLUTION: Intercept .deb file installation and rewrite paths on-the-fly.
 
-set -e
+# Don't use set -e - we want to continue even if some commands fail
+# set -e
 
 PREFIX="${ourFilesPrefix}/usr"
 export TMPDIR="${ourFilesPrefix}/usr/tmp"
@@ -692,12 +693,12 @@ export HOME="${ourFilesPrefix}"
 export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
 export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 
-# Create temp directory if it doesn't exist
-mkdir -p "${'$'}TMPDIR" 2>/dev/null
+# Create temp directory if it doesn't exist (ignore errors)
+mkdir -p "${'$'}TMPDIR" 2>/dev/null || true
 
 # Global log file for debugging
 LOG_FILE="${'$'}TMPDIR/dpkg_rewrite.log"
-echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE"
+echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
 
 # Path patterns to rewrite
 OLD_PREFIX="/data/data/com.termux"

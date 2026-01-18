@@ -1688,3 +1688,41 @@ fi
 ```
 
 ---
+
+## Error #26: set -e causes wrapper to exit silently on early errors
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg (subprocess): unable to execute installed python package post-installation script
+(python.postinst): No such file or directory
+```
+
+**Status:** 🔄 Fixing in v1.0.58
+
+**Root Cause:**
+The dpkg wrapper uses `set -e` which causes the script to exit immediately on ANY non-zero return code. Combined with:
+- `mkdir -p "$TMPDIR" 2>/dev/null` - errors suppressed but exit code still checked
+- Early failures would kill the script BEFORE logging anything
+
+This explained why:
+- Only packages 18-19 appeared in the log (second dpkg batch)
+- Packages 0-17 (including python) had NO log entries
+- First dpkg call crashed before logging
+
+**Fix Applied (v1.0.58):**
+1. Remove `set -e` entirely - we handle errors explicitly
+2. Add `|| true` to commands that might fail harmlessly
+3. This ensures the wrapper ALWAYS runs to completion
+
+```bash
+# Before:
+set -e
+mkdir -p "$TMPDIR" 2>/dev/null
+
+# After:
+# Don't use set -e - we want to continue even if some commands fail
+mkdir -p "$TMPDIR" 2>/dev/null || true
+```
+
+---
