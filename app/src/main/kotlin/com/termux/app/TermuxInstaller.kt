@@ -709,7 +709,22 @@ rewrite_deb() {
     
     # Check if package needs rewriting (contains old paths)
     # Use dpkg-deb --fsys-tarfile which outputs the data tarball directly
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}log_file" | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+    # If check fails for any reason, assume we need to rewrite (safer default)
+    local tar_list
+    local needs_rewrite=0
+    
+    if tar_list=$("${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}log_file" | tar -tf - 2>>"${'$'}log_file"); then
+        # Check if any file path contains old prefix (with or without leading ./)
+        if echo "${'$'}tar_list" | grep -q "/data/data/com\.termux[^.]"; then
+            needs_rewrite=1
+        fi
+    else
+        # Detection failed - assume we need to rewrite (safer default)
+        echo "[dpkg-wrapper] Warning: tar check failed for ${'$'}(basename "${'$'}deb_file"), assuming rewrite needed" >> "${'$'}log_file"
+        needs_rewrite=1
+    fi
+    
+    if [ "${'$'}needs_rewrite" = "0" ]; then
         # Package doesn't contain old paths, use as-is
         echo "${'$'}deb_file"
         return 0

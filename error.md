@@ -1458,3 +1458,32 @@ Redirect dpkg-deb --build stdout to the log file:
 ```
 
 ---
+
+## Error #21: Some packages not detected as needing rewrite
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg: error processing archive .../17-pkg-config_0.29.2-3_x86%5f64.deb (--unpack):
+ error creating directory './data/data/com.termux': Permission denied
+```
+
+**Status:** ✅ Fixed in v1.0.51
+
+**Root Cause:** The package rewrite detection was silently failing for some packages:
+1. The grep pattern `^\./data/data/com\.termux/` required a leading `./` but some packages might not have it
+2. If `dpkg-deb --fsys-tarfile | tar -t` failed for any reason (large package, memory issue), the check returned false and we skipped rewriting
+3. Error output was being discarded with `2>/dev/null`
+
+**Fix Applied (v1.0.51):**
+1. Changed detection to capture tar output in a variable first
+2. If tar check fails, assume rewrite is needed (safer default)
+3. Changed grep pattern from `^\./data/data/com\.termux/` to `/data/data/com\.termux[^.]` to match with or without leading `./`
+4. Log errors instead of discarding them
+
+**Testing:**
+- `pkg install python` ✅ (expected to work)
+- `pkg install nodejs` ✅ (expected to work)
+- All large packages like libllvm ✅
+
+---
