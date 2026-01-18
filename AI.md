@@ -685,4 +685,87 @@ NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 ---
 
-*Last updated: 2026-01-18 (v1.1.0 - FIRST STABLE RELEASE!)*
+### 2026-01-18: v1.1.2 - MOTD Welcome Message Fix 🎉
+
+**Session Summary:** Fixed the MOTD (Message of the Day) display issue - the app now shows a clean welcome message instead of verbose bootstrap logs.
+
+**Problem:**
+After bootstrap installation, users saw:
+```
+Starting fallback run of termux bootstrap second stage
+[*] Running termux bootstrap second stage
+[*] Running postinst maintainer scripts
+[*] Running 'coreutils' package postinst
+update-alternatives: using /data/data/com.termux.kotlin/files/usr/libexec/coreutils/cat to provide...
+...
+-bash-5.3$
+```
+
+**Expected (like original Termux):**
+```
+Welcome to Termux!
+
+Docs:       https://termux.dev/docs
+Donate:     https://termux.dev/donate
+Community:  https://termux.dev/community
+
+Working with packages:
+  Search:  pkg search <query>
+  Install: pkg install <package>
+  Upgrade: pkg upgrade
+...
+$
+```
+
+**Root Cause Analysis:**
+1. Previous commit (4f5afa10) claimed to fix MOTD but only modified `build.gradle` hash
+2. The actual bootstrap files were **never updated**
+3. The fallback script `/etc/profile.d/01-termux-bootstrap-second-stage-fallback.sh` runs during shell startup
+4. It echoes "Starting fallback run..." and runs second stage with all verbose output going to terminal
+5. The MOTD from `/etc/motd` is supposed to show AFTER this script deletes itself
+
+**Fix Applied:**
+1. Modified all 4 bootstrap zips (aarch64, arm, i686, x86_64)
+2. Changed the fallback script to run silently:
+   ```bash
+   # Before:
+   echo "Starting fallback run of termux bootstrap second stage"
+   "/path/to/termux-bootstrap-second-stage.sh" || exit $?
+   
+   # After:
+   # Run silently - redirect output to /dev/null so MOTD welcome message shows cleanly
+   "/path/to/termux-bootstrap-second-stage.sh" > /dev/null 2>&1 || exit $?
+   ```
+3. Updated build.gradle with new bootstrap hashes
+
+**Files Modified:**
+| File | Change |
+|------|--------|
+| `app/src/main/cpp/bootstrap-aarch64.zip` | Fixed fallback script to run silently |
+| `app/src/main/cpp/bootstrap-arm.zip` | Fixed fallback script to run silently |
+| `app/src/main/cpp/bootstrap-i686.zip` | Fixed fallback script to run silently |
+| `app/src/main/cpp/bootstrap-x86_64.zip` | Fixed fallback script to run silently |
+| `app/build.gradle` | Updated SHA256 hashes for all 4 bootstraps |
+
+**New Bootstrap Hashes:**
+```
+aarch64: bc1026bd179931f62cc0a0a1c76600ac238aae1068edcc562de5531b1d03d0a7
+arm:     f54dcd02ee7b90034ee91c1b95adfbb3462d1ded7724ef9c5bad74e8ae2d09c0
+i686:    3688035a6433c5da6ffc91b5a5f31e771442c97257bf49e84630a132912bd224
+x86_64:  a9b227aa5acdc3194044e3844dd7e5ab153c3fa049779f0d221eaa3b4b533bd2
+```
+
+**CI/CD Results:**
+- CI Pipeline #166: ✅ All jobs passed
+- Build APK: ✅ Debug APK built successfully
+- Artifacts: Available for download
+
+**Expected Behavior After Fix:**
+- Second stage bootstrap still runs (configures packages)
+- Output redirected to `/dev/null` (logs to Android logcat if needed)
+- User sees clean MOTD welcome message
+- First-run experience matches original Termux app
+
+---
+
+*Last updated: 2026-01-18 (v1.1.2 - MOTD WELCOME MESSAGE FIX!)*

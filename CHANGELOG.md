@@ -1,3 +1,19 @@
+## [v1.1.2] - 2026-01-18
+
+### 🐛 Bug Fixes
+- **MOTD Fix:** Actually apply MOTD welcome message fix to bootstrap zips
+  - Previous commit (4f5afa10) only updated hash, not actual files
+  - Fixed all 4 architecture bootstrap zips (aarch64, arm, i686, x86_64)
+  - Modified `/etc/profile.d/01-termux-bootstrap-second-stage-fallback.sh` to redirect output to `/dev/null`
+  - Updated bootstrap hashes in build.gradle
+
+### 🎨 User Experience
+- **Clean Welcome Screen:** App now shows proper "Welcome to Termux!" message after bootstrap
+  - Before: Verbose "[*] Running termux bootstrap second stage..." logs
+  - After: Clean MOTD with docs links, package commands, and usage tips
+
+---
+
 ## [2026-01-18] Build #166
 
 ### Changes
