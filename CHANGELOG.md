@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.46] - 2026-01-18
+
+### 🐛 Bug Fixes
+-  Add logging and export TMPDIR in dpkg wrapper (debug v1.0.46)
+
+
 ## [v1.0.45] - 2026-01-18
 
 ### 🐛 Bug Fix: dpkg Path Rewriting Now Works (Error #16)
