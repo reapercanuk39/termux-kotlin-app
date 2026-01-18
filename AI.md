@@ -528,3 +528,44 @@ Result: Directory doesn't match → no rewrites → packages fail with "Permissi
 ---
 
 *Last updated: 2026-01-18 (v1.0.53 - pkg install python SUCCESS)*
+
+### 2026-01-18: v1.0.54-v1.0.56 - pip Shebang Fix
+
+**Session Summary:** Fixed pip shebang issue (Error #23/24) requiring multiple attempts.
+
+| Version | Error | Problem | Fix | Result |
+|---------|-------|---------|-----|--------|
+| v1.0.54 | #23 | Extension matching missed `pip` | Use `file` command | ❌ `file` not in bootstrap |
+| v1.0.55 | #24 | grep matched binary files | grep all files | ❌ Corrupted binaries |
+| v1.0.56 | #24 | Binary files corrupted by sed | Use `grep -I` | 🔄 Testing |
+
+**Root Cause Analysis:**
+1. `pip` script has no file extension (not `.py` or `.sh`)
+2. Old code only checked files by extension: `-name "*.py" -o -name "*.sh"`
+3. First fix attempt used `file` command - not available in bootstrap
+4. Second fix grepped ALL files - corrupted binaries (407 files modified!)
+5. Final fix: `grep -qI` flag skips binary files (checks for null bytes)
+
+**Final Fix (v1.0.56):**
+```bash
+# grep -I skips binary files (treats them as non-matching)
+while IFS= read -r -d '' file; do
+    if grep -qI "$OLD_PREFIX" "$file" 2>/dev/null; then
+        sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+    fi
+done < <(find pkg_root -type f -print0)
+```
+
+**Key Changes to rewrite_deb():**
+1. Removed early-skip logic (always process all packages)
+2. Use `grep -qI` to skip binary files
+3. Use `find -print0 | read -d ''` for safe filename handling
+
+**Files Modified:**
+- `TermuxInstaller.kt` - Updated rewrite_deb() function
+- `error.md` - Errors #23, #24 documented
+- `CHANGELOG.md` - v1.0.54-v1.0.56
+
+---
+
+*Last updated: 2026-01-18 (v1.0.56 - testing pip fix)*
