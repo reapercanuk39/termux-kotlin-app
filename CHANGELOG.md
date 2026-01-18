@@ -1,3 +1,15 @@
+## [2026-01-18] Build #162
+
+### Changes
+- 82ca417 release: v1.1.0 - First stable release with full upstream package compatibility
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-18] Build #160
 
 ### Changes
