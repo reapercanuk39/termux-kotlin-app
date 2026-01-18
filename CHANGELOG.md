@@ -44,8 +44,8 @@ pkg install nodejs     # ✅ Works!
 
 ## [v1.0.44] - 2026-01-18
 
-### 🐛 Bug Fix
-- fix: Prevent double path replacement in fixPathsInTextFile (Error #15)
+### 🐛 Bug Fixes
+-  Prevent double path replacement in fixPathsInTextFile (Error #15)
 
 ---
 
