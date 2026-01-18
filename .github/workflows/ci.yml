@@ -683,16 +683,16 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          # Get version from gradle or generate from date
-          VERSION=$(grep -oP 'versionName\s*[=:]\s*"\K[^"]+' app/build.gradle 2>/dev/null || \
-                   echo "1.0.$(date +%Y%m%d)")
+          # Get version from gradle using sed (more portable than grep -oP)
+          VERSION=$(sed -n 's/.*versionName[[:space:]]*"\([^"]*\)".*/\1/p' app/build.gradle | head -1)
           
-          # Append build number
-          BUILD_NUM="${{ github.run_number }}"
-          FULL_VERSION="${VERSION}-build.${BUILD_NUM}"
+          if [ -z "$VERSION" ]; then
+            echo "Warning: Could not extract versionName from build.gradle"
+            VERSION="1.0.0"
+          fi
           
-          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $FULL_VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v6
@@ -708,9 +708,6 @@ jobs:
           
           # Copy bootstraps
           find release-artifacts -name "bootstrap-*.zip" -exec cp {} release-assets/ \;
-          
-          # Copy diff reports
-          find release-artifacts -name "*.md" -exec cp {} release-assets/ \; 2>/dev/null || true
           
           # Create package list
           find release-artifacts -name "*.deb" > release-assets/packages.txt
@@ -769,7 +766,6 @@ jobs:
           files: |
             release-assets/*.apk
             release-assets/bootstrap-*.zip
-            release-assets/*.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
