@@ -5,6 +5,18 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.1.1] - 2026-01-18
+
+### 🐛 Bug Fixes
+-  update bootstrap hash to match MOTD fix
+-  display MOTD welcome message after bootstrap
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.0 [skip ci]
+-  Update build documentation [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 
