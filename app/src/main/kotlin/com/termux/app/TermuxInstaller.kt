@@ -858,7 +858,8 @@ if [ "${'$'}install_mode" = "1" ]; then
         if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
             # Individual .deb file
             echo "[dpkg-wrapper] Processing deb file: ${'$'}arg" >> "${'$'}LOG_FILE"
-            rewritten=${'$'}(rewrite_deb "${'$'}arg")
+            # Use || to fallback to original if rewrite fails
+            rewritten=${'$'}(rewrite_deb "${'$'}arg") || rewritten="${'$'}arg"
             echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
             new_args+=("${'$'}rewritten")
         elif [ -d "${'$'}arg" ] && [ "${'$'}recursive_mode" = "1" ]; then
@@ -867,10 +868,14 @@ if [ "${'$'}install_mode" = "1" ]; then
             for deb in "${'$'}arg"/*.deb; do
                 if [ -f "${'$'}deb" ]; then
                     echo "[dpkg-wrapper] Processing deb in dir: ${'$'}deb" >> "${'$'}LOG_FILE"
-                    rewritten=${'$'}(rewrite_deb "${'$'}deb")
+                    # Use || true to prevent set -e from killing script if rewrite fails
+                    rewritten=${'$'}(rewrite_deb "${'$'}deb") || rewritten="${'$'}deb"
                     echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
                     # Move rewritten deb back to original location so dpkg --recursive finds it
-                    mv "${'$'}rewritten" "${'$'}deb" 2>>"${'$'}LOG_FILE"
+                    # Only move if rewritten path differs from original
+                    if [ "${'$'}rewritten" != "${'$'}deb" ] && [ -f "${'$'}rewritten" ]; then
+                        mv "${'$'}rewritten" "${'$'}deb" 2>>"${'$'}LOG_FILE"
+                    fi
                 fi
             done
             new_args+=("${'$'}arg")

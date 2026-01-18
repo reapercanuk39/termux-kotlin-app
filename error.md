@@ -1650,3 +1650,41 @@ if grep -qI "$OLD_PREFIX" "$file" 2>/dev/null; then
 The `-I` flag makes grep check for null bytes (binary indicator) and skip those files.
 
 ---
+
+## Error #25: set -e causes script to exit on rewrite_deb failure
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg (subprocess): unable to execute installed python package post-installation script
+(/data/data/com.termux.kotlin/files/usr/var/lib/dpkg/info/python.postinst): No such file or directory
+```
+
+**Status:** 🔄 Fixing in v1.0.57
+
+**Root Cause:**
+The dpkg wrapper has `set -e` which causes the script to exit immediately on any command failure. When `rewrite_deb()` fails for one package, the entire script exits before processing remaining packages!
+
+Log analysis showed:
+- Only packages 18-19 (python-pip, python-ensurepip-wheels) were in the log
+- Packages 0-17 (including python_3.12.12) were NEVER processed
+- This explains why python.postinst was missing - the package was installed WITHOUT rewriting
+
+**Fix Applied (v1.0.57):**
+Use `|| fallback` pattern to prevent exit on failure:
+```bash
+# Before (script exits if rewrite_deb fails):
+rewritten=$(rewrite_deb "$deb")
+
+# After (falls back to original on failure):
+rewritten=$(rewrite_deb "$deb") || rewritten="$deb"
+```
+
+Also added check before mv to avoid moving file onto itself:
+```bash
+if [ "$rewritten" != "$deb" ] && [ -f "$rewritten" ]; then
+    mv "$rewritten" "$deb"
+fi
+```
+
+---
