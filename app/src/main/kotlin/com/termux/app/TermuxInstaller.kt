@@ -695,6 +695,10 @@ export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 # Create temp directory if it doesn't exist
 mkdir -p "${'$'}TMPDIR" 2>/dev/null
 
+# Global log file for debugging
+LOG_FILE="${'$'}TMPDIR/dpkg_rewrite.log"
+echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE"
+
 # Path patterns to rewrite
 OLD_PREFIX="/data/data/com.termux"
 NEW_PREFIX="/data/data/com.termux.kotlin"
@@ -705,7 +709,6 @@ rewrite_deb() {
     local deb_file="${'$'}1"
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
     local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
-    local log_file="${'$'}TMPDIR/dpkg_rewrite.log"
     
     # Check if package needs rewriting (contains old paths)
     # Use dpkg-deb --fsys-tarfile which outputs the data tarball directly
@@ -713,24 +716,25 @@ rewrite_deb() {
     local tar_list
     local needs_rewrite=0
     
-    if tar_list=$("${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}log_file" | tar -tf - 2>>"${'$'}log_file"); then
+    if tar_list=$("${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}LOG_FILE" | tar -tf - 2>>"${'$'}LOG_FILE"); then
         # Check if any file path contains old prefix (with or without leading ./)
         if echo "${'$'}tar_list" | grep -q "/data/data/com\.termux[^.]"; then
             needs_rewrite=1
         fi
     else
         # Detection failed - assume we need to rewrite (safer default)
-        echo "[dpkg-wrapper] Warning: tar check failed for ${'$'}(basename "${'$'}deb_file"), assuming rewrite needed" >> "${'$'}log_file"
+        echo "[dpkg-wrapper] Warning: tar check failed for ${'$'}(basename "${'$'}deb_file"), assuming rewrite needed" >> "${'$'}LOG_FILE"
         needs_rewrite=1
     fi
     
     if [ "${'$'}needs_rewrite" = "0" ]; then
         # Package doesn't contain old paths, use as-is
+        echo "[dpkg-wrapper] Package ${'$'}(basename "${'$'}deb_file") does not need rewriting" >> "${'$'}LOG_FILE"
         echo "${'$'}deb_file"
         return 0
     fi
     
-    echo "[dpkg-wrapper] Rewriting package: ${'$'}(basename "${'$'}deb_file")" >> "${'$'}log_file"
+    echo "[dpkg-wrapper] Rewriting package: ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
     
     # Package needs rewriting
     mkdir -p "${'$'}work_dir"
@@ -738,15 +742,15 @@ rewrite_deb() {
     
     # Extract .deb using dpkg-deb (works without binutils/ar)
     mkdir -p pkg_root/DEBIAN
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}log_file"; then
-        echo "[dpkg-wrapper] Failed to extract control from ${'$'}deb_file" >> "${'$'}log_file"
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}LOG_FILE"; then
+        echo "[dpkg-wrapper] Failed to extract control from ${'$'}deb_file" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
     fi
     
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}log_file"; then
-        echo "[dpkg-wrapper] Failed to extract data from ${'$'}deb_file" >> "${'$'}log_file"
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}LOG_FILE"; then
+        echo "[dpkg-wrapper] Failed to extract data from ${'$'}deb_file" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
@@ -764,7 +768,7 @@ rewrite_deb() {
         fi
         # Remove old empty directory
         rm -rf "pkg_root/data/data/com.termux"
-        echo "[dpkg-wrapper] Rewrote paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}log_file"
+        echo "[dpkg-wrapper] Rewrote paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
     fi
     
     # Fix hardcoded paths in text files (scripts, configs, pkg-config files)
@@ -784,7 +788,7 @@ rewrite_deb() {
     # Fix paths in DEBIAN/conffiles (lists config file paths)
     if [ -f pkg_root/DEBIAN/conffiles ] && grep -q "${'$'}OLD_PREFIX" pkg_root/DEBIAN/conffiles 2>/dev/null; then
         sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" pkg_root/DEBIAN/conffiles
-        echo "[dpkg-wrapper] Fixed paths in DEBIAN/conffiles" >> "${'$'}log_file"
+        echo "[dpkg-wrapper] Fixed paths in DEBIAN/conffiles" >> "${'$'}LOG_FILE"
     fi
     
     # Ensure DEBIAN control scripts are executable (dpkg-deb requires >=0555)
@@ -796,8 +800,8 @@ rewrite_deb() {
     
     # Rebuild .deb package using dpkg-deb (redirect stdout to log to avoid mixing with return value)
     rm -f "${'$'}rewritten_deb"
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" >>"${'$'}log_file" 2>&1; then
-        echo "[dpkg-wrapper] Failed to rebuild ${'$'}deb_file" >> "${'$'}log_file"
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" >>"${'$'}LOG_FILE" 2>&1; then
+        echo "[dpkg-wrapper] Failed to rebuild ${'$'}deb_file" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
@@ -809,10 +813,10 @@ rewrite_deb() {
     
     # Return rewritten path if build succeeded, otherwise original
     if [ -f "${'$'}rewritten_deb" ]; then
-        echo "[dpkg-wrapper] Successfully rewrote to ${'$'}rewritten_deb" >> "${'$'}log_file"
+        echo "[dpkg-wrapper] Successfully rewrote to ${'$'}rewritten_deb" >> "${'$'}LOG_FILE"
         echo "${'$'}rewritten_deb"
     else
-        echo "[dpkg-wrapper] Rewritten deb not found, using original" >> "${'$'}log_file"
+        echo "[dpkg-wrapper] Rewritten deb not found, using original" >> "${'$'}LOG_FILE"
         echo "${'$'}deb_file"
     fi
 }
@@ -847,20 +851,26 @@ for arg in "${'$'}@"; do
     esac
 done
 
+echo "[dpkg-wrapper] install_mode=${'$'}install_mode" >> "${'$'}LOG_FILE"
+
 if [ "${'$'}install_mode" = "1" ]; then
     # Rewrite .deb files that contain old paths
     new_args=()
     for arg in "${'$'}@"; do
         if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
+            echo "[dpkg-wrapper] Processing deb: ${'$'}arg" >> "${'$'}LOG_FILE"
             rewritten=${'$'}(rewrite_deb "${'$'}arg")
+            echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
             new_args+=("${'$'}rewritten")
         else
             new_args+=("${'$'}arg")
         fi
     done
+    echo "[dpkg-wrapper] Calling dpkg.real with ${'$'}{#new_args[@]} args" >> "${'$'}LOG_FILE"
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
 else
     # For all other commands, call the real binary directly
+    echo "[dpkg-wrapper] Non-install mode, passing through" >> "${'$'}LOG_FILE"
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 fi
 """
