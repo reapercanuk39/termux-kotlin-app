@@ -1,3 +1,16 @@
+## [2026-01-18] Build #142
+
+### Changes
+- 4b8f1d8 fix: chmod DEBIAN control scripts in dpkg wrapper (Error #18)
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+- Release: success
+
+---
+
 # Changelog
 
 All notable changes to Termux Kotlin will be documented in this file.
