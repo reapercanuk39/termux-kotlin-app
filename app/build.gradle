@@ -290,10 +290,10 @@ task downloadBootstraps() {
             // Custom bootstrap with native com.termux.kotlin paths for ALL architectures
             // Built apt/dpkg/termux-tools/termux-exec from source with TERMUX_APP__PACKAGE_NAME=com.termux.kotlin
             // All paths compiled natively into binaries - no runtime patching needed
-            downloadBootstrap("aarch64", "15bfb7de8ea7c86cc0e9adeb0e836529c06ecdb489de80533e5c4c8d16e423db", version, bootstrapProjectDir)
-            downloadBootstrap("arm", "4f5f630b95a4735488af496f8a2d6438795ebe4646255256d56930db80e7f017", version, bootstrapProjectDir)
-            downloadBootstrap("i686", "1ad9c1192f681c1aff5a0cbca16d7bc1d12d90e05764e873d665502b4bb8bb10", version, bootstrapProjectDir)
-            downloadBootstrap("x86_64", "87e19701632fe78630cb53e57cb47a6997ef4b78306e62ba675eea47ae5de46a", version, bootstrapProjectDir)
+            downloadBootstrap("aarch64", "bc1026bd179931f62cc0a0a1c76600ac238aae1068edcc562de5531b1d03d0a7", version, bootstrapProjectDir)
+            downloadBootstrap("arm", "f54dcd02ee7b90034ee91c1b95adfbb3462d1ded7724ef9c5bad74e8ae2d09c0", version, bootstrapProjectDir)
+            downloadBootstrap("i686", "3688035a6433c5da6ffc91b5a5f31e771442c97257bf49e84630a132912bd224", version, bootstrapProjectDir)
+            downloadBootstrap("x86_64", "a9b227aa5acdc3194044e3844dd7e5ab153c3fa049779f0d221eaa3b4b533bd2", version, bootstrapProjectDir)
         } else if (bootstrapPackageVariant == "apt-android-5") {
             // Note: apt-android-5 is no longer actively maintained by Termux.
             // Using legacy checksums for compatibility with Android 5/6 devices.
