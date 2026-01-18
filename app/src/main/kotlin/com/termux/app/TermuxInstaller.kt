@@ -766,6 +766,12 @@ rewrite_deb() {
         fi
     done
     
+    # Fix paths in DEBIAN/conffiles (lists config file paths)
+    if [ -f pkg_root/DEBIAN/conffiles ] && grep -q "${'$'}OLD_PREFIX" pkg_root/DEBIAN/conffiles 2>/dev/null; then
+        sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" pkg_root/DEBIAN/conffiles
+        echo "[dpkg-wrapper] Fixed paths in DEBIAN/conffiles" >> "${'$'}log_file"
+    fi
+    
     # Ensure DEBIAN control scripts are executable (dpkg-deb requires >=0555)
     for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
         if [ -f "${'$'}script" ]; then

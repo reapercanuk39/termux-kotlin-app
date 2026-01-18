@@ -19,6 +19,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.49] - 2026-01-18
+
+### 🐛 Bug Fix: dpkg-deb conffiles Path Mismatch (Error #19)
+
+This release fixes a bug where dpkg-deb --build failed because DEBIAN/conffiles listed old paths.
+
+**Error Fixed:**
+```
+dpkg-deb: error: conffile '/data/data/com.termux/files/usr/share/vim/vimrc' does not appear in package
+```
+
+### Root Cause
+The DEBIAN/conffiles file lists configuration file paths. After rewriting data.tar paths, the files exist at the new path but conffiles still references the old path. dpkg-deb validates that conffiles exist at their listed paths.
+
+### Solution
+Added sed replacement for DEBIAN/conffiles paths in dpkg wrapper.
+
+### Now Works
+```bash
+pkg install vim        # ✅ Works!
+pkg install nano       # ✅ Works!
+# All packages with configuration files
+```
+
+---
+
 ## [v1.0.48] - 2026-01-18
 
 ### 🐛 Bug Fix: dpkg-deb Maintainer Script Permissions (Error #18)

@@ -1404,3 +1404,32 @@ done
 - All upstream packages with maintainer scripts ✅
 
 ---
+
+## Error #19: dpkg-deb conffile path mismatch
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg-deb: error: conffile '/data/data/com.termux/files/usr/share/vim/vimrc' does not appear in package
+[dpkg-wrapper] Failed to rebuild .../vim_9.1.2050-2_x86%5f64.deb
+```
+
+**Status:** ✅ Fixed in v1.0.49
+
+**Root Cause:** The DEBIAN/conffiles file in .deb packages lists configuration file paths using the old `/data/data/com.termux/` prefix. After the dpkg wrapper rewrites paths in the data.tar files, the actual files are at `/data/data/com.termux.kotlin/` but DEBIAN/conffiles still references the old paths. dpkg-deb --build validates that conffiles exist at their listed paths and fails.
+
+**Fix Applied (v1.0.49):**
+Added sed replacement for DEBIAN/conffiles in the dpkg wrapper:
+```bash
+# Fix paths in DEBIAN/conffiles (lists config file paths)
+if [ -f pkg_root/DEBIAN/conffiles ] && grep -q "$OLD_PREFIX" pkg_root/DEBIAN/conffiles 2>/dev/null; then
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" pkg_root/DEBIAN/conffiles
+fi
+```
+
+**Testing:**
+- `pkg install vim` ✅ (expected to work - vim has conffiles)
+- `pkg install nano` ✅ (expected to work - nano has conffiles)
+- All packages with configuration files ✅
+
+---
