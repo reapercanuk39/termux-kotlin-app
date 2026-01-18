@@ -1,3 +1,15 @@
+## [2026-01-18] Build #164
+
+### Changes
+- b0f6457 fix: update bootstrap hash to match MOTD fix
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-18] Build #162
 
 ### Changes
