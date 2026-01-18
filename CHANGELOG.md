@@ -1,3 +1,16 @@
+## [2026-01-18] Build #146
+
+### Changes
+- 70a5788 fix: improve package rewrite detection robustness (Error #21)
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+- Release: success
+
+---
+
 ## [2026-01-18] Build #144
 
 ### Changes
