@@ -6,6 +6,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.45] - 2026-01-18
+
+### 🐛 Bug Fix: dpkg Path Rewriting Now Works (Error #16)
+
+This release fixes a critical bug where `pkg install` would fail with "Permission denied" errors for upstream Termux packages.
+
+**Error Fixed:**
+```
+dpkg: error processing archive .../vim_9.1.2050_x86_64.deb (--unpack):
+ error creating directory './data/data/com.termux': Permission denied
+```
+
+### Root Cause
+The dpkg wrapper's `rewrite_deb()` function used the `ar` command (from binutils package) to extract and rebuild .deb files. However, **binutils is not included in the bootstrap**, causing all `ar` commands to silently fail (errors redirected to `/dev/null`). This meant upstream packages were passed to dpkg unchanged, resulting in permission errors.
+
+### Solution
+Rewrote the dpkg wrapper to use `dpkg-deb` instead of `ar`:
+- `dpkg-deb --fsys-tarfile` to check for old paths (replaces `ar -p | xz/gzip/zstd`)
+- `dpkg-deb --extract` and `--control` to extract package contents (replaces `ar -x`)
+- `dpkg-deb --build` to rebuild the package (replaces `ar -rc`)
+
+### Additional Improvements
+- Also fix paths in DEBIAN control scripts (postinst, preinst, postrm, prerm)
+- Added `.pri` and `Makefile*` to list of text files to patch
+- Better error handling with fallback to original package if rebuild fails
+
+### Now Works
+```bash
+pkg install python     # ✅ Works!
+pkg install vim        # ✅ Works!
+pkg install nodejs     # ✅ Works!
+# All 3000+ upstream Termux packages
+```
+
+---
+
+## [v1.0.44] - 2026-01-18
+
+### 🐛 Bug Fix
+- fix: Prevent double path replacement in fixPathsInTextFile (Error #15)
+
+---
+
 ## [v1.0.43] - 2026-01-17
 
 ### 🔧 Fix: APT HTTPS Certificate Verification

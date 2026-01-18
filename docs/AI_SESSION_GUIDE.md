@@ -4,6 +4,43 @@
 
 ---
 
+## 📚 Required Reading - START EVERY SESSION HERE
+
+**At the start of each session, read ALL of these files to understand the full context:**
+
+### Termux Kotlin App (Primary Project)
+| File | Purpose |
+|------|---------|
+| `/root/termux-kotlin-app/README.md` | Project overview, features, build commands |
+| `/root/termux-kotlin-app/ARCHITECTURE.md` | Module structure, data flow, environment variables |
+| `/root/termux-kotlin-app/CHANGELOG.md` | Version history, recent fixes and features |
+| `/root/termux-kotlin-app/ROADMAP.md` | Development priorities and progress tracking |
+| `/root/termux-kotlin-app/CONTRIBUTING.md` | Build commands, CI/CD, code style rules |
+| `/root/termux-kotlin-app/docs/AI_SESSION_GUIDE.md` | This file - session rules and context |
+| `/root/termux-kotlin-app/docs/CUSTOM_BOOTSTRAP_BUILD.md` | Docker package rebuild instructions |
+| `/root/termux-kotlin-app/docs/plugin-sdk/README.md` | Plugin API v1.0.0 documentation |
+| `/root/termux-kotlin-app/error.md` | Troubleshooting history and solutions |
+
+### Related Projects
+| File | Purpose |
+|------|---------|
+| `/root/termux-kotlin-api/README.md` | Termux API Kotlin fork |
+| `/root/obsidian-build/README.md` | Obsidian OS security-hardened Linux |
+| `/root/obsidian-build/docs/USB-SSD-GUIDE.md` | USB installation guide |
+| `/root/obsidian-build/docs/CHANGELOG.md` | Obsidian version history |
+| `/root/MediaWriter/README.md` | Obsidian Media Writer tool |
+| `/root/termux-packages/README.md` | Upstream Termux package scripts |
+| `/root/iso-optimization-tools.md` | ISO build optimization tips |
+| `/root/recommended-tools.md` | Tool installation status |
+
+### Quick Read Command
+```bash
+# Read all essential docs in one command:
+cat /root/termux-kotlin-app/README.md /root/termux-kotlin-app/ARCHITECTURE.md /root/termux-kotlin-app/CHANGELOG.md /root/termux-kotlin-app/docs/AI_SESSION_GUIDE.md
+```
+
+---
+
 ## 🧠 Session Rules
 
 ### 1. Always Use UltraThink
@@ -258,10 +295,6 @@ repo/
 - **Solution:** Rebuilt libgnutls, libcurl, libgpg-error with native com.termux.kotlin paths
 - **Status:** ✅ Fixed in v1.0.39
 
----
-
-*Last updated: 2026-01-17*
-
 ### 2026-01-17: Upstream Package Compatibility (RESOLVED)
 - **Problem:** `pkg install python` fails with "Permission denied" on `./data/data/com.termux`
 - **Discovery:** Upstream .deb packages contain files with absolute paths inside archives
@@ -270,4 +303,65 @@ repo/
 
 ---
 
-*Last updated: 2026-01-17*
+## 🧠 Quick Reference - Key Facts
+
+**Commit these to memory at session start:**
+
+### Build Commands
+```bash
+./gradlew assembleDebug          # Build debug APK
+./gradlew assembleRelease        # Build release APK
+./gradlew testDebugUnitTest      # Run tests
+./gradlew detekt                 # Kotlin static analysis
+./gradlew lint                   # Android lint
+```
+
+### Package Identity
+- **Package Name:** `com.termux.kotlin`
+- **Data Path:** `/data/data/com.termux.kotlin/files/usr`
+- **Can coexist with original Termux**
+
+### Critical Environment Variables (TermuxShellEnvironment.kt)
+| Variable | Value |
+|----------|-------|
+| `HOME` | `/data/data/com.termux.kotlin/files/home` |
+| `PREFIX` | `/data/data/com.termux.kotlin/files/usr` |
+| `LD_LIBRARY_PATH` | `$PREFIX/lib` (overrides RUNPATH!) |
+| `TERMINFO` | `$PREFIX/share/terminfo` |
+| `SSL_CERT_FILE` | `$PREFIX/etc/tls/cert.pem` |
+| `DPKG_ADMINDIR` | `$PREFIX/var/lib/dpkg` |
+
+### Architecture Stack
+```
+Compose UI → ViewModels + StateFlow → Repositories → DataStore/Room
+Core: Hilt DI, Coroutines, Flow, Sealed Result<T,E> types
+Modules: app, terminal-emulator, terminal-view, termux-shared
+```
+
+### Docker Package Rebuild
+```bash
+docker exec termux-package-builder bash -c '
+  cd /home/builder/termux-packages
+  sed -i "s/com.termux/com.termux.kotlin/" scripts/properties.sh
+  ./build-package.sh -a aarch64 <package-name>
+'
+```
+
+### Code Style (Detekt enforced)
+- Max 200 chars/line, 100 lines/method, 600 lines/class
+- Prefer `val` over `var`, use `?.` safe calls
+- Add KDoc for public APIs
+- Follow Kotlin coding conventions
+
+### GitHub
+- **Owner:** `reapercanuk39`
+- **Main Repos:** termux-kotlin-app, termux-kotlin-api, Obsidian, MediaWriter
+
+### Obsidian OS
+- **Default Login:** `obsidian` / `toor`
+- **Build:** `./scripts/rebuild-iso.sh`
+- **Faster compression:** Use `zstd` instead of `xz` (3-4x faster)
+
+---
+
+*Last updated: 2026-01-18*

@@ -696,107 +696,71 @@ OLD_PREFIX="/data/data/com.termux"
 NEW_PREFIX="/data/data/com.termux.kotlin"
 
 # Function to rewrite paths in a .deb package
+# Uses dpkg-deb instead of ar (binutils not in bootstrap)
 rewrite_deb() {
     local deb_file="${'$'}1"
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
     local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
     
     # Check if package needs rewriting (contains old paths)
-    if ! ar -p "${'$'}deb_file" data.tar.xz 2>/dev/null | xz -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
-        # Also check data.tar.gz and data.tar.zst
-        if ! ar -p "${'$'}deb_file" data.tar.gz 2>/dev/null | gzip -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
-            if ! ar -p "${'$'}deb_file" data.tar.zst 2>/dev/null | zstd -d 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
-                # Package doesn't contain old paths, use as-is
-                echo "${'$'}deb_file"
-                return 0
-            fi
-        fi
+    # Use dpkg-deb --fsys-tarfile which outputs the data tarball directly
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>/dev/null | tar -tf - 2>/dev/null | grep -q "^\./data/data/com\.termux/"; then
+        # Package doesn't contain old paths, use as-is
+        echo "${'$'}deb_file"
+        return 0
     fi
     
     # Package needs rewriting
     mkdir -p "${'$'}work_dir"
     cd "${'$'}work_dir"
     
-    # Extract .deb components
-    ar -x "${'$'}deb_file"
-    
-    # Determine data archive format
-    local data_archive=""
-    local compress_cmd=""
-    local decompress_cmd=""
-    if [ -f data.tar.xz ]; then
-        data_archive="data.tar.xz"
-        decompress_cmd="xz -d"
-        compress_cmd="xz"
-    elif [ -f data.tar.gz ]; then
-        data_archive="data.tar.gz"
-        decompress_cmd="gzip -d"
-        compress_cmd="gzip"
-    elif [ -f data.tar.zst ]; then
-        data_archive="data.tar.zst"
-        decompress_cmd="zstd -d"
-        compress_cmd="zstd"
-    elif [ -f data.tar ]; then
-        data_archive="data.tar"
-        decompress_cmd="cat"
-        compress_cmd="cat"
-    else
-        echo "ERROR: Unknown data archive format in ${'$'}deb_file" >&2
-        rm -rf "${'$'}work_dir"
-        echo "${'$'}deb_file"
-        return 0
-    fi
-    
-    # Extract data archive
-    mkdir data_extracted
-    if [ "${'$'}decompress_cmd" = "cat" ]; then
-        tar -xf "${'$'}data_archive" -C data_extracted
-    else
-        ${'$'}decompress_cmd < "${'$'}data_archive" | tar -xf - -C data_extracted
-    fi
+    # Extract .deb using dpkg-deb (works without binutils/ar)
+    mkdir -p pkg_root/DEBIAN
+    "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN
+    "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root
     
     # Rewrite directory structure
-    if [ -d "data_extracted/data/data/com.termux" ]; then
-        mkdir -p "data_extracted/data/data/com.termux.kotlin"
+    if [ -d "pkg_root/data/data/com.termux" ]; then
+        mkdir -p "pkg_root/data/data/com.termux.kotlin"
         # Move contents from old path to new path
-        if [ -d "data_extracted/data/data/com.termux/files" ]; then
-            mv "data_extracted/data/data/com.termux/files" "data_extracted/data/data/com.termux.kotlin/"
+        if [ -d "pkg_root/data/data/com.termux/files" ]; then
+            mv "pkg_root/data/data/com.termux/files" "pkg_root/data/data/com.termux.kotlin/"
         fi
-        if [ -d "data_extracted/data/data/com.termux/cache" ]; then
-            mv "data_extracted/data/data/com.termux/cache" "data_extracted/data/data/com.termux.kotlin/"
+        if [ -d "pkg_root/data/data/com.termux/cache" ]; then
+            mv "pkg_root/data/data/com.termux/cache" "pkg_root/data/data/com.termux.kotlin/"
         fi
         # Remove old empty directory
-        rm -rf "data_extracted/data/data/com.termux"
+        rm -rf "pkg_root/data/data/com.termux"
     fi
     
-    # Fix hardcoded paths in text files
-    find data_extracted -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" -o -name "*.pc" -o -name "*.la" -o -name "*.cmake" -o -name "*.cfg" -o -name "*.conf" \) 2>/dev/null | while read file; do
+    # Fix hardcoded paths in text files (scripts, configs, pkg-config files)
+    find pkg_root -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" -o -name "*.pc" -o -name "*.la" -o -name "*.cmake" -o -name "*.cfg" -o -name "*.conf" -o -name "*.pri" -o -name "Makefile*" \) 2>/dev/null | while read file; do
         if grep -q "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
             sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file"
         fi
     done
     
-    # Recreate data archive with new paths
-    rm -f "${'$'}data_archive"
-    cd data_extracted
-    if [ "${'$'}compress_cmd" = "cat" ]; then
-        tar -cf "../${'$'}data_archive" .
-    else
-        tar -cf - . | ${'$'}compress_cmd > "../${'$'}data_archive"
-    fi
-    cd ..
-    rm -rf data_extracted
+    # Also fix paths in DEBIAN control scripts
+    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm; do
+        if [ -f "${'$'}script" ] && grep -q "${'$'}OLD_PREFIX" "${'$'}script" 2>/dev/null; then
+            sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script"
+        fi
+    done
     
-    # Recreate .deb package
-    # The order must be: debian-binary, control.tar.*, data.tar.*
+    # Rebuild .deb package using dpkg-deb
     rm -f "${'$'}rewritten_deb"
-    ar -rc "${'$'}rewritten_deb" debian-binary control.tar.* "${'$'}data_archive"
+    "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" 2>/dev/null
     
     # Cleanup
     cd /
     rm -rf "${'$'}work_dir"
     
-    echo "${'$'}rewritten_deb"
+    # Return rewritten path if build succeeded, otherwise original
+    if [ -f "${'$'}rewritten_deb" ]; then
+        echo "${'$'}rewritten_deb"
+    else
+        echo "${'$'}deb_file"
+    fi
 }
 
 # Handle --version specially to avoid config dir access error
