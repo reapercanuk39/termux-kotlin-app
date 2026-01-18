@@ -1,3 +1,15 @@
+## [2026-01-18] Build #160
+
+### Changes
+- 96611ce refactor(ci): Build debug APKs by default, manual release only
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-18] Build #158
 
 ### Changes
