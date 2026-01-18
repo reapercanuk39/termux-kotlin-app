@@ -5,6 +5,18 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.1.0] - 2026-01-18
+
+### 🐛 Bug Fixes
+- **ci:** Use correct version from build.gradle and exclude .md from release assets
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Add CI/CD fixes and debug APK testing session
+-  Update build documentation [skip ci]
+-  Update build documentation [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 
