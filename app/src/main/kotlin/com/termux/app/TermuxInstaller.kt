@@ -853,15 +853,40 @@ done
 
 echo "[dpkg-wrapper] install_mode=${'$'}install_mode" >> "${'$'}LOG_FILE"
 
+# Check if --recursive flag is present (apt uses dpkg --recursive <dir>)
+recursive_mode=0
+for arg in "${'$'}@"; do
+    if [ "${'$'}arg" = "--recursive" ] || [ "${'$'}arg" = "-R" ]; then
+        recursive_mode=1
+        break
+    fi
+done
+
+echo "[dpkg-wrapper] recursive_mode=${'$'}recursive_mode" >> "${'$'}LOG_FILE"
+
 if [ "${'$'}install_mode" = "1" ]; then
     # Rewrite .deb files that contain old paths
     new_args=()
     for arg in "${'$'}@"; do
         if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
-            echo "[dpkg-wrapper] Processing deb: ${'$'}arg" >> "${'$'}LOG_FILE"
+            # Individual .deb file
+            echo "[dpkg-wrapper] Processing deb file: ${'$'}arg" >> "${'$'}LOG_FILE"
             rewritten=${'$'}(rewrite_deb "${'$'}arg")
             echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
             new_args+=("${'$'}rewritten")
+        elif [ -d "${'$'}arg" ] && [ "${'$'}recursive_mode" = "1" ]; then
+            # Directory with --recursive flag - rewrite all .deb files inside
+            echo "[dpkg-wrapper] Processing directory: ${'$'}arg" >> "${'$'}LOG_FILE"
+            for deb in "${'$'}arg"/*.deb; do
+                if [ -f "${'$'}deb" ]; then
+                    echo "[dpkg-wrapper] Processing deb in dir: ${'$'}deb" >> "${'$'}LOG_FILE"
+                    rewritten=${'$'}(rewrite_deb "${'$'}deb")
+                    echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
+                    # Move rewritten deb back to original location so dpkg --recursive finds it
+                    mv "${'$'}rewritten" "${'$'}deb" 2>>"${'$'}LOG_FILE"
+                fi
+            done
+            new_args+=("${'$'}arg")
         else
             new_args+=("${'$'}arg")
         fi

@@ -1524,3 +1524,26 @@ Check the log after running `pkg install python` to understand:
 - Which .deb files are matched (or not matched)?
 
 ---
+
+**Root Cause Found (v1.0.52 debug):**
+When apt installs packages, it uses:
+```
+dpkg --status-fd 13 --no-triggers --unpack --auto-deconfigure --recursive /path/to/apt-dpkg-install-xxx/
+```
+
+The `--recursive` flag tells dpkg to process ALL .deb files in the directory. Our wrapper was checking:
+```bash
+if [ -f "$arg" ] && [[ "$arg" == *.deb ]]; then
+```
+
+But the argument is a DIRECTORY, not a .deb file! So the check failed, no rewrites happened, and dpkg.real tried to install unrewritten packages.
+
+**Fix Applied (v1.0.53):**
+1. Detect `--recursive` or `-R` flag presence
+2. When a directory argument is found AND recursive_mode=1:
+   - Loop through all `*.deb` files in the directory
+   - Rewrite each one with `rewrite_deb()`
+   - Move rewritten deb BACK to original location (so dpkg --recursive finds it)
+3. Pass original directory path to dpkg.real
+
+---
