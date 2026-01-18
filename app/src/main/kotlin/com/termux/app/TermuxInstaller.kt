@@ -754,15 +754,12 @@ rewrite_deb() {
     fi
     
     # Fix hardcoded paths in TEXT files only (not binaries!)
-    # Use grep -I to skip binary files (treats them as non-matching)
-    # Binary files have path strings embedded but must NOT be modified
+    # Use grep -rIl for FAST recursive search (single process, not per-file)
+    # -r = recursive, -I = skip binary, -l = list filenames only
     local fixed_count=0
-    while IFS= read -r -d '' file; do
-        # grep -I skips binary files (contains null bytes)
-        if grep -qI "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
-            sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file" 2>/dev/null && fixed_count=${'$'}((fixed_count + 1))
-        fi
-    done < <(find pkg_root -type f -print0 2>/dev/null)
+    while IFS= read -r file; do
+        sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file" 2>/dev/null && fixed_count=${'$'}((fixed_count + 1))
+    done < <(grep -rIl "${'$'}OLD_PREFIX" pkg_root 2>/dev/null || true)
     
     if [ "${'$'}fixed_count" -gt 0 ]; then
         echo "[dpkg-wrapper] Fixed paths in ${'$'}fixed_count text files" >> "${'$'}LOG_FILE"
