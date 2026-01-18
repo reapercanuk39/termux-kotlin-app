@@ -6,6 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.47] - 2026-01-18
+
+### 🐛 Critical Bug Fix: dpkg Wrapper Now Detects Install Commands (Error #17)
+
+This release fixes a critical bug where the dpkg wrapper's path rewriting was never triggered because it only checked the first argument.
+
+**Error Fixed:**
+```
+dpkg: error processing archive .../vim_9.1.2050_x86_64.deb (--unpack):
+ error creating directory './data/data/com.termux': Permission denied
+```
+
+### Root Cause
+The dpkg wrapper's `install_mode` detection only checked `$1` (first argument):
+```bash
+case "$1" in
+    -i|--install|-x|--extract|--unpack)
+        install_mode=1
+```
+
+However, apt invokes dpkg with flags BEFORE the install command:
+```bash
+dpkg --status-fd 5 --no-triggers --unpack file.deb
+```
+
+In this case, `$1` is `--status-fd`, not `--unpack`, so `install_mode` was never set to 1 and the `rewrite_deb()` function was never called.
+
+### Solution
+Changed to scan ALL arguments for install flags:
+```bash
+for arg in "$@"; do
+    case "$arg" in
+        -i|--install|-x|--extract|--unpack)
+            install_mode=1
+            break
+```
+
+### Now Works
+```bash
+pkg install python     # ✅ Works!
+pkg install vim        # ✅ Works!
+pkg install nodejs     # ✅ Works!
+# All 3000+ upstream Termux packages
+```
+
+---
+
 ## [v1.0.46] - 2026-01-18
 
 ### 🐛 Bug Fixes

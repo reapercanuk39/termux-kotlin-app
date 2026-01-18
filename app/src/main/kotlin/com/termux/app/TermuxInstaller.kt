@@ -806,12 +806,18 @@ case "${'$'}1" in
 esac
 
 # Check if this is a package installation command
+# IMPORTANT: apt passes flags before --unpack, e.g.:
+#   dpkg --status-fd 5 --no-triggers --unpack file.deb
+# So we must scan ALL arguments, not just $1
 install_mode=0
-case "${'$'}1" in
-    -i|--install|-x|--extract|--unpack)
-        install_mode=1
-        ;;
-esac
+for arg in "${'$'}@"; do
+    case "${'$'}arg" in
+        -i|--install|-x|--extract|--unpack)
+            install_mode=1
+            break
+            ;;
+    esac
+done
 
 if [ "${'$'}install_mode" = "1" ]; then
     # Rewrite .deb files that contain old paths
