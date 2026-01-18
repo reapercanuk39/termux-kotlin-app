@@ -779,9 +779,9 @@ rewrite_deb() {
         fi
     done
     
-    # Rebuild .deb package using dpkg-deb
+    # Rebuild .deb package using dpkg-deb (redirect stdout to log to avoid mixing with return value)
     rm -f "${'$'}rewritten_deb"
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" 2>>"${'$'}log_file"; then
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" >>"${'$'}log_file" 2>&1; then
         echo "[dpkg-wrapper] Failed to rebuild ${'$'}deb_file" >> "${'$'}log_file"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"

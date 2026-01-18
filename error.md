@@ -1433,3 +1433,28 @@ fi
 - All packages with configuration files ✅
 
 ---
+
+## Error #20: dpkg-deb stdout mixed with rewrite_deb return value
+
+**Date:** 2026-01-18  
+**Error Message:**
+```
+dpkg: error: cannot access archive 'dpkg-deb: building package 'libsodium' in '/data/.../rewritten_libsodium_1.0.21_x86%5f64.deb'.
+/data/.../rewritten_libsodium_1.0.21_x86%5f64.deb': No such file or directory
+```
+
+**Status:** ✅ Fixed in v1.0.50
+
+**Root Cause:** The `rewrite_deb()` function returns the rewritten .deb path via `echo "$rewritten_deb"`. However, `dpkg-deb --build` prints "dpkg-deb: building package '...' in '...'" to stdout. This output gets captured along with the intended return value, causing dpkg to receive a corrupted file path.
+
+**Fix Applied (v1.0.50):**
+Redirect dpkg-deb --build stdout to the log file:
+```bash
+# Before (Error #20):
+"$PREFIX/bin/dpkg-deb" --build pkg_root "$rewritten_deb" 2>>"$log_file"
+
+# After (Fixed):
+"$PREFIX/bin/dpkg-deb" --build pkg_root "$rewritten_deb" >>"$log_file" 2>&1
+```
+
+---

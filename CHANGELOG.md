@@ -32,6 +32,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v1.0.50] - 2026-01-18
+
+### 🐛 Bug Fix: dpkg-deb stdout mixed with return value (Error #20)
+
+Redirect dpkg-deb --build stdout to log file to prevent mixing with rewrite_deb return path.
+
+---
+
 ## [v1.0.49] - 2026-01-18
 
 ### 🐛 Bug Fix: dpkg-deb conffiles Path Mismatch (Error #19)
