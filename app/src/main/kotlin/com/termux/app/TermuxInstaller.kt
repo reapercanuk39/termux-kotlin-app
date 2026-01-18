@@ -710,30 +710,9 @@ rewrite_deb() {
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
     local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
     
-    # Check if package needs rewriting (contains old paths)
-    # Use dpkg-deb --fsys-tarfile which outputs the data tarball directly
-    # If check fails for any reason, assume we need to rewrite (safer default)
-    local tar_list
-    local needs_rewrite=0
-    
-    if tar_list=$("${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>>"${'$'}LOG_FILE" | tar -tf - 2>>"${'$'}LOG_FILE"); then
-        # Check if any file path contains old prefix (with or without leading ./)
-        if echo "${'$'}tar_list" | grep -q "/data/data/com\.termux[^.]"; then
-            needs_rewrite=1
-        fi
-    else
-        # Detection failed - assume we need to rewrite (safer default)
-        echo "[dpkg-wrapper] Warning: tar check failed for ${'$'}(basename "${'$'}deb_file"), assuming rewrite needed" >> "${'$'}LOG_FILE"
-        needs_rewrite=1
-    fi
-    
-    if [ "${'$'}needs_rewrite" = "0" ]; then
-        # Package doesn't contain old paths, use as-is
-        echo "[dpkg-wrapper] Package ${'$'}(basename "${'$'}deb_file") does not need rewriting" >> "${'$'}LOG_FILE"
-        echo "${'$'}deb_file"
-        return 0
-    fi
-    
+    # Always process packages - some have old paths in directory structure,
+    # others have old paths only in file contents (like shebangs)
+    # The cost of processing is minimal compared to installation failures
     echo "[dpkg-wrapper] Rewriting package: ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
     
     # Package needs rewriting
@@ -768,15 +747,22 @@ rewrite_deb() {
         fi
         # Remove old empty directory
         rm -rf "pkg_root/data/data/com.termux"
-        echo "[dpkg-wrapper] Rewrote paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] Rewrote directory paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
     fi
     
-    # Fix hardcoded paths in text files (scripts, configs, pkg-config files)
-    find pkg_root -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" -o -name "*.pc" -o -name "*.la" -o -name "*.cmake" -o -name "*.cfg" -o -name "*.conf" -o -name "*.pri" -o -name "Makefile*" \) 2>/dev/null | while read file; do
-        if grep -q "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
+    # Fix hardcoded paths in ALL text files, not just by extension
+    # This catches scripts without extensions like 'pip', 'python', etc.
+    local fixed_count=0
+    while IFS= read -r file; do
+        if [ -n "${'$'}file" ] && grep -q "${'$'}OLD_PREFIX" "${'$'}file" 2>/dev/null; then
             sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file"
+            fixed_count=${'$'}((fixed_count + 1))
         fi
-    done
+    done < <(find pkg_root -type f -exec file {} + 2>/dev/null | grep -E "text|script|ASCII" | cut -d: -f1)
+    
+    if [ "${'$'}fixed_count" -gt 0 ]; then
+        echo "[dpkg-wrapper] Fixed paths in ${'$'}fixed_count text files" >> "${'$'}LOG_FILE"
+    fi
     
     # Also fix paths in DEBIAN control scripts
     for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm; do

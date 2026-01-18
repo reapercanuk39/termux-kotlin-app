@@ -1577,3 +1577,23 @@ Users can run: `sed -i 's|com.termux/files|com.termux.kotlin/files|g' $PREFIX/bi
 **Note:** This is a minor issue - Python itself works perfectly. The core dpkg --recursive fix (Error #22) was successful.
 
 ---
+
+**Root Cause Identified (v1.0.53):**
+Two issues combined:
+1. **Skipping packages without old paths in directory structure**: python-pip stores files at `./data/data/com.termux/files/usr/bin/pip` (old prefix in path), BUT we were only checking tar file listing. If detection failed, we skipped rewriting.
+
+2. **Only checking specific file extensions**: The rewrite logic was:
+   ```bash
+   find pkg_root -type f \( -name "*.sh" -o -name "*.py" ... \)
+   ```
+   But `pip` has **no extension** - it's just named `pip`, `pip3`, etc.
+
+**Fix Applied (v1.0.54):**
+1. **Always process ALL packages** - removed the early skip logic. The cost is minimal vs. installation failures.
+2. **Check ALL text files** using `file` command instead of extension matching:
+   ```bash
+   find pkg_root -type f -exec file {} + | grep -E "text|script|ASCII" | ...
+   ```
+   This catches scripts regardless of extension.
+
+**Status:** ✅ Fixed in v1.0.54
