@@ -1,3 +1,16 @@
+## [2026-01-18] Build #143
+
+### Changes
+- 2fe820f fix: rewrite DEBIAN/conffiles paths in dpkg wrapper (Error #19)
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+- Release: success
+
+---
+
 ## [2026-01-18] Build #142
 
 ### Changes
