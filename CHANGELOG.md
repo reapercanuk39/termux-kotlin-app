@@ -5,6 +5,17 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.1.6] - 2026-01-19
+
+### ✨ Features
+- **agents:** Enable autonomous background agents with full network
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.5 [skip ci]
+-  Update build documentation [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 
