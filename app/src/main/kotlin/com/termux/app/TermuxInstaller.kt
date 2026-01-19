@@ -1089,11 +1089,11 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
      */
     private fun setupAgentFramework(binDir: File, ourFilesPrefix: String) {
         try {
-            val usrDir = binDir.parentFile ?: return  // bin's parent is usr
+            val usrDir = binDir.parentFile ?: return  // bin's parent is usr (staging)
             val shareDir = File(usrDir, "share")
             val agentsDir = File(shareDir, "agents")
-            val filesDir = usrDir.parentFile ?: return  // usr's parent is files
-            val etcAgentsDir = File(filesDir, "usr/etc/agents")
+            // Create etc/agents in the staging usr directory, not the final location
+            val etcAgentsDir = File(usrDir, "etc/agents")
             
             // Create required directories
             val dirs = listOf(
