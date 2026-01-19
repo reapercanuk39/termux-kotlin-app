@@ -225,6 +225,31 @@ Surpass Termux in reliability and usability with comprehensive package managemen
 
 ---
 
+## 8. Agent Framework ✅ COMPLETED
+
+A fully offline, Python-based agent system for automation and extensibility:
+
+| Feature | Status |
+|---------|--------|
+| Agent Supervisor (agentd) | ✅ Implemented |
+| Capability/Permission System | ✅ Implemented |
+| Plugin/Skill System | ✅ Implemented |
+| Memory & Sandboxing | ✅ Implemented |
+| CLI Interface (`agent` command) | ✅ Implemented |
+| Built-in Agents (build, debug, system, repo) | ✅ Implemented |
+| Built-in Skills (pkg, git, fs, qemu, iso, apk, docker) | ✅ Implemented |
+| Bootstrap Integration | ✅ Implemented |
+| Documentation (AI.md) | ✅ Complete |
+
+**Future Enhancements:**
+- Natural language task interpretation
+- Agent-to-agent communication
+- SQLite memory backend
+- Web UI for agent management
+- Local LLM integration (Ollama/llama.cpp)
+
+---
+
 ## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
