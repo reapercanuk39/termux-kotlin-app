@@ -5,6 +5,29 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.1.5] - 2026-01-19
+
+### ✨ Features
+- **agents:** Complete offline Python agent framework
+-  Add offline Python agent framework
+
+### 🐛 Bug Fixes
+- **installer:** Create etc/agents in staging directory
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.4 [skip ci]
+-  Update build documentation [skip ci]
+-  Update build documentation [skip ci]
+-  Add Agent Framework section to ROADMAP as completed
+-  Add Agent Framework v1.0.0 to README and CHANGELOG
+-  Update build documentation [skip ci]
+-  Update build documentation [skip ci]
+-  Update build documentation [skip ci]
+-  Add APK analysis and fix strings.xml path
+-  Update build documentation [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 
