@@ -216,6 +216,16 @@
             </intent-filter>
         </service>
 
+        <!-- Agent Service for autonomous background agents -->
+        <service
+            android:name=".app.AgentService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Autonomous agent framework for background task execution" />
+        </service>
+
 
         <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the
         app with "This app is optimized to run in full screen." -->

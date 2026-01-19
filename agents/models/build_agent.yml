@@ -8,7 +8,7 @@ capabilities:
   - filesystem.exec
   - memory.read
   - memory.write
-  - network.none
+  - network.external
   - system.info
   - exec.pkg
   - exec.git

@@ -69,6 +69,24 @@ class TermuxApplication : Application() {
 
         if (isTermuxFilesDirectoryAccessible) {
             TermuxShellEnvironment.writeEnvironmentToFile(this)
+            
+            // Start the autonomous agent service in the background
+            startAgentService(context)
+        }
+    }
+    
+    private fun startAgentService(context: Context) {
+        try {
+            // Only start if bootstrap is complete
+            val prefixDir = java.io.File(TermuxConstants.TERMUX_PREFIX_DIR_PATH)
+            if (prefixDir.exists() && java.io.File(prefixDir, "bin/sh").exists()) {
+                Logger.logInfo(LOG_TAG, "Starting autonomous agent service")
+                AgentService.startAgentService(context)
+            } else {
+                Logger.logDebug(LOG_TAG, "Bootstrap not complete, agent service will start after bootstrap")
+            }
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to start agent service: ${e.message}")
         }
     }
 

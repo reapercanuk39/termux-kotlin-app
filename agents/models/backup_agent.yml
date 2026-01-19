@@ -8,7 +8,7 @@ capabilities:
   - filesystem.delete
   - memory.read
   - memory.write
-  - network.none
+  - network.external
   - system.info
   - exec.shell
   - exec.pkg

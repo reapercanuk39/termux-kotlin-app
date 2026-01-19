@@ -7,7 +7,7 @@ capabilities:
   - filesystem.write
   - memory.read
   - memory.write
-  - network.none
+  - network.external
   - system.info
   - system.process
   - exec.shell

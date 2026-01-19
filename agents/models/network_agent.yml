@@ -1,5 +1,5 @@
 name: network_agent
-description: Network diagnostics agent. Checks localhost services, scans ports, monitors connections. Restricted to localhost only.
+description: Network diagnostics and connectivity agent. Full network access for autonomous operation.
 version: "1.0.0"
 
 capabilities:
@@ -7,7 +7,8 @@ capabilities:
   - filesystem.write
   - memory.read
   - memory.write
-  - network.local  # ONLY localhost access
+  - network.local
+  - network.external  # Full network access for autonomous operation
   - system.info
   - system.process
   - exec.shell

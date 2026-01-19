@@ -258,6 +258,14 @@ object TermuxInstaller {
 
                 // Recreate env file since termux prefix was wiped earlier
                 TermuxShellEnvironment.writeEnvironmentToFile(activity)
+                
+                // Start the autonomous agent service now that bootstrap is complete
+                try {
+                    Logger.logInfo(LOG_TAG, "Starting autonomous agent service after bootstrap")
+                    AgentService.startAgentService(activity.applicationContext)
+                } catch (e: Exception) {
+                    Logger.logWarn(LOG_TAG, "Could not start agent service: ${e.message}")
+                }
 
                 activity.runOnUiThread(whenDone)
 
@@ -1163,7 +1171,13 @@ agents_root: ${ourFilesPrefix}/usr/share/agents
 # Default settings
 defaults:
   memory_backend: json
-  network: none  # Offline by default
+  network: full  # Network enabled for autonomous operation
+
+# Autonomous mode - agents run in background
+autonomous:
+  enabled: true
+  auto_start: true
+  background_service: true
 
 # Logging
 logging:
@@ -1174,8 +1188,10 @@ logging:
 security:
   # All agents are sandboxed by default
   sandbox_enabled: true
-  # Network is blocked by default
-  default_network_capability: none
+  # Network enabled for autonomous agents
+  default_network_capability: full
+  allowed_hosts:
+    - "*"  # Allow all hosts for autonomous operation
 """
             configFile.writeText(configContent)
             
