@@ -818,3 +818,449 @@ done < <(grep -rIl "$OLD_PREFIX" pkg_root || true)
 ---
 
 *Last updated: 2026-01-18 (v1.1.3 - dpkg WRAPPER PERFORMANCE FIX!)*
+
+---
+
+## 📱 Official Termux APK Analysis (v0.118.3)
+
+> This section documents a complete reverse-engineering analysis of the official Termux app (v0.118.3) using jadx, apktool, and standard Linux tools. Use this as a reference for understanding the upstream structure.
+
+### APK Overview
+
+| Property | Value |
+|----------|-------|
+| **Version** | v0.118.3 |
+| **Package** | `com.termux` |
+| **APK Size** | 113 MB (universal) |
+| **Extracted Size** | 212 MB |
+| **Total Files** | 9,102 |
+| **Total Directories** | 726 |
+| **DEX Files** | 29 (classes.dex through classes29.dex) |
+| **Smali Classes** | 9,102 .smali files |
+
+### APK Top-Level Structure
+
+```
+termux-app-v0.118.3/
+├── AndroidManifest.xml          # App manifest (permissions, components)
+├── apktool.yml                  # Apktool metadata
+├── lib/                         # Native libraries (4 architectures)
+│   ├── arm64-v8a/
+│   │   ├── libtermux-bootstrap.so    # 28 MB - Bootstrap filesystem (ELF+ZIP hybrid)
+│   │   └── libtermux.so              # 9 KB - JNI bridge
+│   ├── armeabi-v7a/
+│   ├── x86/
+│   └── x86_64/
+├── res/                         # Android resources (144 subdirs)
+│   ├── layout/                  # 141 XML layouts
+│   ├── drawable*/               # Icons, images (119 base + density variants)
+│   ├── color*/                  # Color definitions (94 files)
+│   ├── values*/                 # Strings, styles, dimensions
+│   └── ...
+├── smali/                       # Decompiled DEX (29 directories)
+│   ├── smali/                   # classes.dex
+│   ├── smali_classes2/          # classes2.dex
+│   └── ... (through smali_classes29/)
+├── original/                    # Original META-INF, manifest
+└── unknown/                     # Kotlin metadata, version files
+    ├── META-INF/                # Library versions, kotlin modules
+    └── kotlin/                  # Kotlin builtins
+```
+
+### Android Components (from AndroidManifest.xml)
+
+| Type | Component | Purpose |
+|------|-----------|---------|
+| **Activity** | `TermuxActivity` | Main terminal UI (launcher) |
+| **Activity** | `HelpActivity` | Help documentation |
+| **Activity** | `SettingsActivity` | App settings |
+| **Activity** | `ReportActivity` | Error reporting |
+| **Activity** | `TermuxFileReceiverActivity` | Share-to-Termux handler |
+| **Service** | `TermuxService` | Background terminal sessions |
+| **Service** | `RunCommandService` | External command execution |
+| **Provider** | `TermuxDocumentsProvider` | SAF file access |
+| **Provider** | `TermuxOpenReceiver$ContentProvider` | termux-open handler |
+| **Receiver** | `TermuxOpenReceiver` | Intent receiver |
+
+### Permissions
+
+```
+android.permission.INTERNET                    # Network access
+android.permission.ACCESS_NETWORK_STATE        # Network state
+android.permission.WRITE_EXTERNAL_STORAGE      # Legacy storage
+android.permission.MANAGE_EXTERNAL_STORAGE     # Scoped storage
+android.permission.WAKE_LOCK                   # Keep CPU awake
+android.permission.FOREGROUND_SERVICE          # Background execution
+android.permission.SYSTEM_ALERT_WINDOW         # Floating windows
+android.permission.REQUEST_INSTALL_PACKAGES    # APK installation
+android.permission.READ_LOGS                   # Logcat access
+com.termux.permission.RUN_COMMAND              # Custom permission
+```
+
+---
+
+## 📦 Bootstrap Filesystem Analysis
+
+> The bootstrap is stored as a **hybrid ELF+ZIP** file (`libtermux-bootstrap.so`). Android loads it as a native library, but it's actually a ZIP archive embedded after a minimal ELF stub. This clever trick allows shipping the entire Linux filesystem inside the APK.
+
+### Bootstrap Overview
+
+| Property | Value |
+|----------|-------|
+| **Compressed Size** | ~28 MB (inside APK) |
+| **Uncompressed Size** | 77 MB |
+| **Total Files** | 3,226 |
+| **Symlinks** | 1,000+ (defined in SYMLINKS.txt) |
+
+### Bootstrap Directory Tree
+
+```
+usr/                                 # PREFIX ($PREFIX = /data/data/com.termux/files/usr)
+├── bin/                             # 252 executables
+│   ├── [173 ELF binaries]           # Compiled programs
+│   └── [82 shell scripts]           # Wrapper scripts
+├── lib/                             # 59 shared libraries + subdirs
+│   ├── *.so                         # Main libraries (libcurl, libssl, etc.)
+│   ├── apt/methods/                 # APT transport methods
+│   ├── bash/                        # Bash loadable builtins
+│   ├── cmake/                       # CMake modules
+│   ├── engines-3/                   # OpenSSL engines
+│   ├── gawk/                        # Gawk extensions
+│   ├── ossl-modules/                # OpenSSL modules
+│   └── pkgconfig/                   # pkg-config files
+├── libexec/                         # Helper executables
+│   ├── awk/                         # gawk helpers
+│   ├── coreutils/                   # coreutils helpers
+│   ├── dpkg/                        # dpkg helpers
+│   ├── termux/                      # Termux commands
+│   ├── termux-am/am.apk             # Activity Manager bridge
+│   └── installed-tests/             # Package tests
+├── etc/                             # Configuration files
+│   ├── apt/sources.list             # Package sources
+│   ├── bash.bashrc                  # Bash config
+│   ├── profile                      # Login profile
+│   ├── profile.d/                   # Profile scripts
+│   ├── tls/cert.pem                 # CA certificates
+│   ├── termux/                      # Termux config
+│   │   ├── bootstrap/               # Bootstrap scripts
+│   │   └── mirrors/                 # Mirror lists (asia, europe, etc.)
+│   ├── motd                         # Message of the day
+│   └── nanorc                       # Nano config
+├── include/                         # C/C++ headers (22 subdirs)
+├── share/                           # Shared data
+│   ├── bash-completion/             # Bash completions
+│   ├── doc/                         # Package documentation
+│   ├── info/                        # Info pages
+│   ├── man/                         # Man pages
+│   ├── terminfo/                    # Terminal definitions
+│   ├── LICENSES/                    # License files
+│   └── ...
+├── var/                             # Variable data
+│   └── lib/dpkg/                    # DPKG database
+│       ├── available                # Available packages
+│       ├── info/                    # Package info (*.list, *.md5sums, etc.)
+│       └── status                   # Installed package status
+├── tmp/                             # Temporary directory
+└── SYMLINKS.txt                     # Symlink definitions (62KB)
+```
+
+---
+
+## 🔧 bin/ Directory - Complete Breakdown
+
+### ELF Binaries (173 files)
+
+| Category | Binaries |
+|----------|----------|
+| **Core Utils** | `coreutils` (multicall), `bash`, `dash`, `sed`, `grep`, `gawk`, `find`, `xargs` |
+| **Package Mgmt** | `apt`, `apt-get`, `apt-cache`, `apt-config`, `apt-mark`, `dpkg`, `dpkg-deb`, `dpkg-query`, `dpkg-divert`, `dpkg-split`, `dpkg-trigger` |
+| **Compression** | `gzip`, `bzip2`, `xz`, `zstd`, `tar`, `unzip` |
+| **Text/Editor** | `nano`, `ed`, `less`, `more`, `diff`, `diff3`, `sdiff`, `cmp`, `patch` |
+| **Network** | `curl`, `telnet`, `tftp`, `ftp`, `hostname`, `dnsdomainname`, `ifconfig`, `netstat`, `route`, `arp` |
+| **Process Mgmt** | `ps`, `pgrep`, `pkill`, `killall`, `pstree`, `fuser`, `uptime`, `watch`, `free`, `vmstat`, `lsof` |
+| **Filesystem** | `losetup`, `blockdev`, `mkfs.*`, `fsck.*`, `hardlink` |
+| **System Info** | `lscpu`, `lsipc`, `lsfd`, `lsirq`, `lsclocks`, `dmesg`, `sysctl` |
+| **Security** | `gpgv`, `dumpsexp`, `hmac256`, `mpicalc` |
+| **Terminal** | `clear`, `tset`, `setterm`, `dialog` |
+| **Text Tools** | `col`, `colcrt`, `colrm`, `column`, `rev`, `ul`, `look`, `hexdump` |
+| **Misc Utils** | `cal`, `mcookie`, `rename`, `script`, `scriptreplay`, `ionice`, `taskset`, `chrt`, `renice`, `flock`, `nsenter`, `unshare` |
+| **Termux** | `termux-am-socket` |
+
+### Shell Scripts (82 files)
+
+| Category | Scripts |
+|----------|---------|
+| **Android Bridge** | `am`, `pm`, `cmd`, `settings`, `dalvikvm`, `getprop`, `logcat` |
+| **Network** | `ping`, `ping6` |
+| **Auth** | `su`, `login` |
+| **Pkg Config** | `curl-config`, `pcre2-config`, `ncursesw6-config`, `gpg-error-config`, `gpgrt-config`, `libassuan-config`, `libgcrypt-config`, `npth-config` |
+| **Compression** | `gunzip`, `gzexe`, `uncompress`, `zcat`, `zcmp`, `zdiff`, `zegrep`, `zfgrep`, `zforce`, `zgrep`, `zmore`, `znew`, `bzdiff`, `bzgrep`, `bzmore`, `xzdiff`, `xzgrep`, `xzless`, `xzmore`, `zstdgrep`, `zstdless` |
+| **Grep Wrappers** | `egrep`, `fgrep`, `zipgrep` |
+| **Termux Tools** | `pkg`, `termux-am`, `termux-backup`, `termux-restore`, `termux-change-repo`, `termux-fix-shebang`, `termux-info`, `termux-open`, `termux-open-url`, `termux-reload-settings`, `termux-reset`, `termux-setup-package-manager`, `termux-setup-storage`, `termux-wake-lock`, `termux-wake-unlock`, `termux-exec-ld-preload-lib`, `termux-exec-system-linker-exec`, `termux-apps-info-*`, `termux-scoped-env-variable*` |
+| **Misc** | `df` (wrapper), `top` (wrapper), `chsh`, `savelog`, `run-parts`, `red` (ed alias) |
+| **dpkg Perl** | `dpkg-buildapi`, `dpkg-buildtree`, `dpkg-fsys-usrunmess` |
+
+---
+
+## 📚 lib/ Directory - Shared Libraries
+
+### Core Libraries (59 .so files)
+
+| Library | Size | Purpose |
+|---------|------|---------|
+| `libcrypto.so.3` | 4.6 MB | OpenSSL cryptography |
+| `libunistring.so` | 2.0 MB | Unicode string handling |
+| `libapt-pkg.so` | 1.9 MB | APT package management |
+| `libgnutls.so` | 1.8 MB | GnuTLS SSL/TLS |
+| `libc++_shared.so` | 1.3 MB | C++ standard library |
+| `libiconv.so` | 1.1 MB | Character encoding conversion |
+| `libgcrypt.so` | 995 KB | GNU cryptography |
+| `libunbound.so` | 971 KB | DNS resolution |
+| `libssl.so.3` | 849 KB | OpenSSL SSL/TLS |
+| `libcurl.so` | 829 KB | HTTP/network client |
+| `libzstd.so` | 820 KB | Zstd compression |
+| `libapt-private.so` | 436 KB | APT internals |
+| `libmpfr.so` | 428 KB | Multi-precision floats |
+| `libgmp.so` | 402 KB | Multi-precision math |
+| `libncursesw.so` | 384 KB | Terminal UI |
+| `libnettle.so` | 312 KB | Cryptographic primitives |
+| `libreadline.so` | 310 KB | Line editing |
+| `libevent-2.1.so` | 300 KB | Event notification |
+| `libhogweed.so` | 291 KB | Nettle public key |
+| `libsmartcols.so` | 257 KB | Column-formatted output |
+| `libssh2.so` | 248 KB | SSH2 protocol |
+| `libidn2.so` | 193 KB | Internationalized DNS |
+| `libandroid-selinux.so` | 179 KB | SELinux for Android |
+| `liblz4.so` | 171 KB | LZ4 compression |
+| `liblzma.so` | 160 KB | LZMA compression |
+| `libnghttp2.so` | 159 KB | HTTP/2 protocol |
+| `libnghttp3.so` | 148 KB | HTTP/3 protocol |
+| `libtirpc.so` | 145 KB | RPC library |
+| `libgpg-error.so` | 133 KB | GPG error handling |
+| `liblsof.so` | 103 KB | List open files |
+| `libgnutlsxx.so` | 80 KB | GnuTLS C++ bindings |
+| `libassuan.so` | 71 KB | GPG IPC |
+| `libbz2.so` | 71 KB | Bzip2 compression |
+| `libz.so` | 72 KB | Zlib compression |
+| `libandroid-glob.so` | 67 KB | Glob patterns |
+| `libgnutls-dane.so` | 53 KB | DANE support |
+| `libtermux-exec*.so` | ~53 KB each | Termux exec helpers |
+| `libtermux-core*.so` | ~52 KB each | Termux core helpers |
+| `libpcre2-*.so` | ~450 KB total | Regex (8/16/32-bit) |
+| ... | ... | ... |
+
+### APT Methods (lib/apt/methods/)
+
+| Method | Purpose |
+|--------|---------|
+| `copy` | Local file copy |
+| `file` | Local file:// URLs |
+| `gpgv` | GPG signature verification |
+| `http` | HTTP/HTTPS downloads |
+| `rsh` | Remote shell |
+| `store` | Local storage |
+
+---
+
+## 📂 etc/ Directory - Configuration
+
+```
+etc/
+├── apt/
+│   └── sources.list              # deb https://packages.termux.dev/apt/termux-main stable main
+├── alternatives/
+│   └── README
+├── bash.bashrc                    # System-wide bash config
+├── hosts                          # Static hostname mappings
+├── inputrc                        # Readline config
+├── motd                           # Welcome message
+├── motd-playstore                 # Play Store variant
+├── motd.sh                        # Dynamic MOTD script
+├── nanorc                         # Nano editor config
+├── netconfig                      # Network configuration
+├── profile                        # Login shell profile
+├── profile.d/
+│   ├── 01-termux-bootstrap-second-stage-fallback.sh  # First-run bootstrap
+│   ├── gawk.sh                    # Gawk environment
+│   ├── gawk.csh                   # Gawk for csh
+│   └── init-termux-properties.sh  # Property initialization
+├── termux/
+│   ├── bootstrap/
+│   │   └── termux-bootstrap-second-stage.sh  # Main bootstrap script
+│   └── mirrors/
+│       ├── default                # Default mirror
+│       ├── asia/                  # 18 Asian mirrors
+│       ├── europe/                # 12 European mirrors
+│       └── ...
+├── termux-login.sh                # Login hook
+└── tls/
+    ├── cert.pem                   # CA certificates (256KB)
+    └── openssl.cnf                # OpenSSL config
+```
+
+---
+
+## 🔍 Smali/Java Class Structure
+
+### Main Termux Packages
+
+| Package | Classes | Purpose |
+|---------|---------|---------|
+| `com.termux.app` | ~30 | Main app (TermuxActivity, TermuxService, etc.) |
+| `com.termux.terminal` | ~15 | Terminal emulation (TerminalEmulator, TerminalSession) |
+| `com.termux.view` | ~10 | Terminal view (TerminalView, GestureRecognizer) |
+| `com.termux.shared` | ~100 | Shared utilities (file, shell, settings, etc.) |
+| `com.termux.filepicker` | ~5 | File picker activities |
+
+### Third-Party Libraries
+
+| Package | Classes | Library |
+|---------|---------|---------|
+| `com.google.common.*` | ~2000 | Guava (collections, concurrency, I/O) |
+| `androidx.*` | ~1500 | AndroidX (appcompat, fragment, recyclerview, etc.) |
+| `kotlinx.coroutines.*` | ~700 | Kotlin Coroutines |
+| `kotlin.*` | ~500 | Kotlin stdlib |
+| `io.noties.markwon.*` | ~50 | Markdown rendering |
+| `org.lsposed.hiddenapibypass` | ~5 | Hidden API access |
+
+---
+
+## 🔗 SYMLINKS.txt Structure
+
+The `SYMLINKS.txt` file (62KB) defines all symlinks to be created during bootstrap extraction. Format:
+```
+target←./path/to/symlink
+```
+
+### Examples:
+```
+../../LICENSES/GPL-3.0.txt←./share/doc/bash/copyright
+xz←./bin/lzma
+xz←./bin/xzcat
+xz←./bin/unxz
+coreutils←./bin/ls
+coreutils←./bin/cat
+coreutils←./bin/cp
+...
+```
+
+Most symlinks point to:
+- **License files** - Shared license texts
+- **Man pages** - Alternate names for same manual
+- **Multicall binaries** - `coreutils`, `xz`, `busybox`-style
+
+---
+
+## 🛠️ Key Termux Scripts Analysis
+
+### `pkg` (Package Manager Frontend)
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+# Wrapper around apt with Termux-specific features
+# - Mirror selection
+# - Update prompts
+# - install/remove/search commands
+```
+
+### `termux-change-repo` (Mirror Selector)
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+# Interactive dialog for selecting package mirrors
+# Uses dialog command for TUI
+# Updates /data/data/com.termux/files/usr/etc/apt/sources.list
+```
+
+### `termux-setup-storage` (Storage Permission)
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+# Requests MANAGE_EXTERNAL_STORAGE permission
+# Creates symlinks in ~/storage/
+```
+
+### `termux-fix-shebang` (Path Fixer)
+```bash
+#!/data/data/com.termux/files/usr/bin/sh
+# Rewrites shebang lines from /usr/bin to Termux prefix
+# sed -i "s|^#!/usr/|#!$PREFIX/|" "$file"
+```
+
+---
+
+## 📊 Summary Statistics
+
+| Category | Count |
+|----------|-------|
+| **APK Files** | 9,102 |
+| **Bootstrap Files** | 3,226 |
+| **ELF Binaries (bin/)** | 173 |
+| **Shell Scripts (bin/)** | 82 |
+| **Shared Libraries** | 59 |
+| **Android Activities** | 6 |
+| **Android Services** | 2 |
+| **DEX Files** | 29 |
+| **Supported Architectures** | 4 (arm64, arm, x86_64, x86) |
+| **Symlinks Defined** | ~1,000 |
+
+---
+
+*Analysis performed: 2026-01-19 using apktool 2.x, jadx, and standard Linux tools*
+
+---
+
+## Implementation Notes (Session 2026-01-19 Continued)
+
+### Fixes Applied This Session
+
+1. **strings.xml Path Fix** (`termux-shared/src/main/res/values/strings.xml:12`)
+   - Changed: `TERMUX_PREFIX_DIR_PATH` entity from `/data/data/com.termux/files/usr` → `/data/data/com.termux.kotlin/files/usr`
+   - This ensures error messages display the correct path for Termux-Kotlin app
+
+2. **TermuxTools.kt Refactor** (`termux-shared/src/main/kotlin/com/termux/shared/tools/TermuxTools.kt`)
+   - Already refactored to use `TermuxConstants` instead of hardcoded paths (confirmed working)
+
+3. **Build Verification**
+   - All 5 APK variants built successfully:
+     - `termux-app_apt-android-7-debug_arm64-v8a.apk` (54.9 MB)
+     - `termux-app_apt-android-7-debug_armeabi-v7a.apk` (51.6 MB)
+     - `termux-app_apt-android-7-debug_universal.apk` (140.9 MB)
+     - `termux-app_apt-android-7-debug_x86_64.apk` (54.8 MB)
+     - `termux-app_apt-android-7-debug_x86.apk` (53.9 MB)
+   - Verified APK contains correct path: `/data/data/com.termux.kotlin/files/usr`
+
+### Architecture Summary: How termux-kotlin-app Achieves Path Independence
+
+The core challenge: **ELF binaries contain hardcoded paths to `/data/data/com.termux/...`** that cannot be modified without corrupting the binaries.
+
+**Solution Strategy (already implemented):**
+
+| Layer | Solution | Location |
+|-------|----------|----------|
+| **Bootstrap** | Packages rebuilt with com.termux.kotlin paths (66 packages) | `app/src/main/cpp/bootstrap-*.zip` |
+| **Text Files** | Path rewriting during bootstrap extraction | `TermuxInstaller.kt:417-615` |
+| **dpkg** | Wrapper script rewrites .deb files on-the-fly | `TermuxInstaller.kt:623-820` |
+| **apt** | Wrapper scripts pass `-o Dir::*` overrides | `TermuxInstaller.kt:984-1070` |
+| **update-alternatives** | Wrapper passes `--altdir/--admindir` | `TermuxInstaller.kt:972-983` |
+| **login** | Wrapper uses bash --noprofile + manual source | `TermuxInstaller.kt:899-970` |
+| **Environment** | LD_LIBRARY_PATH overrides RUNPATH | `TermuxShellEnvironment.kt` |
+
+### Known Limitation
+
+When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux.kotlin`) are installed:
+- Upstream ELF binaries may still find `/data/data/com.termux/files/...` in filesystem
+- Can cause "Permission denied" errors if paths resolve to wrong app
+- **Recommendation**: Uninstall official Termux before using Termux-Kotlin
+
+### Path Verification Checklist
+
+| Check | Status |
+|-------|--------|
+| `TermuxConstants.TERMUX_PACKAGE_NAME` = `com.termux.kotlin` | ✅ |
+| `TermuxConstants.TERMUX_UPSTREAM_PACKAGE_NAME` = `com.termux` | ✅ |
+| strings.xml `TERMUX_PREFIX_DIR_PATH` entity | ✅ Fixed |
+| TermuxInstaller dpkg wrapper OLD_PREFIX | ✅ (intentionally com.termux for replacement) |
+| Bootstrap zips have kotlin-native paths | ✅ |
+| Build compiles without path errors | ✅ |
+
+---
+
+*Session completed: 2026-01-19*

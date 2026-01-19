@@ -1,20 +1,20 @@
 package com.termux.shared.tools
 
 import android.content.Context
+import com.termux.shared.termux.TermuxConstants
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 
 /**
  * Kotlin interface for invoking Termux userland tools.
- * All tools use the com.termux.kotlin prefix path:
- * /data/data/com.termux.kotlin/files/usr
+ * Uses paths from TermuxConstants for consistency.
  */
 object TermuxTools {
     
-    private const val TERMUX_PREFIX = "/data/data/com.termux.kotlin/files/usr"
-    private const val TERMUX_BIN = "$TERMUX_PREFIX/bin"
-    private const val TERMUX_HOME = "/data/data/com.termux.kotlin/files/home"
+    private val TERMUX_PREFIX: String get() = TermuxConstants.TERMUX_PREFIX_DIR_PATH
+    private val TERMUX_BIN: String get() = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH
+    private val TERMUX_HOME: String get() = TermuxConstants.TERMUX_HOME_DIR_PATH
     
     /**
      * Execute a termux tool by name using ProcessBuilder

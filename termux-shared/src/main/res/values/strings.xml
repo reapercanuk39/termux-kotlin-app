@@ -9,7 +9,7 @@
     <!ENTITY TERMUX_STYLING_APP_NAME "Termux:Styling">
     <!ENTITY TERMUX_TASKER_APP_NAME "Termux:Tasker">
     <!ENTITY TERMUX_WIDGET_APP_NAME "Termux:Widget">
-    <!ENTITY TERMUX_PREFIX_DIR_PATH "/data/data/com.termux/files/usr">
+    <!ENTITY TERMUX_PREFIX_DIR_PATH "/data/data/com.termux.kotlin/files/usr">
     ]>
 
 <resources>
