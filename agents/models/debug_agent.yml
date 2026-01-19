@@ -1,0 +1,33 @@
+name: debug_agent
+description: Debug and analysis agent. Runs QEMU tests, inspects ISO files, analyzes APKs, uses binwalk/apktool/jadx.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - system.process
+  - exec.qemu
+  - exec.iso
+  - exec.apk
+  - exec.analyze
+  - exec.shell
+  - exec.compress
+
+skills:
+  - qemu
+  - iso
+  - apk
+  - fs
+
+memory_backend: json
+
+tasks:
+  - analyze_apk: "Analyze Android APK structure and contents"
+  - analyze_iso: "Analyze ISO image and bootloader config"
+  - run_qemu_test: "Run QEMU virtual machine test"
+  - binwalk_scan: "Scan file with binwalk"
+  - decompile_apk: "Decompile APK with jadx"

@@ -1,0 +1,18 @@
+name: pkg
+description: Package manager skill for Termux-Kotlin
+version: "1.0.0"
+
+provides:
+  - install_package
+  - remove_package
+  - update_packages
+  - upgrade_packages
+  - search_packages
+  - list_installed
+  - get_package_info
+  - clean_cache
+
+requires_capabilities:
+  - exec.pkg
+  - filesystem.read
+  - filesystem.write

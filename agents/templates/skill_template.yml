@@ -1,0 +1,19 @@
+# Skill Template
+# Copy this directory to agents/skills/your_skill/ and customize
+
+name: your_skill_name
+description: A brief description of what this skill provides
+version: "1.0.0"
+
+# Functions this skill provides
+# These must be implemented in skill.py
+provides:
+  - function_one
+  - function_two
+  - function_three
+
+# Capabilities required to use this skill
+# Agents must have ALL of these capabilities to use this skill
+requires_capabilities:
+  - filesystem.read
+  - exec.shell

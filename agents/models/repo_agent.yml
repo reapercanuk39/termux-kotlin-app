@@ -1,0 +1,29 @@
+name: repo_agent
+description: Package repository agent. Syncs package repo, regenerates Packages.gz, updates metadata.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - exec.pkg
+  - exec.git
+  - exec.shell
+  - exec.compress
+
+skills:
+  - pkg
+  - git
+  - fs
+
+memory_backend: json
+
+tasks:
+  - sync_repo: "Sync package repository"
+  - regenerate_packages: "Regenerate Packages.gz index"
+  - update_metadata: "Update repository metadata"
+  - verify_packages: "Verify package integrity"
+  - list_available: "List available packages"

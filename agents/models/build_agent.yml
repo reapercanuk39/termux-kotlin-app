@@ -1,0 +1,31 @@
+name: build_agent
+description: Package building and CI agent. Rebuilds packages, runs CI scripts, analyzes build logs, and suggests fixes.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - filesystem.exec
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - exec.pkg
+  - exec.git
+  - exec.build
+  - exec.shell
+  - exec.python
+  - exec.compress
+
+skills:
+  - pkg
+  - git
+  - fs
+
+memory_backend: json
+
+tasks:
+  - rebuild_packages: "Rebuild all packages that changed since last commit"
+  - analyze_build_logs: "Analyze build logs and suggest fixes"
+  - run_ci: "Run CI/CD scripts"
+  - check_dependencies: "Check package dependencies"

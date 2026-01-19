@@ -1,0 +1,220 @@
+# Termux-Kotlin Agent Capability Definitions
+# All agents must declare capabilities from this list
+# The supervisor enforces these before any action
+
+version: "1.0"
+
+capabilities:
+  # Filesystem capabilities
+  filesystem:
+    read:
+      description: "Read files and directories"
+      risk: low
+    write:
+      description: "Write/modify files and directories"
+      risk: medium
+    exec:
+      description: "Execute files (chmod +x, run scripts)"
+      risk: high
+    delete:
+      description: "Delete files and directories"
+      risk: high
+
+  # Network capabilities
+  network:
+    none:
+      description: "No network access (fully offline)"
+      risk: none
+    local:
+      description: "Localhost only (127.0.0.1, unix sockets)"
+      risk: low
+    external:
+      description: "External network access (requires explicit approval)"
+      risk: critical
+
+  # Execution capabilities - what tools the agent can invoke
+  exec:
+    pkg:
+      description: "Run pkg/apt/dpkg commands"
+      risk: medium
+      binaries:
+        - pkg
+        - apt
+        - apt-get
+        - apt-cache
+        - dpkg
+        - dpkg-deb
+    git:
+      description: "Run git commands"
+      risk: low
+      binaries:
+        - git
+    qemu:
+      description: "Run QEMU virtual machines"
+      risk: high
+      binaries:
+        - qemu-system-x86_64
+        - qemu-system-aarch64
+        - qemu-img
+    iso:
+      description: "Manipulate ISO images"
+      risk: medium
+      binaries:
+        - xorriso
+        - mkisofs
+        - isoinfo
+    apk:
+      description: "Analyze/build Android APKs"
+      risk: medium
+      binaries:
+        - apktool
+        - jadx
+        - aapt
+        - aapt2
+        - zipalign
+        - apksigner
+    docker:
+      description: "Run Docker containers"
+      risk: high
+      binaries:
+        - docker
+        - podman
+    shell:
+      description: "Run shell commands (bash, sh)"
+      risk: high
+      binaries:
+        - bash
+        - sh
+        - zsh
+    python:
+      description: "Run Python scripts"
+      risk: medium
+      binaries:
+        - python
+        - python3
+        - pip
+        - pip3
+    build:
+      description: "Run build tools (make, cmake, gradle)"
+      risk: medium
+      binaries:
+        - make
+        - cmake
+        - gradle
+        - gradlew
+        - ninja
+    analyze:
+      description: "Run analysis tools"
+      risk: low
+      binaries:
+        - binwalk
+        - file
+        - strings
+        - hexdump
+        - objdump
+        - readelf
+    compress:
+      description: "Compression/archive tools"
+      risk: low
+      binaries:
+        - tar
+        - gzip
+        - bzip2
+        - xz
+        - zip
+        - unzip
+        - 7z
+
+  # Memory/storage capabilities
+  memory:
+    read:
+      description: "Read own memory store"
+      risk: none
+    write:
+      description: "Write to own memory store"
+      risk: low
+    shared:
+      description: "Access shared memory across agents"
+      risk: medium
+
+  # System capabilities
+  system:
+    info:
+      description: "Read system information (uname, df, etc.)"
+      risk: none
+    process:
+      description: "List/manage processes"
+      risk: medium
+    env:
+      description: "Read/modify environment variables"
+      risk: low
+
+# Capability presets for common agent types
+presets:
+  minimal:
+    - filesystem.read
+    - memory.read
+    - memory.write
+    - network.none
+    - system.info
+
+  readonly:
+    - filesystem.read
+    - memory.read
+    - memory.write
+    - network.none
+    - system.info
+    - exec.analyze
+
+  builder:
+    - filesystem.read
+    - filesystem.write
+    - filesystem.exec
+    - memory.read
+    - memory.write
+    - network.none
+    - system.info
+    - exec.pkg
+    - exec.git
+    - exec.build
+    - exec.shell
+    - exec.python
+    - exec.compress
+
+  debugger:
+    - filesystem.read
+    - filesystem.write
+    - memory.read
+    - memory.write
+    - network.none
+    - system.info
+    - system.process
+    - exec.analyze
+    - exec.apk
+    - exec.iso
+    - exec.qemu
+    - exec.shell
+
+  full:
+    - filesystem.read
+    - filesystem.write
+    - filesystem.exec
+    - filesystem.delete
+    - memory.read
+    - memory.write
+    - memory.shared
+    - network.local
+    - system.info
+    - system.process
+    - system.env
+    - exec.pkg
+    - exec.git
+    - exec.qemu
+    - exec.iso
+    - exec.apk
+    - exec.docker
+    - exec.shell
+    - exec.python
+    - exec.build
+    - exec.analyze
+    - exec.compress

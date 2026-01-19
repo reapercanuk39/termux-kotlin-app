@@ -1,0 +1,15 @@
+name: qemu
+description: QEMU virtual machine skill
+version: "1.0.0"
+
+provides:
+  - create_image
+  - run_vm
+  - list_images
+  - convert_image
+  - snapshot
+
+requires_capabilities:
+  - exec.qemu
+  - filesystem.read
+  - filesystem.write

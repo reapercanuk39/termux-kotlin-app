@@ -1,0 +1,17 @@
+name: apk
+description: Android APK analysis and build skill
+version: "1.0.0"
+
+provides:
+  - decode
+  - build
+  - sign
+  - analyze
+  - extract
+  - get_manifest
+  - list_classes
+
+requires_capabilities:
+  - exec.apk
+  - filesystem.read
+  - filesystem.write

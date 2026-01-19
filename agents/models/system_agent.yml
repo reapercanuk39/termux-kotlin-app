@@ -1,0 +1,27 @@
+name: system_agent
+description: System maintenance agent. Checks storage, validates bootstrap integrity, repairs environment issues.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - system.process
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - fs
+  - pkg
+
+memory_backend: json
+
+tasks:
+  - check_storage: "Check storage usage and cleanup"
+  - validate_bootstrap: "Validate bootstrap integrity"
+  - repair_environment: "Repair common environment issues"
+  - check_permissions: "Check file permissions"
+  - list_processes: "List running processes"

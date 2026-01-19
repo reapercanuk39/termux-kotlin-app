@@ -1,0 +1,33 @@
+# Agent Template
+# Copy this file to agents/models/your_agent.yml and customize
+
+name: your_agent_name
+description: A brief description of what this agent does
+version: "1.0.0"
+
+# Capabilities this agent requires
+# See core/models/capabilities.yml for full list
+capabilities:
+  - filesystem.read        # Read files and directories
+  - filesystem.write       # Write/modify files
+  - memory.read           # Read own memory store
+  - memory.write          # Write to own memory store
+  - network.none          # No network access (offline only)
+  - system.info           # Read system information
+
+# Skills this agent can use
+# Each skill must exist in agents/skills/<skill_name>/
+skills:
+  - fs                    # Filesystem operations
+  - pkg                   # Package management
+
+# Memory backend (currently only 'json' is supported)
+memory_backend: json
+
+# Optional: Define example tasks this agent can perform
+tasks:
+  - example_task: "Description of what this task does"
+  - another_task: "Another task description"
+
+# Optional: Custom sandbox path (defaults to agents/sandboxes/<name>/)
+# sandbox_path: /custom/path

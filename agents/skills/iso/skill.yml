@@ -1,0 +1,15 @@
+name: iso
+description: ISO image manipulation skill
+version: "1.0.0"
+
+provides:
+  - extract
+  - create
+  - analyze
+  - list_contents
+  - get_bootloader_info
+
+requires_capabilities:
+  - exec.iso
+  - filesystem.read
+  - filesystem.write

@@ -1,0 +1,380 @@
+#!/usr/bin/env python3
+"""
+Termux-Kotlin Agent CLI
+=======================
+
+Command-line interface for the agent framework.
+Usage: agent <command> [options]
+
+Commands:
+  list              List all available agents
+  info <name>       Show agent details
+  run <name> <task> Run a task through an agent
+  logs <name>       Show agent logs
+  skills            List all available skills
+  validate          Validate agent configs and skills
+  help              Show this help message
+
+Examples:
+  agent list
+  agent info build_agent
+  agent run debug_agent "apk.analyze" --apk_path=/path/to/app.apk
+  agent logs system_agent
+  agent skills
+  agent validate
+"""
+
+import os
+import sys
+import json
+import argparse
+from pathlib import Path
+from typing import Optional
+
+# Add agents to Python path
+SCRIPT_DIR = Path(__file__).parent.resolve()
+AGENTS_ROOT = SCRIPT_DIR.parent / "share" / "agents"
+
+# Also check development path
+if not AGENTS_ROOT.exists():
+    # Try relative to script location for development
+    dev_paths = [
+        Path(__file__).parent.parent / "agents",
+        Path("/root/termux-kotlin-app/agents"),
+    ]
+    for p in dev_paths:
+        if p.exists():
+            AGENTS_ROOT = p
+            break
+
+# Add to Python path
+sys.path.insert(0, str(AGENTS_ROOT.parent))
+os.environ["AGENTS_ROOT"] = str(AGENTS_ROOT)
+
+
+def print_json(data, indent=2):
+    """Pretty print JSON data."""
+    print(json.dumps(data, indent=indent, default=str))
+
+
+def print_table(headers, rows):
+    """Print a simple ASCII table."""
+    if not rows:
+        print("(no data)")
+        return
+    
+    # Calculate column widths
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(str(cell)))
+    
+    # Print header
+    header_line = " | ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
+    print(header_line)
+    print("-" * len(header_line))
+    
+    # Print rows
+    for row in rows:
+        print(" | ".join(str(cell).ljust(widths[i]) for i, cell in enumerate(row)))
+
+
+def cmd_list(args):
+    """List all available agents."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    agents = daemon.list_agents()
+    
+    if args.json:
+        print_json(agents)
+    else:
+        if not agents:
+            print("No agents found.")
+            print(f"Agent definitions should be in: {AGENTS_ROOT / 'models'}")
+            return
+        
+        print(f"Available Agents ({len(agents)}):\n")
+        rows = []
+        for agent in agents:
+            skills = ", ".join(agent.get("skills", [])[:3])
+            if len(agent.get("skills", [])) > 3:
+                skills += "..."
+            rows.append([
+                agent["name"],
+                agent.get("description", "")[:50],
+                skills
+            ])
+        
+        print_table(["Name", "Description", "Skills"], rows)
+
+
+def cmd_info(args):
+    """Show agent details."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    info = daemon.get_agent_info(args.name)
+    
+    if not info:
+        print(f"Error: Agent not found: {args.name}")
+        sys.exit(1)
+    
+    if args.json:
+        print_json(info)
+    else:
+        print(f"Agent: {info['name']}")
+        print(f"Description: {info.get('description', 'N/A')}")
+        print()
+        
+        print("Capabilities:")
+        for cap in info.get("capabilities", []):
+            print(f"  - {cap}")
+        print()
+        
+        print("Skills:")
+        for skill in info.get("skills", []):
+            print(f"  - {skill}")
+        print()
+        
+        if "memory" in info:
+            mem = info["memory"]
+            print(f"Memory: {mem.get('history_count', 0)} history entries, "
+                  f"{mem.get('file_size_bytes', 0)} bytes")
+        
+        if "sandbox" in info:
+            sb = info["sandbox"]
+            print(f"Sandbox: {sb.get('total_bytes', 0)} bytes used")
+
+
+def cmd_run(args):
+    """Run a task through an agent."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    
+    # Parse additional arguments as task args
+    task_args = {}
+    if args.args:
+        for arg in args.args:
+            if "=" in arg:
+                key, value = arg.split("=", 1)
+                # Try to parse as JSON
+                try:
+                    task_args[key] = json.loads(value)
+                except json.JSONDecodeError:
+                    task_args[key] = value
+    
+    print(f"Running: {args.name} -> {args.task}")
+    if task_args:
+        print(f"Args: {task_args}")
+    print()
+    
+    result = daemon.run_task(args.name, args.task, task_args)
+    
+    if args.json:
+        print_json(result)
+    else:
+        if result.get("success"):
+            print("✓ Task completed successfully")
+            if "data" in result:
+                print("\nResult:")
+                print_json(result["data"])
+            if result.get("logs"):
+                print("\nLogs:")
+                for log in result["logs"][-10:]:
+                    print(f"  {log}")
+        else:
+            print("✗ Task failed")
+            if "error" in result:
+                print(f"\nError: {result['error']}")
+            if result.get("logs"):
+                print("\nLogs:")
+                for log in result["logs"][-10:]:
+                    print(f"  {log}")
+            sys.exit(1)
+
+
+def cmd_logs(args):
+    """Show agent logs."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    logs = daemon.get_agent_logs(args.name, limit=args.limit)
+    
+    if args.json:
+        print_json(logs)
+    else:
+        if not logs:
+            print(f"No logs found for agent: {args.name}")
+            return
+        
+        print(f"Logs for {args.name} (last {len(logs)} entries):\n")
+        for entry in logs:
+            ts = entry.get("timestamp", "")[:19]
+            action = entry.get("action", "")
+            status = entry.get("status", "")
+            print(f"[{ts}] {action}: {status}")
+            
+            details = entry.get("details", {})
+            if details and args.verbose:
+                for k, v in details.items():
+                    if isinstance(v, str) and len(v) > 100:
+                        v = v[:100] + "..."
+                    print(f"    {k}: {v}")
+
+
+def cmd_skills(args):
+    """List all available skills."""
+    from agents.skills.loader import SkillLoader
+    
+    skills_dir = AGENTS_ROOT / "skills"
+    loader = SkillLoader(skills_dir)
+    skills = loader.list_skills()
+    
+    if args.json:
+        print_json(skills)
+    else:
+        if not skills:
+            print("No skills found.")
+            print(f"Skills should be in: {skills_dir}")
+            return
+        
+        print(f"Available Skills ({len(skills)}):\n")
+        
+        for skill in skills:
+            manifest = skill.get("manifest", {})
+            print(f"  {skill['name']}")
+            print(f"    Description: {manifest.get('description', 'N/A')}")
+            
+            provides = manifest.get("provides", [])
+            if provides:
+                print(f"    Functions: {', '.join(provides[:5])}")
+                if len(provides) > 5:
+                    print(f"               ... and {len(provides) - 5} more")
+            
+            caps = manifest.get("requires_capabilities", [])
+            if caps:
+                print(f"    Requires: {', '.join(caps)}")
+            print()
+
+
+def cmd_validate(args):
+    """Validate agent configs and skills."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    results = daemon.validate_all()
+    
+    if args.json:
+        print_json(results)
+    else:
+        print("Validation Results\n")
+        
+        # Agents
+        print("Agents:")
+        for name, result in results.get("agents", {}).items():
+            status = "✓" if result["valid"] else "✗"
+            print(f"  {status} {name}")
+            for issue in result.get("issues", []):
+                print(f"      - {issue}")
+        
+        print()
+        
+        # Skills
+        print("Skills:")
+        for name, result in results.get("skills", {}).items():
+            status = "✓" if result["valid"] else "✗"
+            print(f"  {status} {name}")
+            for issue in result.get("issues", []):
+                print(f"      - {issue}")
+        
+        # Summary
+        print()
+        agent_ok = sum(1 for r in results.get("agents", {}).values() if r["valid"])
+        skill_ok = sum(1 for r in results.get("skills", {}).values() if r["valid"])
+        total_agents = len(results.get("agents", {}))
+        total_skills = len(results.get("skills", {}))
+        
+        print(f"Summary: {agent_ok}/{total_agents} agents valid, "
+              f"{skill_ok}/{total_skills} skills valid")
+        
+        if agent_ok < total_agents or skill_ok < total_skills:
+            sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Termux-Kotlin Agent CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  agent list
+  agent info build_agent
+  agent run debug_agent apk.analyze apk_path=/path/to/app.apk
+  agent logs system_agent
+  agent skills
+  agent validate
+        """
+    )
+    
+    parser.add_argument(
+        "--json", "-j",
+        action="store_true",
+        help="Output as JSON"
+    )
+    
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+    
+    # list
+    list_parser = subparsers.add_parser("list", help="List all agents")
+    list_parser.set_defaults(func=cmd_list)
+    
+    # info
+    info_parser = subparsers.add_parser("info", help="Show agent details")
+    info_parser.add_argument("name", help="Agent name")
+    info_parser.set_defaults(func=cmd_info)
+    
+    # run
+    run_parser = subparsers.add_parser("run", help="Run a task")
+    run_parser.add_argument("name", help="Agent name")
+    run_parser.add_argument("task", help="Task to run (e.g., 'pkg.install_package')")
+    run_parser.add_argument("args", nargs="*", help="Task arguments (key=value)")
+    run_parser.set_defaults(func=cmd_run)
+    
+    # logs
+    logs_parser = subparsers.add_parser("logs", help="Show agent logs")
+    logs_parser.add_argument("name", help="Agent name")
+    logs_parser.add_argument("--limit", "-n", type=int, default=20, help="Number of entries")
+    logs_parser.add_argument("--verbose", "-v", action="store_true", help="Show details")
+    logs_parser.set_defaults(func=cmd_logs)
+    
+    # skills
+    skills_parser = subparsers.add_parser("skills", help="List all skills")
+    skills_parser.set_defaults(func=cmd_skills)
+    
+    # validate
+    validate_parser = subparsers.add_parser("validate", help="Validate configs")
+    validate_parser.set_defaults(func=cmd_validate)
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+        sys.exit(130)
+    except Exception as e:
+        print(f"Error: {e}")
+        if os.environ.get("DEBUG"):
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

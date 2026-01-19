@@ -1,0 +1,20 @@
+name: git
+description: Git version control skill
+version: "1.0.0"
+
+provides:
+  - clone
+  - pull
+  - push
+  - commit
+  - status
+  - diff
+  - log
+  - branch
+  - checkout
+  - add
+
+requires_capabilities:
+  - exec.git
+  - filesystem.read
+  - filesystem.write
