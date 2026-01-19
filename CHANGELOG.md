@@ -1,3 +1,48 @@
+## [v1.0.60] - 2026-01-19
+
+### 🤖 Agent Framework v1.0.0
+
+A complete offline Python-based agent system for Termux-Kotlin:
+
+**Core Components:**
+- **Agent Supervisor (agentd)** - Manages agent lifecycle and enforces capabilities
+- **Executor** - Command execution with capability checking
+- **Memory** - JSON-based per-agent persistent storage
+- **Sandbox** - Isolated directories per agent (tmp, work, output, cache)
+- **CLI** - Full command-line interface (`agent list/info/run/logs/skills/validate`)
+
+**Built-in Agents:**
+- `build_agent` - Package rebuilding, CI scripts, build log analysis
+- `debug_agent` - APK/ISO analysis, QEMU tests, binwalk
+- `system_agent` - Storage check, bootstrap validation, repair
+- `repo_agent` - Package repo sync, Packages.gz generation
+
+**Built-in Skills (7):**
+- `pkg` - Package management (install, remove, update, search)
+- `git` - Version control (clone, pull, push, commit, status)
+- `fs` - Filesystem operations (list, read, write, find, grep)
+- `qemu` - VM management (create_image, run_vm, snapshots)
+- `iso` - ISO manipulation (extract, create, analyze, bootloader)
+- `apk` - APK analysis (decode, build, sign, analyze, jadx)
+- `docker` - Container management (run, stop, pull, build, exec)
+
+**Capability System:**
+- `filesystem.*` (read, write, exec, delete)
+- `network.*` (none, local, external)
+- `exec.*` (pkg, git, qemu, iso, apk, docker, shell, python, build, analyze, compress)
+- `memory.*` (read, write, shared)
+- `system.*` (info, process, env)
+
+**Usage:**
+```bash
+pkg install python
+pip install pyyaml
+agent list
+agent run debug_agent "apk.analyze" apk_path=/path/to/app.apk
+```
+
+---
+
 ## [2026-01-19] Build #175
 
 ### Changes

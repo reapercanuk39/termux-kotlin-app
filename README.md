@@ -148,6 +148,7 @@ New features only available in the Kotlin version:
 | 📱 **Integrated Device API** | Built-in Termux:API - no separate APK needed |
 | 🔒 **HTTPS Support** | Proper SSL/TLS certificate configuration for secure mirrors |
 | 🖥️ **Full Terminal Support** | TERMINFO configured for clear, tput, ncurses apps |
+| 🤖 **Agent Framework** | Offline Python-based agent system with skills & capabilities |
 
 ### 📱 Integrated Device API (No Separate APK!)
 
@@ -250,6 +251,48 @@ termuxctl pkg doctor
 # Auto-repair issues
 termuxctl pkg doctor --auto-repair
 ```
+
+### 🤖 Agent Framework
+
+The Termux-Kotlin Agent Framework is a **fully offline**, Python-based agent system:
+
+```bash
+# Install Python (required)
+pkg install python
+pip install pyyaml
+
+# List available agents
+agent list
+
+# Run a task through an agent
+agent run debug_agent "apk.analyze" apk_path=/path/to/app.apk
+
+# Show agent info and capabilities
+agent info build_agent
+
+# List available skills
+agent skills
+```
+
+**Built-in Agents:**
+
+| Agent | Purpose |
+|-------|---------|
+| `build_agent` | Package building, CI scripts, build log analysis |
+| `debug_agent` | APK/ISO analysis, QEMU tests, binwalk |
+| `system_agent` | Storage check, bootstrap validation, environment repair |
+| `repo_agent` | Package repo sync, Packages.gz generation |
+
+**Built-in Skills:** `pkg`, `git`, `fs`, `qemu`, `iso`, `apk`, `docker`
+
+**Key Features:**
+- 🔒 **Offline-only** - No external API calls, runs entirely locally
+- 🛡️ **Capability system** - Fine-grained permissions (filesystem, network, exec)
+- 📦 **Plugin architecture** - Easy to add new skills
+- 💾 **Per-agent memory** - JSON-based persistent storage
+- 📁 **Sandboxing** - Isolated directories per agent
+
+See [AI.md](AI.md#-agent-framework-v100) for complete documentation.
 
 ## 📥 Installation
 
