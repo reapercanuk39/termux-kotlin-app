@@ -5,6 +5,16 @@
 
 ### Build Status
 - Prefix Validation: failure
+
+## [v1.1.9] - 2026-01-19
+
+### 🐛 Bug Fixes
+- **dpkg:** Add shebang fixing for installed scripts
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.8 [skip ci]
+
 - APK Build: skipped
 - Emulator Tests: skipped
 
