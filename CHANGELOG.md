@@ -1,3 +1,15 @@
+## [2026-01-19] Build #184
+
+### Changes
+- 060a8e4 fix(dpkg): Add shebang fixing for installed scripts
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-19] Build #183
 
 ### Changes
