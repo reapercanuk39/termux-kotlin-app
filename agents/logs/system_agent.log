@@ -1,0 +1,1 @@
+{"timestamp": "2026-01-19T20:00:23.059741", "agent": "system_agent", "action": "capability_check", "status": "denied", "capability_checks": ["exec.pkg"], "error": {"error": "capability_denied", "message": "Agent 'system_agent' lacks required capability: exec.pkg", "agent": "system_agent", "required": "exec.pkg"}}

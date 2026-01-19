@@ -1,0 +1,27 @@
+name: network_agent
+description: Network diagnostics agent. Checks localhost services, scans ports, monitors connections. Restricted to localhost only.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.local  # ONLY localhost access
+  - system.info
+  - system.process
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - network
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_ports: "Check which ports are listening on localhost"
+  - check_services: "Check status of local services"
+  - test_localhost: "Test localhost connectivity"
+  - list_connections: "List active network connections"
+  - check_dns_config: "Check DNS resolver configuration"

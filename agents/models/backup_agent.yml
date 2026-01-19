@@ -1,0 +1,30 @@
+name: backup_agent
+description: Backup and restore agent. Creates snapshots, manages backups, restores configurations, exports package lists.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - filesystem.delete
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - exec.shell
+  - exec.pkg
+  - exec.compress
+
+skills:
+  - backup
+  - fs
+  - pkg
+
+memory_backend: json
+
+tasks:
+  - backup_home: "Backup home directory"
+  - backup_packages: "Export installed package list"
+  - backup_config: "Backup configuration files"
+  - restore_packages: "Restore packages from list"
+  - create_snapshot: "Create full environment snapshot"
+  - list_backups: "List available backups"

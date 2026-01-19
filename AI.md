@@ -1555,12 +1555,70 @@ Skills may require additional tools:
 
 ### Future Roadmap
 
-- [ ] Natural language task interpretation
-- [ ] Agent-to-agent communication
+- [x] Natural language task interpretation *(v1.0.64)*
+- [x] Agent-to-agent communication *(v1.0.64)*
 - [ ] SQLite memory backend option
 - [ ] Web UI for agent management
 - [ ] Integration with LLM inference (local Ollama/llama.cpp)
 
 ---
 
-*Agent Framework implemented: 2026-01-19*
+## Session: 2026-01-19 - Advanced Agent Framework
+
+### Changes Made
+
+**v1.0.62 - New Agents & Skills:**
+- `security_agent` - Security scanning, permission audits, secret detection
+- `backup_agent` - Backup/restore, snapshots, package list export
+- `network_agent` - Localhost-only network diagnostics
+- 3 new skills: security (13KB), backup (15KB), network (13KB)
+- Generator framework for creating skills/agents/tasks
+
+**v1.0.63 - Advanced Framework:**
+- Skill Registry (`agents/core/registry/skill_registry.py`) - Auto-discovery at startup
+- Master Test Harness (`agents/tests/master_harness/run_all_tests.py`) - 17 tests
+- Graph Orchestrator (`agents/orchestrator/graph_engine.py`) - DAG multi-agent workflows
+- Self-Healing Mode (`agents/self_healing/healer.py`) - Detectors and healers
+- Plugin SDK v2.0 (`docs/plugin-sdk/v2/`) - 7 documentation files
+
+**v1.0.64 - Autonomous Runtime:**
+- `TaskParser` - Natural language to structured task
+- `StepPlanner` - Task to execution steps with capability validation
+- `AutonomousExecutor` - Execute with retry and self-healing
+- `AutonomousAgent` - Full autonomous runtime
+- `WorkflowBuilder` - Fluent API for multi-agent workflows
+- Preset workflows: `full_package_install`, `security_audit`, `system_maintenance`
+
+### Usage Examples
+
+```python
+# Autonomous task execution
+from agents.core.autonomous import run_autonomous
+result = run_autonomous("build_agent", "install vim")
+
+# Multi-agent workflow
+from agents.core.autonomous import WorkflowBuilder
+workflow = (WorkflowBuilder()
+    .add("build_agent", "install vim")
+    .then("system_agent", "check /usr/bin/vim")
+    .then("backup_agent", "create backup")
+    .execute())
+
+# Preset workflows
+from agents.core.autonomous import Workflows
+Workflows.security_audit().execute()
+```
+
+### Framework Stats
+
+| Metric | Count |
+|--------|-------|
+| Agents | 7 |
+| Skills | 10 |
+| Tests | 17 (master harness) |
+| SDK Docs | 7 |
+| Core Modules | 12 |
+
+---
+
+*Agent Framework updated: 2026-01-19*

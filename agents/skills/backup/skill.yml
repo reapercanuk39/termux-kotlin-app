@@ -1,0 +1,21 @@
+name: backup
+description: Backup, restore, and snapshot management skill
+version: "1.0.0"
+
+provides:
+  - create_backup
+  - restore_backup
+  - list_backups
+  - delete_backup
+  - export_package_list
+  - import_package_list
+  - create_snapshot
+  - verify_backup
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write
+  - exec.compress
+  - exec.shell
+
+sandbox_safe: true

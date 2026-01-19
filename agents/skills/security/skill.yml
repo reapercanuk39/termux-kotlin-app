@@ -1,0 +1,20 @@
+name: security
+description: Security scanning and auditing skill
+version: "1.0.0"
+
+provides:
+  - audit_permissions
+  - check_secrets
+  - verify_integrity
+  - scan_processes
+  - find_world_writable
+  - check_suid
+  - hash_file
+  - compare_hashes
+
+requires_capabilities:
+  - filesystem.read
+  - exec.shell
+  - exec.analyze
+
+sandbox_safe: true
