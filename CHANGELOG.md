@@ -1,3 +1,15 @@
+## [2026-01-19] Build #182
+
+### Changes
+- 0ac0f98 fix(ci): checkout main branch for workflow_dispatch releases
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-19] Build #180
 
 ### Changes
