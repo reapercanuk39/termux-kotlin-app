@@ -5,6 +5,16 @@
 
 ### Build Status
 - Prefix Validation: success
+
+## [v1.1.7] - 2026-01-19
+
+### 🐛 Bug Fixes
+- **ci:** checkout main branch for workflow_dispatch releases
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.6 [skip ci]
+
 - APK Build: success
 - Emulator Tests: skipped
 
