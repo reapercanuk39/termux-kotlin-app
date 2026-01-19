@@ -1,3 +1,15 @@
+## [2026-01-19] Build #179
+
+### Changes
+- b99075c fix(installer): Create etc/agents in staging directory
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-19] Build #178
 
 ### Changes
