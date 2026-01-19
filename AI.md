@@ -1264,3 +1264,303 @@ When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux.kotlin`)
 ---
 
 *Session completed: 2026-01-19*
+
+---
+
+## 🤖 Agent Framework (v1.0.0)
+
+### Overview
+
+The **Termux-Kotlin Agent Framework** is a fully offline, Python-based agent system that runs entirely inside Termux. It provides:
+
+- **Agent Supervisor (agentd)**: Core daemon managing agent lifecycle
+- **Capability/Permission System**: Fine-grained access control
+- **Plugin/Skill System**: Modular, extensible functionality
+- **Memory & Sandboxing**: Per-agent isolated storage
+- **CLI Interface**: Works directly in Termux terminal
+
+**Key Principle**: All agents run offline - no external API calls.
+
+### Directory Structure
+
+```
+/data/data/com.termux.kotlin/files/usr/
+├── bin/
+│   └── agent              # CLI entrypoint (bash wrapper)
+├── share/agents/
+│   ├── core/
+│   │   ├── __init__.py    # Framework initialization
+│   │   ├── supervisor/
+│   │   │   └── agentd.py  # Agent daemon
+│   │   ├── runtime/
+│   │   │   ├── executor.py   # Command execution with capability checks
+│   │   │   ├── memory.py     # JSON-based memory store
+│   │   │   └── sandbox.py    # Per-agent sandbox management
+│   │   └── models/
+│   │       └── capabilities.yml  # Capability definitions
+│   ├── skills/
+│   │   ├── pkg/           # Package manager skill
+│   │   ├── git/           # Git operations skill
+│   │   ├── fs/            # Filesystem operations skill
+│   │   ├── qemu/          # QEMU VM management skill
+│   │   ├── iso/           # ISO manipulation skill
+│   │   ├── apk/           # Android APK analysis skill
+│   │   └── docker/        # Docker/Podman skill
+│   ├── models/
+│   │   ├── build_agent.yml    # Package builder agent
+│   │   ├── debug_agent.yml    # Debug/analysis agent
+│   │   ├── system_agent.yml   # System maintenance agent
+│   │   └── repo_agent.yml     # Repository management agent
+│   ├── sandboxes/         # Per-agent sandbox directories
+│   ├── memory/            # Per-agent memory files
+│   ├── logs/              # Per-agent log files
+│   ├── templates/         # Agent/skill templates
+│   └── bin/
+│       └── agent          # Python CLI script
+└── etc/agents/
+    └── config.yml         # Framework configuration
+```
+
+### CLI Usage
+
+```bash
+# List all available agents
+agent list
+
+# Get detailed info about an agent
+agent info build_agent
+
+# Run a task through an agent
+agent run debug_agent "apk.analyze" apk_path=/path/to/app.apk
+
+# Show agent logs
+agent logs system_agent
+
+# List all available skills
+agent skills
+
+# Validate all agents and skills
+agent validate
+```
+
+### Capability System
+
+Agents must declare capabilities in their YAML config. The supervisor enforces these before any action.
+
+**Capability Categories:**
+
+| Category | Examples | Risk Level |
+|----------|----------|------------|
+| `filesystem.*` | read, write, exec, delete | low-high |
+| `network.*` | none, local, external | none-critical |
+| `exec.*` | pkg, git, qemu, apk, docker | low-high |
+| `memory.*` | read, write, shared | none-medium |
+| `system.*` | info, process, env | none-medium |
+
+**Example Agent Config:**
+```yaml
+name: debug_agent
+description: Debug and analysis agent
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none       # OFFLINE ONLY
+  - exec.qemu
+  - exec.apk
+  - exec.analyze
+skills:
+  - qemu
+  - apk
+  - iso
+  - fs
+memory_backend: json
+```
+
+### Skill Development
+
+Create new skills in `agents/skills/<skill_name>/`:
+
+**skill.yml:**
+```yaml
+name: my_skill
+description: My custom skill
+provides:
+  - do_something
+  - do_something_else
+requires_capabilities:
+  - filesystem.read
+  - exec.shell
+```
+
+**skill.py:**
+```python
+from agents.skills.base import Skill, SkillResult
+
+class MySkill(Skill):
+    name = "my_skill"
+    description = "My custom skill"
+    provides = ["do_something", "do_something_else"]
+    requires_capabilities = ["filesystem.read", "exec.shell"]
+    
+    def get_functions(self):
+        return {
+            "do_something": self.do_something,
+            "do_something_else": self.do_something_else
+        }
+    
+    def do_something(self, arg1, **kwargs):
+        self.log(f"Doing something with {arg1}")
+        result = self.executor.run(["echo", arg1])
+        return {"output": result.stdout}
+    
+    def self_test(self):
+        return SkillResult(success=True, data={"message": "Skill works!"})
+```
+
+### Agent Development
+
+Create new agents in `agents/models/<agent_name>.yml`:
+
+```yaml
+name: my_agent
+description: What my agent does
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none  # Always offline by default!
+  - exec.shell
+
+skills:
+  - fs
+  - pkg
+
+memory_backend: json
+
+tasks:
+  - example_task: "Description of the task"
+```
+
+### Built-in Agents
+
+| Agent | Purpose | Key Skills |
+|-------|---------|------------|
+| `build_agent` | Package rebuilding, CI scripts, build log analysis | pkg, git, fs |
+| `debug_agent` | APK analysis, ISO inspection, QEMU tests, binwalk | qemu, apk, iso, fs |
+| `system_agent` | Storage check, bootstrap validation, environment repair | fs, pkg |
+| `repo_agent` | Package repo sync, Packages.gz generation, metadata | pkg, git, fs |
+
+### Built-in Skills
+
+| Skill | Provides | Requires |
+|-------|----------|----------|
+| `pkg` | install/remove/update packages, search, list | exec.pkg |
+| `git` | clone/pull/push/commit, status, diff, log | exec.git |
+| `fs` | list/read/write/copy/move/delete, find, grep | filesystem.* |
+| `qemu` | create_image, run_vm, list_images, convert, snapshot | exec.qemu |
+| `iso` | extract, create, analyze, list_contents, bootloader_info | exec.iso |
+| `apk` | decode, build, sign, analyze, extract, get_manifest | exec.apk |
+| `docker` | list/run/stop containers, pull/build images, exec | exec.docker |
+
+### Bootstrap Integration
+
+The agent framework is deployed during bootstrap:
+
+1. **TermuxInstaller.kt** calls `setupAgentFramework()` after extracting bootstrap
+2. Creates directory structure under `share/agents/`
+3. Installs CLI wrapper at `/usr/bin/agent`
+4. Creates config at `/usr/etc/agents/config.yml`
+
+**To include agents in custom bootstrap:**
+```bash
+# Extract bootstrap
+unzip bootstrap-x86_64-kotlin.zip -d /tmp/bootstrap
+
+# Package agents into bootstrap
+./scripts/package-agents.sh /tmp/bootstrap
+
+# Repackage
+cd /tmp/bootstrap && zip -r9 ../new-bootstrap.zip .
+```
+
+### CI Integration
+
+Add to GitHub Actions workflow:
+
+```yaml
+jobs:
+  validate_agents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install pyyaml
+      
+      - name: Validate agents
+        run: |
+          export AGENTS_ROOT=$PWD/agents
+          export PYTHONPATH=$AGENTS_ROOT
+          python agents/bin/agent validate
+      
+      - name: Run agent self-tests
+        run: |
+          for agent in build_agent debug_agent system_agent repo_agent; do
+            python agents/bin/agent run $agent "self_test" || echo "Warning: $agent self-test failed"
+          done
+```
+
+### Dependencies
+
+The agent framework requires:
+- **Python 3.x**: `pkg install python`
+- **PyYAML** (recommended): `pip install pyyaml`
+
+Skills may require additional tools:
+- `pkg skill`: Works with built-in pkg/apt/dpkg
+- `git skill`: `pkg install git`
+- `qemu skill`: `pkg install qemu-system-x86_64`
+- `iso skill`: `pkg install xorriso cdrtools`
+- `apk skill`: `pkg install apktool jadx aapt`
+- `docker skill`: External Docker/Podman installation
+
+### Security Model
+
+**Offline by Default:**
+- All agents have `network.none` capability by default
+- Network commands (curl, wget, etc.) are blocked
+- Only `network.local` or `network.external` capabilities enable network access
+
+**Sandboxing:**
+- Each agent has isolated sandbox at `sandboxes/<agent_name>/`
+- Temporary files go to `sandbox/tmp/` (cleaned automatically)
+- Work files at `sandbox/work/`
+- Outputs at `sandbox/output/`
+- Cache at `sandbox/cache/`
+
+**Capability Enforcement:**
+- AgentExecutor validates every command before execution
+- Binary-to-capability mapping prevents unauthorized tool usage
+- Denied actions are logged
+
+### Future Roadmap
+
+- [ ] Natural language task interpretation
+- [ ] Agent-to-agent communication
+- [ ] SQLite memory backend option
+- [ ] Web UI for agent management
+- [ ] Integration with LLM inference (local Ollama/llama.cpp)
+
+---
+
+*Agent Framework implemented: 2026-01-19*

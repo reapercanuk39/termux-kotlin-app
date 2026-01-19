@@ -244,6 +244,9 @@ object TermuxInstaller {
                 // Cache dir is at /data/data/com.termux.kotlin/cache (parallel to /files)
                 val ourCacheDir = ourFilesPrefix.replace("/files/", "/cache/").replace("/files", "/cache")
                 createAptWrappers(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, ourCacheDir)
+                
+                // Setup the agent framework CLI symlink
+                setupAgentFramework(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -1064,6 +1067,123 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
             } catch (e: Exception) {
                 Logger.logError(LOG_TAG, "Failed to create $cmd wrapper: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Setup the agent framework for Termux-Kotlin.
+     * 
+     * The agent framework provides a Python-based agent system with:
+     * - A supervisor daemon (agentd) that manages agent lifecycle
+     * - A capability/permission system for secure agent execution
+     * - A plugin/skill system for extensibility
+     * - Memory and sandboxing for each agent
+     * 
+     * This function:
+     * 1. Creates the agents directory structure under share/agents
+     * 2. Installs the agent CLI as /usr/bin/agent
+     * 3. Sets up proper permissions
+     * 
+     * Note: The agent framework is fully offline - no external API calls.
+     * It depends on Python being installed (pkg install python).
+     */
+    private fun setupAgentFramework(binDir: File, ourFilesPrefix: String) {
+        try {
+            val usrDir = binDir.parentFile ?: return  // bin's parent is usr
+            val shareDir = File(usrDir, "share")
+            val agentsDir = File(shareDir, "agents")
+            val filesDir = usrDir.parentFile ?: return  // usr's parent is files
+            val etcAgentsDir = File(filesDir, "usr/etc/agents")
+            
+            // Create required directories
+            val dirs = listOf(
+                File(agentsDir, "core/supervisor"),
+                File(agentsDir, "core/runtime"),
+                File(agentsDir, "core/models"),
+                File(agentsDir, "skills"),
+                File(agentsDir, "models"),
+                File(agentsDir, "sandboxes"),
+                File(agentsDir, "memory"),
+                File(agentsDir, "logs"),
+                File(agentsDir, "templates"),
+                etcAgentsDir
+            )
+            
+            for (dir in dirs) {
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+            }
+            
+            // Create the agent CLI wrapper script in bin/
+            val agentScript = File(binDir, "agent")
+            val wrapperContent = """#!/data/data/com.termux.kotlin/files/usr/bin/bash
+# Termux-Kotlin Agent CLI
+# This is the main entrypoint for the agent framework.
+# Requires Python to be installed: pkg install python
+
+PREFIX="${ourFilesPrefix}/usr"
+AGENTS_ROOT="${'$'}PREFIX/share/agents"
+export AGENTS_ROOT
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: Python is not installed."
+    echo "Install with: pkg install python"
+    exit 1
+fi
+
+# Check for PyYAML (recommended)
+if ! python3 -c "import yaml" 2>/dev/null; then
+    echo "Warning: PyYAML not installed. Some features may be limited."
+    echo "Install with: pip install pyyaml"
+fi
+
+# Set Python path to include agents
+export PYTHONPATH="${'$'}AGENTS_ROOT:${'$'}PYTHONPATH"
+
+# Run the agent CLI
+exec python3 "${'$'}AGENTS_ROOT/bin/agent" "${'$'}@"
+"""
+            agentScript.writeText(wrapperContent)
+            Os.chmod(agentScript.absolutePath, 493) // 0755
+            
+            Logger.logInfo(LOG_TAG, "Agent framework CLI installed at ${agentScript.absolutePath}")
+            
+            // Create agent framework config file
+            val configFile = File(etcAgentsDir, "config.yml")
+            val configContent = """# Termux-Kotlin Agent Framework Configuration
+# This file configures the agent framework.
+
+version: "1.0"
+
+# Agents root directory
+agents_root: ${ourFilesPrefix}/usr/share/agents
+
+# Default settings
+defaults:
+  memory_backend: json
+  network: none  # Offline by default
+
+# Logging
+logging:
+  level: INFO
+  file: ${ourFilesPrefix}/usr/share/agents/logs/agentd.log
+
+# Security
+security:
+  # All agents are sandboxed by default
+  sandbox_enabled: true
+  # Network is blocked by default
+  default_network_capability: none
+"""
+            configFile.writeText(configContent)
+            
+            Logger.logInfo(LOG_TAG, "Agent framework configuration created")
+            
+        } catch (e: Exception) {
+            // Non-fatal - agent framework is optional
+            Logger.logError(LOG_TAG, "Failed to setup agent framework: ${e.message}")
         }
     }
 
