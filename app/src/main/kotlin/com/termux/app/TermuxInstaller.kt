@@ -717,130 +717,129 @@ echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE" 2>/d
 OLD_PREFIX="/data/data/com.termux/"
 NEW_PREFIX="/data/data/com.termux.kotlin/"
 
-# Function to rewrite paths in a .deb package
-# Uses dpkg-deb instead of ar (binutils not in bootstrap)
-# OPTIMIZED: First check if package needs rewriting before extracting
+# =============================================================================
+# DPKG WRAPPER v2.0 - Optimized for speed
+# =============================================================================
+# Rewrites upstream Termux packages to use com.termux.kotlin paths.
+# 
+# OPTIMIZATION STRATEGY:
+# 1. FAST CHECK: Use dpkg-deb --contents to list paths without extraction
+# 2. SKIP if package already has com.termux.kotlin paths (our bootstrap)  
+# 3. SKIP if package has no com.termux paths at all
+# 4. Only extract and rebuild packages that actually need changes
+# 5. Use fast gzip compression (-Zgzip -z1) instead of slow xz
+# 6. Only fix DEBIAN scripts, not all text files (saves huge time on large pkgs)
+# =============================================================================
+
 rewrite_deb() {
     local deb_file="${'$'}1"
     local deb_name="${'$'}(basename "${'$'}deb_file")"
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}deb_name"
-    local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
+    local work_dir="${'$'}TMPDIR/deb_rewrite_${'$'}${'$'}_${'$'}RANDOM"
     
-    # FAST CHECK: Use dpkg-deb to peek at control info and data.tar
-    # If the package doesn't contain com.termux/ paths, skip rewriting entirely
-    # This avoids extracting 30MB+ packages just to find they don't need changes
+    # =========================================================================
+    # STEP 1: FAST PATH CHECK (< 1 second for any package)
+    # Use dpkg-deb --contents which lists tar paths without extracting data
+    # =========================================================================
+    local path_listing
+    path_listing=${'$'}("${'$'}PREFIX/bin/dpkg-deb" --contents "${'$'}deb_file" 2>/dev/null | head -50)
     
-    # Check if data.tar contains old paths (using zgrep on compressed stream)
-    # This is much faster than full extraction
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>/dev/null | head -c 1000000 | grep -q "com\.termux/" 2>/dev/null; then
-        # Also quick-check the control scripts
-        local needs_rewrite=0
-        local ctrl_temp="${'$'}TMPDIR/ctrl_check_$$"
-        mkdir -p "${'$'}ctrl_temp"
-        if "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" "${'$'}ctrl_temp" 2>/dev/null; then
-            if grep -rq "com\.termux/" "${'$'}ctrl_temp" 2>/dev/null; then
-                needs_rewrite=1
-            fi
-        fi
-        rm -rf "${'$'}ctrl_temp"
-        
-        if [ "${'$'}needs_rewrite" = "0" ]; then
+    # Check if package already has com.termux.kotlin paths (our custom bootstrap)
+    if echo "${'$'}path_listing" | grep -q "com\.termux\.kotlin/"; then
+        echo "[dpkg-wrapper] SKIP (already com.termux.kotlin): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+        echo "${'$'}deb_file"
+        return 0
+    fi
+    
+    # Check if package has old com.termux paths that need rewriting
+    if ! echo "${'$'}path_listing" | grep -q "com\.termux/"; then
+        # No com.termux paths in file listing - but check DEBIAN scripts too
+        local ctrl_temp="${'$'}TMPDIR/ctrl_$$"
+        mkdir -p "${'$'}ctrl_temp" 2>/dev/null
+        "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" "${'$'}ctrl_temp" 2>/dev/null
+        if ! grep -rq "com\.termux/" "${'$'}ctrl_temp" 2>/dev/null; then
+            rm -rf "${'$'}ctrl_temp"
             echo "[dpkg-wrapper] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
             echo "${'$'}deb_file"
             return 0
         fi
+        rm -rf "${'$'}ctrl_temp"
     fi
     
-    # Show progress to user
+    # =========================================================================
+    # STEP 2: PACKAGE NEEDS REWRITING - Extract, fix, rebuild
+    # =========================================================================
     echo "  Patching: ${'$'}deb_name" >&2
     echo "[dpkg-wrapper] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
     
-    # Package needs rewriting
-    mkdir -p "${'$'}work_dir"
+    mkdir -p "${'$'}work_dir/pkg_root/DEBIAN" || { echo "${'$'}deb_file"; return 1; }
     cd "${'$'}work_dir" || { echo "${'$'}deb_file"; return 1; }
     
-    # Extract .deb using dpkg-deb (works without binutils/ar)
-    mkdir -p pkg_root/DEBIAN
+    # Extract control files
     if ! "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}LOG_FILE"; then
-        echo "[dpkg-wrapper] Failed to extract control from ${'$'}deb_file" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] FAIL: Cannot extract control from ${'$'}deb_name" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
     fi
     
+    # Extract data files  
     if ! "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}LOG_FILE"; then
-        echo "[dpkg-wrapper] Failed to extract data from ${'$'}deb_file" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] FAIL: Cannot extract data from ${'$'}deb_name" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
     fi
     
-    # Rewrite directory structure
+    # =========================================================================
+    # STEP 3: FIX DIRECTORY STRUCTURE (fast - just move directories)
+    # =========================================================================
     if [ -d "pkg_root/data/data/com.termux" ]; then
         mkdir -p "pkg_root/data/data/com.termux.kotlin"
-        # Move contents from old path to new path
-        if [ -d "pkg_root/data/data/com.termux/files" ]; then
-            mv "pkg_root/data/data/com.termux/files" "pkg_root/data/data/com.termux.kotlin/"
-        fi
-        if [ -d "pkg_root/data/data/com.termux/cache" ]; then
-            mv "pkg_root/data/data/com.termux/cache" "pkg_root/data/data/com.termux.kotlin/"
-        fi
-        # Remove old empty directory
-        rm -rf "pkg_root/data/data/com.termux"
-        echo "[dpkg-wrapper] Rewrote directory paths in ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
+        # Move all contents from old path to new
+        for item in pkg_root/data/data/com.termux/*; do
+            [ -e "${'$'}item" ] && mv "${'$'}item" "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
+        done
+        rmdir "pkg_root/data/data/com.termux" 2>/dev/null || rm -rf "pkg_root/data/data/com.termux"
+        echo "[dpkg-wrapper] Moved directories to com.termux.kotlin" >> "${'$'}LOG_FILE"
     fi
     
-    # Fix hardcoded paths in TEXT files only (not binaries!)
-    # Use grep -rIl for FAST recursive search (single process, not per-file)
-    # -r = recursive, -I = skip binary, -l = list filenames only
-    local fixed_count=0
-    while IFS= read -r file; do
-        sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file" 2>/dev/null && fixed_count=${'$'}((fixed_count + 1))
-    done < <(grep -rIl "${'$'}OLD_PREFIX" pkg_root 2>/dev/null || true)
-    
-    if [ "${'$'}fixed_count" -gt 0 ]; then
-        echo "[dpkg-wrapper] Fixed paths in ${'$'}fixed_count text files" >> "${'$'}LOG_FILE"
-    fi
-    
-    # Also fix paths in DEBIAN control scripts
-    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm; do
-        if [ -f "${'$'}script" ] && grep -q "${'$'}OLD_PREFIX" "${'$'}script" 2>/dev/null; then
-            sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script"
-        fi
-    done
-    
-    # Fix paths in DEBIAN/conffiles (lists config file paths)
-    if [ -f pkg_root/DEBIAN/conffiles ] && grep -q "${'$'}OLD_PREFIX" pkg_root/DEBIAN/conffiles 2>/dev/null; then
-        sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" pkg_root/DEBIAN/conffiles
-        echo "[dpkg-wrapper] Fixed paths in DEBIAN/conffiles" >> "${'$'}LOG_FILE"
-    fi
-    
-    # Ensure DEBIAN control scripts are executable (dpkg-deb requires >=0555)
+    # =========================================================================
+    # STEP 4: FIX DEBIAN CONTROL SCRIPTS (small files, quick to process)
+    # These are the critical files - shebangs and paths in postinst/prerm/etc
+    # =========================================================================
     for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
         if [ -f "${'$'}script" ]; then
+            sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" "${'$'}script" 2>/dev/null
             chmod 0755 "${'$'}script"
         fi
     done
     
-    # Rebuild .deb package using dpkg-deb (redirect stdout to log to avoid mixing with return value)
+    # Fix conffiles if present
+    [ -f pkg_root/DEBIAN/conffiles ] && sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" pkg_root/DEBIAN/conffiles 2>/dev/null
+    
+    # =========================================================================
+    # STEP 5: REBUILD PACKAGE (use gzip for speed instead of xz)
+    # -Zgzip: Use gzip compression (much faster than xz)
+    # -z1: Compression level 1 (fastest)
+    # =========================================================================
     rm -f "${'$'}rewritten_deb"
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --build pkg_root "${'$'}rewritten_deb" >>"${'$'}LOG_FILE" 2>&1; then
-        echo "[dpkg-wrapper] Failed to rebuild ${'$'}deb_file" >> "${'$'}LOG_FILE"
+    if ! "${'$'}PREFIX/bin/dpkg-deb" -Zgzip -z1 --build pkg_root "${'$'}rewritten_deb" >>"${'$'}LOG_FILE" 2>&1; then
+        echo "[dpkg-wrapper] FAIL: Cannot rebuild ${'$'}deb_name" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"
         echo "${'$'}deb_file"
         return 1
     fi
     
-    # Cleanup
+    # Cleanup and return
     cd /
     rm -rf "${'$'}work_dir"
     
-    # Return rewritten path if build succeeded, otherwise original
     if [ -f "${'$'}rewritten_deb" ]; then
-        echo "[dpkg-wrapper] Successfully rewrote to ${'$'}rewritten_deb" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] OK: Rewrote ${'$'}deb_name" >> "${'$'}LOG_FILE"
         echo "${'$'}rewritten_deb"
     else
-        echo "[dpkg-wrapper] Rewritten deb not found, using original" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper] WARN: Rewritten file missing, using original" >> "${'$'}LOG_FILE"
         echo "${'$'}deb_file"
     fi
 }
@@ -904,7 +903,8 @@ if [ "${'$'}install_mode" = "1" ]; then
             echo "[dpkg-wrapper] Processing directory: ${'$'}arg" >> "${'$'}LOG_FILE"
             
             # Count packages for progress
-            local pkg_count=0 pkg_total=0
+            pkg_count=0
+            pkg_total=0
             for deb in "${'$'}arg"/*.deb; do [ -f "${'$'}deb" ] && pkg_total=${'$'}((pkg_total+1)); done
             
             for deb in "${'$'}arg"/*.deb; do
