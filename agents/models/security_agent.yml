@@ -1,0 +1,27 @@
+name: security_agent
+description: Security scanning agent. Audits permissions, checks for vulnerabilities, validates file integrity, scans for secrets.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.none
+  - system.info
+  - system.process
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - security
+  - fs
+
+memory_backend: json
+
+tasks:
+  - audit_permissions: "Audit file permissions in PREFIX"
+  - check_secrets: "Scan for exposed secrets or credentials"
+  - verify_integrity: "Verify file checksums against known good state"
+  - scan_processes: "Check running processes for suspicious activity"
+  - check_world_writable: "Find world-writable files"

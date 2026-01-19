@@ -12,6 +12,7 @@ capabilities:
   - system.process
   - exec.shell
   - exec.analyze
+  - exec.pkg  # Required for pkg skill
 
 skills:
   - fs

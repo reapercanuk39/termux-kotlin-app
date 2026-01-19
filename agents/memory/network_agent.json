@@ -1,0 +1,16 @@
+{
+  "agent_name": "network_agent",
+  "created_at": "2026-01-19T20:09:22.338272",
+  "updated_at": "2026-01-19T20:09:22.353188",
+  "data": {},
+  "history": [
+    {
+      "task": "network.self_test",
+      "task_id": "7c2dbde3",
+      "args": {},
+      "success": true,
+      "completed_at": "2026-01-19T20:09:22.353135",
+      "timestamp": "2026-01-19T20:09:22.353186"
+    }
+  ]
+}

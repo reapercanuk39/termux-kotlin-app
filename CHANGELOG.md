@@ -1,12 +1,187 @@
-## [2026-01-19] Build #177
+## [v1.0.64] - 2026-01-19
 
-### Changes
-- e261de7 docs: Add Agent Framework section to ROADMAP as completed
+### 🧠 Autonomous Agent Runtime
 
-### Build Status
-- Prefix Validation: success
-- APK Build: success
-- Emulator Tests: skipped
+**Autonomous Execution (`agents/core/autonomous/`):**
+- `autonomous.py` - Task parsing, step planning, skill selection, self-healing execution
+- `workflow.py` - Fluent API for multi-agent workflow building
+- Components: TaskParser, StepPlanner, AutonomousExecutor, AutonomousAgent
+
+**Features:**
+- Natural language task parsing with keyword detection
+- Automatic step planning with capability validation
+- Retry logic with configurable max retries
+- Self-healing integration on step failures
+- Memory persistence of task history
+- Multi-agent workflow orchestration
+
+**Workflow Builder API:**
+```python
+from agents.core.autonomous import WorkflowBuilder
+
+workflow = (WorkflowBuilder()
+    .add("build_agent", "install vim")
+    .then("system_agent", "check /usr/bin/vim")
+    .then("backup_agent", "create backup")
+    .execute())
+```
+
+**Preset Workflows:**
+- `Workflows.full_package_install(package)` - Install, verify, backup
+- `Workflows.security_audit()` - Permissions, secrets, snapshot
+- `Workflows.system_maintenance()` - Update, check, backup, scan
+
+---
+
+## [v1.0.63] - 2026-01-19
+
+### 🚀 Advanced Agent Framework
+
+**Skill Auto-Discovery (`agents/core/registry/skill_registry.py`):**
+- Scans `agents/skills/*/skill.yml` at startup
+- Validates manifests against schema
+- Rejects skills with invalid capabilities
+- Global registry exposed to agentd
+
+**Master Test Harness (`agents/tests/master_harness/run_all_tests.py`):**
+- 17 comprehensive tests across 7 categories
+- Tests: agents, skills, sandbox, memory, capabilities, executor, offline mode
+- Run with `agent validate --full`
+
+**Graph-Based Orchestrator (`agents/orchestrator/graph_engine.py`):**
+- DAG execution for multi-agent workflows
+- Dependency resolution
+- Parallel execution support
+- Result passing between nodes
+
+**Self-Healing Mode (`agents/self_healing/healer.py`):**
+- Detectors: prefix issues, sandbox corruption, memory corruption
+- Healers: sandbox recreation, memory reset
+- Auto-repair with validation
+
+**Plugin SDK v2.0 (`docs/plugin-sdk/v2/`):**
+- SKILL_TEMPLATE.md - Skill creation guide
+- AGENT_TEMPLATE.md - Agent definition guide
+- TASK_TEMPLATE.md - Task implementation guide
+- CAPABILITY_GUIDE.md - Full capability reference
+- SANDBOX_RULES.md - Sandbox isolation rules
+- MEMORY_API.md - Memory persistence API
+- EXECUTOR_API.md - Subprocess execution API
+
+---
+
+## [v1.0.62] - 2026-01-19
+
+### 🤖 3 New Agents + 3 New Skills
+
+**New Agents:**
+
+| Agent | Description | Skills | Key Capability |
+|-------|-------------|--------|----------------|
+| `security_agent` | Security scanning, permission audits, secret detection, integrity checks | security, fs | `exec.analyze` |
+| `backup_agent` | Backup/restore, snapshots, package list export/import | backup, fs, pkg | `exec.compress` |
+| `network_agent` | Network diagnostics (localhost only), port scanning, service checks | network, fs | `network.local` |
+
+**New Skills (3):**
+
+| Skill | Functions | Size |
+|-------|-----------|------|
+| `security` | audit_permissions, check_secrets, verify_integrity, scan_processes, find_world_writable, check_suid, hash_file, compare_hashes | 13KB |
+| `backup` | create_backup, restore_backup, list_backups, delete_backup, export_package_list, import_package_list, create_snapshot, verify_backup | 15KB |
+| `network` | check_ports, check_services, test_localhost, list_connections, check_dns_config, ping_localhost, get_network_info | 13KB |
+
+### 🏭 Unified Generator Framework
+
+New generator infrastructure for creating framework-compliant code:
+
+**Generators (`agents/generators/generators.py`):**
+- `SkillGenerator` - Generates skill.yml + skill.py templates
+- `AgentGenerator` - Generates agent definition YAML
+- `TaskGenerator` - Generates task implementation code
+
+**Test Suites:**
+- `agents/tests/sandbox/test_sandbox_security.py` - 15 tests for sandbox boundary enforcement
+- `agents/tests/memory/test_memory_consistency.py` - 20 tests for memory validation
+
+**Usage:**
+```bash
+# Generate a new skill
+python generators/generators.py skill --name my_skill --description "My skill" -o agents/skills
+
+# Generate a new agent
+python generators/generators.py agent --name my_agent --description "My agent" -o agents/models
+```
+
+### 📊 Framework Status
+
+| Metric | Count |
+|--------|-------|
+| Total Agents | 7 |
+| Total Skills | 10 |
+| Test Classes | 11 |
+| Lines of Code | ~5000 |
+
+---
+
+## [v1.0.61] - 2026-01-19
+
+### 🛡️ Agent Supervisor (agentd) v1.1.0
+
+Major enhancement to the agent supervisor implementing the full AGENTD System Prompt:
+
+**Structured Error Types (Section 8):**
+- `capability_denied` - Agent lacks required capability
+- `skill_not_allowed` - Skill not in agent's allowed list
+- `skill_missing` - Skill not found on disk
+- `invalid_path` - Path resolution failed
+- `sandbox_violation` - Access outside sandbox boundary
+- `execution_error` - Command execution failed
+- `memory_error` - Memory file issues (e.g., exceeds 1MB limit)
+- `network_violation` - Network access blocked
+
+**Capability Enforcement (Section 2):**
+- Strict capability checking before every action
+- Hierarchical capability validation (agent → skill → action)
+- Network access blocking with `network.none` capability
+- Sandbox boundary enforcement (agents cannot access each other's sandboxes)
+
+**Structured Task Output (Section 6):**
+```json
+{
+  "status": "success" | "error",
+  "agent": "<agent_name>",
+  "task": "<task>",
+  "task_id": "<uuid>",
+  "started_at": "<timestamp>",
+  "completed_at": "<timestamp>",
+  "steps": [...],
+  "result": <any>,
+  "logs": "<path_to_log>",
+  "error": {...}
+}
+```
+
+**Step-by-Step Execution (Section 1 & 6):**
+1. Load agent config
+2. Load memory (with 1MB size check)
+3. Setup sandbox
+4. Create executor with capability enforcement
+5. Execute task (skill.function or natural language)
+6. Update memory with task history
+7. Return structured output
+
+**New CLI Commands:**
+- `status` - Get system status
+- `check-cap` - Check if agent has capability
+- `check-sandbox` - Check path access
+- `check-network` - Check network access
+- `clean` - Clean agent sandbox
+- `--json` flag for all commands
+
+**Offline Guarantee (Section 7):**
+- Clears proxy environment variables
+- Blocks external network access by default
+- Enforces `network.none` capability
 
 ---
 

@@ -1,0 +1,20 @@
+name: network
+description: Network diagnostics skill (localhost only)
+version: "1.0.0"
+
+provides:
+  - check_ports
+  - check_services
+  - test_localhost
+  - list_connections
+  - check_dns_config
+  - ping_localhost
+  - get_network_info
+
+requires_capabilities:
+  - filesystem.read
+  - network.local
+  - exec.shell
+  - system.info
+
+sandbox_safe: true
