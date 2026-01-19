@@ -5,6 +5,16 @@
 
 ### Build Status
 - Prefix Validation: failure
+
+## [v1.1.8] - 2026-01-19
+
+### ⚡ Performance
+- **dpkg:** Completely rewrite wrapper v2.0 for speed
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.7 [skip ci]
+
 - APK Build: skipped
 - Emulator Tests: skipped
 
