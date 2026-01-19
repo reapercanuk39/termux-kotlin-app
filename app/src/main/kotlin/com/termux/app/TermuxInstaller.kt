@@ -719,15 +719,41 @@ NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 # Function to rewrite paths in a .deb package
 # Uses dpkg-deb instead of ar (binutils not in bootstrap)
+# OPTIMIZED: First check if package needs rewriting before extracting
 rewrite_deb() {
     local deb_file="${'$'}1"
-    local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}(basename "${'$'}deb_file")"
+    local deb_name="${'$'}(basename "${'$'}deb_file")"
+    local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}deb_name"
     local work_dir="${'$'}TMPDIR/deb_rewrite_$$"
     
-    # Always process packages - some have old paths in directory structure,
-    # others have old paths only in file contents (like shebangs)
-    # The cost of processing is minimal compared to installation failures
-    echo "[dpkg-wrapper] Rewriting package: ${'$'}(basename "${'$'}deb_file")" >> "${'$'}LOG_FILE"
+    # FAST CHECK: Use dpkg-deb to peek at control info and data.tar
+    # If the package doesn't contain com.termux/ paths, skip rewriting entirely
+    # This avoids extracting 30MB+ packages just to find they don't need changes
+    
+    # Check if data.tar contains old paths (using zgrep on compressed stream)
+    # This is much faster than full extraction
+    if ! "${'$'}PREFIX/bin/dpkg-deb" --fsys-tarfile "${'$'}deb_file" 2>/dev/null | head -c 1000000 | grep -q "com\.termux/" 2>/dev/null; then
+        # Also quick-check the control scripts
+        local needs_rewrite=0
+        local ctrl_temp="${'$'}TMPDIR/ctrl_check_$$"
+        mkdir -p "${'$'}ctrl_temp"
+        if "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" "${'$'}ctrl_temp" 2>/dev/null; then
+            if grep -rq "com\.termux/" "${'$'}ctrl_temp" 2>/dev/null; then
+                needs_rewrite=1
+            fi
+        fi
+        rm -rf "${'$'}ctrl_temp"
+        
+        if [ "${'$'}needs_rewrite" = "0" ]; then
+            echo "[dpkg-wrapper] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+            echo "${'$'}deb_file"
+            return 0
+        fi
+    fi
+    
+    # Show progress to user
+    echo "  Patching: ${'$'}deb_name" >&2
+    echo "[dpkg-wrapper] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
     
     # Package needs rewriting
     mkdir -p "${'$'}work_dir"
@@ -876,8 +902,15 @@ if [ "${'$'}install_mode" = "1" ]; then
         elif [ -d "${'$'}arg" ] && [ "${'$'}recursive_mode" = "1" ]; then
             # Directory with --recursive flag - rewrite all .deb files inside
             echo "[dpkg-wrapper] Processing directory: ${'$'}arg" >> "${'$'}LOG_FILE"
+            
+            # Count packages for progress
+            local pkg_count=0 pkg_total=0
+            for deb in "${'$'}arg"/*.deb; do [ -f "${'$'}deb" ] && pkg_total=${'$'}((pkg_total+1)); done
+            
             for deb in "${'$'}arg"/*.deb; do
                 if [ -f "${'$'}deb" ]; then
+                    pkg_count=${'$'}((pkg_count + 1))
+                    echo "Processing package [${'$'}pkg_count/${'$'}pkg_total]..." >&2
                     echo "[dpkg-wrapper] Processing deb in dir: ${'$'}deb" >> "${'$'}LOG_FILE"
                     # Use || true to prevent set -e from killing script if rewrite fails
                     rewritten=${'$'}(rewrite_deb "${'$'}deb") || rewritten="${'$'}deb"
@@ -894,6 +927,7 @@ if [ "${'$'}install_mode" = "1" ]; then
             new_args+=("${'$'}arg")
         fi
     done
+    echo "Installing packages..." >&2
     echo "[dpkg-wrapper] Calling dpkg.real with ${'$'}{#new_args[@]} args" >> "${'$'}LOG_FILE"
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
 else
