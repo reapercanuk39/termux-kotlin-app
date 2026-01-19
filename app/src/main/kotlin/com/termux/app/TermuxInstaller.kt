@@ -805,8 +805,40 @@ rewrite_deb() {
     fi
     
     # =========================================================================
-    # STEP 4: FIX DEBIAN CONTROL SCRIPTS (small files, quick to process)
-    # These are the critical files - shebangs and paths in postinst/prerm/etc
+    # STEP 4: FIX SHEBANGS IN INSTALLED SCRIPTS (critical for python, pip, etc)
+    # Only check first line of files in bin/ directories - very fast
+    # =========================================================================
+    local bin_dir="pkg_root/data/data/com.termux.kotlin/files/usr/bin"
+    if [ -d "${'$'}bin_dir" ]; then
+        for script in "${'$'}bin_dir"/*; do
+            if [ -f "${'$'}script" ] && [ ! -L "${'$'}script" ]; then
+                # Read first line only (shebang check)
+                local first_line
+                first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
+                if [[ "${'$'}first_line" == "#!"*"com.termux/"* ]]; then
+                    sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+                fi
+            fi
+        done
+    fi
+    
+    # Also fix shebangs in libexec and share directories (some scripts there too)
+    for extra_dir in "pkg_root/data/data/com.termux.kotlin/files/usr/libexec" \
+                     "pkg_root/data/data/com.termux.kotlin/files/usr/share"; do
+        if [ -d "${'$'}extra_dir" ]; then
+            # Use find to get executable files, fix shebangs
+            find "${'$'}extra_dir" -type f -executable 2>/dev/null | while read -r script; do
+                local first_line
+                first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
+                if [[ "${'$'}first_line" == "#!"*"com.termux/"* ]]; then
+                    sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+                fi
+            done
+        fi
+    done
+    
+    # =========================================================================
+    # STEP 5: FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc)
     # =========================================================================
     for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
         if [ -f "${'$'}script" ]; then
@@ -819,7 +851,7 @@ rewrite_deb() {
     [ -f pkg_root/DEBIAN/conffiles ] && sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" pkg_root/DEBIAN/conffiles 2>/dev/null
     
     # =========================================================================
-    # STEP 5: REBUILD PACKAGE (use gzip for speed instead of xz)
+    # STEP 6: REBUILD PACKAGE (use gzip for speed instead of xz)
     # -Zgzip: Use gzip compression (much faster than xz)
     # -z1: Compression level 1 (fastest)
     # =========================================================================
