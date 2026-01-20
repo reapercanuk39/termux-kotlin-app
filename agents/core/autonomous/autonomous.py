@@ -272,7 +272,7 @@ class AutonomousAgent:
         self.registry = SkillRegistry(agents_root / "skills")
         self.registry.discover()
         
-        agent_info = self.daemon.get_agent(agent_name)
+        agent_info = self.daemon.get_agent_info(agent_name)
         if not agent_info:
             raise ValueError(f"Agent not found: {agent_name}")
         

@@ -32,7 +32,7 @@ logger = logging.getLogger("agentd.learner")
 
 PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 SKILLS_DIR = Path(PREFIX) / 'share' / 'agents' / 'skills'
-MEMORY_DIR = Path(PREFIX) / 'var' / 'agents' / 'memory'
+MEMORY_DIR = Path(PREFIX) / 'share' / 'agents' / 'memory'
 
 
 @dataclass
