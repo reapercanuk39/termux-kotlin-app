@@ -1,3 +1,15 @@
+## [2026-01-20] Build #203
+
+### Changes
+- 2c9e512 Fix CI: Update validation for com.termux package name
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #202
 
 ### Changes
