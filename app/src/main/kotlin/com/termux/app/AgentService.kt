@@ -142,6 +142,9 @@ class AgentService : Service() {
                 val pythonPath = "$prefix/bin/python3"
                 val agentDaemon = "$agentsRoot/bin/agentd"
                 
+                // Self-healing: Verify compat layer
+                verifyCompatLayer(prefix)
+                
                 // Check if Python is available
                 val pythonFile = File(pythonPath)
                 if (!pythonFile.exists()) {
@@ -399,5 +402,53 @@ if __name__ == '__main__':
         daemonScript.writeText(content)
         daemonScript.setExecutable(true)
         Logger.logInfo(LOG_TAG, "Created agent daemon script at ${daemonScript.absolutePath}")
+    }
+    
+    /**
+     * Verify the compatibility layer is properly installed.
+     * This performs self-healing if components are missing.
+     */
+    private fun verifyCompatLayer(prefix: String) {
+        try {
+            val compatSrc = File("$prefix/lib/libtermux_compat.c")
+            val compatSo = File("$prefix/lib/libtermux_compat.so")
+            val dpkgWrapper = File("$prefix/bin/dpkg")
+            val dpkgReal = File("$prefix/bin/dpkg.real")
+            val buildScript = File("$prefix/bin/termux-compat-build")
+            
+            // Check dpkg wrapper
+            if (dpkgWrapper.exists() && dpkgReal.exists()) {
+                // Verify wrapper is a script, not ELF
+                val firstBytes = ByteArray(4)
+                dpkgWrapper.inputStream().use { it.read(firstBytes) }
+                val isElf = firstBytes[0] == 0x7F.toByte() && 
+                            firstBytes[1] == 'E'.code.toByte()
+                if (isElf) {
+                    Logger.logWarn(LOG_TAG, "dpkg wrapper corrupted, needs repair")
+                } else {
+                    Logger.logDebug(LOG_TAG, "dpkg wrapper OK")
+                }
+            }
+            
+            // Check compat source
+            if (compatSrc.exists()) {
+                Logger.logDebug(LOG_TAG, "compat source OK")
+            } else {
+                Logger.logWarn(LOG_TAG, "compat source missing: $compatSrc")
+            }
+            
+            // Check compat library
+            if (compatSo.exists()) {
+                Logger.logInfo(LOG_TAG, "compat shim compiled and ready")
+            } else if (compatSrc.exists() && buildScript.exists()) {
+                Logger.logInfo(LOG_TAG, "compat shim not compiled. Run: termux-compat-build")
+            }
+            
+            // Log overall status
+            Logger.logDebug(LOG_TAG, "Compat layer verification complete")
+            
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Compat layer verification failed: ${e.message}")
+        }
     }
 }

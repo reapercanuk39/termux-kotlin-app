@@ -245,6 +245,9 @@ object TermuxInstaller {
                 val ourCacheDir = ourFilesPrefix.replace("/files/", "/cache/").replace("/files", "/cache")
                 createAptWrappers(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, ourCacheDir)
                 
+                // Setup LD_PRELOAD compatibility layer
+                setupCompatLayer(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, activity.applicationContext)
+                
                 // Setup the agent framework CLI symlink
                 setupAgentFramework(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, activity.applicationContext)
 
@@ -642,11 +645,9 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
             }
             
             // Create our dpkg config directory to prevent access to wrong paths
-            // This must exist before dpkg runs, as dpkg checks it on startup
             val dpkgConfigDir = File(binDir.parentFile, "etc/dpkg/dpkg.cfg.d")
             if (!dpkgConfigDir.exists()) {
                 dpkgConfigDir.mkdirs()
-                Logger.logInfo(LOG_TAG, "Created dpkg config directory: ${dpkgConfigDir.absolutePath}")
             }
             
             // Check if already wrapped (dpkg is a text file, not ELF)
@@ -668,311 +669,159 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
                 return
             }
             
-            // Create wrapper script
-            // The wrapper intercepts --version to avoid calling dpkg.real which has
-            // hardcoded config paths. When original Termux is installed, dpkg.real
-            // can't even run because it tries to access the other app's config dir.
+            // =============================================================================
+            // DPKG WRAPPER v3.0 - Hybrid Compatibility Layer
+            // =============================================================================
+            // This wrapper works with the LD_PRELOAD shim (libtermux_compat.so) to provide
+            // full compatibility with upstream Termux packages.
             //
-            // CRITICAL FIX (v1.0.42): Also intercepts package installation to rewrite
-            // paths in upstream packages. Upstream .deb files contain paths like:
-            //   ./data/data/com.termux/files/usr/...
-            // which need to be rewritten to:
-            //   ./data/data/com.termux.kotlin/files/usr/...
-            // before dpkg can extract them.
+            // DPKG-WRAPPER handles:
+            //   - DEBIAN control scripts (postinst, prerm, etc.) - rewritten at install time
+            //   - Directory structure in packages - paths rewritten at install time
+            //
+            // LD_PRELOAD SHIM handles:
+            //   - Runtime path lookups by compiled binaries
+            //   - Text files that reference old paths (intercepted at open/read time)
+            //
+            // This hybrid approach minimizes install-time rewriting while ensuring
+            // full runtime compatibility.
+            // =============================================================================
             val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
-# dpkg wrapper script for com.termux.kotlin
-# Handles hardcoded path issues in the dpkg binary AND upstream packages
-# 
-# ISSUE 1: The dpkg binary has /data/data/com.termux/files/usr/etc/dpkg/dpkg.cfg.d 
-# hardcoded. There is NO env var to override this.
-#
-# ISSUE 2: Upstream Termux packages contain files with paths like:
-#   ./data/data/com.termux/files/usr/bin/python
-# When dpkg tries to extract these, it fails with "Permission denied" because
-# com.termux.kotlin app cannot write to /data/data/com.termux/.
-#
-# SOLUTION: Intercept .deb file installation and rewrite paths on-the-fly.
-
-# Don't use set -e - we want to continue even if some commands fail
-# set -e
+# dpkg wrapper v3.0 - Hybrid Compatibility Layer
+# Only rewrites DEBIAN scripts; runtime handled by LD_PRELOAD shim
 
 PREFIX="${ourFilesPrefix}/usr"
 export TMPDIR="${ourFilesPrefix}/usr/tmp"
 export HOME="${ourFilesPrefix}"
-
-# Set dpkg directories to our package paths
 export DPKG_ADMINDIR="${ourFilesPrefix}/usr/var/lib/dpkg"
 export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 
-# Create temp directory if it doesn't exist (ignore errors)
 mkdir -p "${'$'}TMPDIR" 2>/dev/null || true
 
-# Global log file for debugging
-LOG_FILE="${'$'}TMPDIR/dpkg_rewrite.log"
-echo "[dpkg-wrapper] === Called with args: ${'$'}@ ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
+LOG_FILE="${'$'}TMPDIR/dpkg_wrapper.log"
+echo "[dpkg-wrapper-v3] === ${'$'}(date) ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
+echo "[dpkg-wrapper-v3] args: ${'$'}@" >> "${'$'}LOG_FILE"
 
-# Path patterns to rewrite
-# IMPORTANT: Match with trailing slash to avoid double replacement
-# (e.g., com.termux/ won't match com.termux.kotlin/)
 OLD_PREFIX="/data/data/com.termux/"
 NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 # =============================================================================
-# DPKG WRAPPER v2.0 - Optimized for speed
+# REWRITE FUNCTION - Only handles DEBIAN scripts and directory structure
 # =============================================================================
-# Rewrites upstream Termux packages to use com.termux.kotlin paths.
-# 
-# OPTIMIZATION STRATEGY:
-# 1. FAST CHECK: Use dpkg-deb --contents to list paths without extraction
-# 2. SKIP if package already has com.termux.kotlin paths (our bootstrap)  
-# 3. SKIP if package has no com.termux paths at all
-# 4. Only extract and rebuild packages that actually need changes
-# 5. Use fast gzip compression (-Zgzip -z1) instead of slow xz
-# 6. Only fix DEBIAN scripts, not all text files (saves huge time on large pkgs)
-# =============================================================================
-
 rewrite_deb() {
     local deb_file="${'$'}1"
     local deb_name="${'$'}(basename "${'$'}deb_file")"
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}deb_name"
-    local work_dir="${'$'}TMPDIR/deb_rewrite_${'$'}${'$'}_${'$'}RANDOM"
+    local work_dir="${'$'}TMPDIR/deb_work_${'$'}${'$'}_${'$'}RANDOM"
     
-    # =========================================================================
-    # STEP 1: FAST PATH CHECK (< 1 second for any package)
-    # Use dpkg-deb --contents which lists tar paths without extracting data
-    # =========================================================================
+    # FAST CHECK: Already has correct paths?
     local path_listing
     path_listing=${'$'}("${'$'}PREFIX/bin/dpkg-deb" --contents "${'$'}deb_file" 2>/dev/null | head -50)
     
-    # Check if package already has com.termux.kotlin paths (our custom bootstrap)
     if echo "${'$'}path_listing" | grep -q "com\.termux\.kotlin/"; then
-        echo "[dpkg-wrapper] SKIP (already com.termux.kotlin): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper-v3] SKIP (correct paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
         echo "${'$'}deb_file"
         return 0
     fi
     
-    # Check if package has old com.termux paths that need rewriting
+    # FAST CHECK: No old paths at all?
     if ! echo "${'$'}path_listing" | grep -q "com\.termux/"; then
-        # No com.termux paths in file listing - but check DEBIAN scripts too
-        local ctrl_temp="${'$'}TMPDIR/ctrl_$$"
+        local ctrl_temp="${'$'}TMPDIR/ctrl_${'$'}${'$'}"
         mkdir -p "${'$'}ctrl_temp" 2>/dev/null
         "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" "${'$'}ctrl_temp" 2>/dev/null
         if ! grep -rq "com\.termux/" "${'$'}ctrl_temp" 2>/dev/null; then
             rm -rf "${'$'}ctrl_temp"
-            echo "[dpkg-wrapper] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+            echo "[dpkg-wrapper-v3] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
             echo "${'$'}deb_file"
             return 0
         fi
         rm -rf "${'$'}ctrl_temp"
     fi
     
-    # =========================================================================
-    # STEP 2: PACKAGE NEEDS REWRITING - Extract, fix, rebuild
-    # =========================================================================
+    # NEEDS REWRITING
     echo "  Patching: ${'$'}deb_name" >&2
-    echo "[dpkg-wrapper] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
+    echo "[dpkg-wrapper-v3] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
     
     mkdir -p "${'$'}work_dir/pkg_root/DEBIAN" || { echo "${'$'}deb_file"; return 1; }
     cd "${'$'}work_dir" || { echo "${'$'}deb_file"; return 1; }
     
-    # Extract control files
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}LOG_FILE"; then
-        echo "[dpkg-wrapper] FAIL: Cannot extract control from ${'$'}deb_name" >> "${'$'}LOG_FILE"
-        cd /; rm -rf "${'$'}work_dir"
-        echo "${'$'}deb_file"
-        return 1
-    fi
+    # Extract control and data
+    "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}LOG_FILE" || {
+        cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
+    }
+    "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}LOG_FILE" || {
+        cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
+    }
     
-    # Extract data files  
-    if ! "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}LOG_FILE"; then
-        echo "[dpkg-wrapper] FAIL: Cannot extract data from ${'$'}deb_name" >> "${'$'}LOG_FILE"
-        cd /; rm -rf "${'$'}work_dir"
-        echo "${'$'}deb_file"
-        return 1
-    fi
-    
-    # =========================================================================
-    # STEP 3: FIX DIRECTORY STRUCTURE (fast - just move directories)
-    # =========================================================================
+    # FIX DIRECTORY STRUCTURE
     if [ -d "pkg_root/data/data/com.termux" ]; then
         mkdir -p "pkg_root/data/data/com.termux.kotlin"
-        # Move all contents from old path to new
         for item in pkg_root/data/data/com.termux/*; do
             [ -e "${'$'}item" ] && mv "${'$'}item" "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
         done
         rmdir "pkg_root/data/data/com.termux" 2>/dev/null || rm -rf "pkg_root/data/data/com.termux"
-        echo "[dpkg-wrapper] Moved directories to com.termux.kotlin" >> "${'$'}LOG_FILE"
     fi
     
-    # =========================================================================
-    # STEP 4: FIX ALL TEXT FILES WITH OLD PATHS
-    # This is critical for Python's sysconfig, pip config, and other files
-    # Use grep -rIl to find text files (skip binaries) with old paths
-    # =========================================================================
-    local pkg_data="pkg_root/data/data/com.termux.kotlin/files/usr"
-    if [ -d "${'$'}pkg_data" ]; then
-        # Find all text files containing old paths and fix them
-        # -r = recursive, -I = skip binary, -l = list files only
-        while IFS= read -r file; do
-            sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" "${'$'}file" 2>/dev/null
-        done < <(grep -rIl "/data/data/com\.termux/" "${'$'}pkg_data" 2>/dev/null || true)
-    fi
-    
-    # =========================================================================
-    # STEP 5: FIX SHEBANGS IN SCRIPTS (bin/, libexec/, share/)
-    # Check first 2 bytes for #! to avoid reading binary files
-    # =========================================================================
-    local bin_dir="pkg_root/data/data/com.termux.kotlin/files/usr/bin"
-    if [ -d "${'$'}bin_dir" ]; then
-        for script in "${'$'}bin_dir"/*; do
-            if [ -f "${'$'}script" ] && [ ! -L "${'$'}script" ]; then
-                # Check first 2 bytes for shebang magic
-                local magic
-                magic=${'$'}(head -c 2 "${'$'}script" 2>/dev/null)
-                if [ "${'$'}magic" = "#!" ]; then
-                    # It's a script, check if shebang needs fixing
-                    local first_line
-                    first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
-                    if [[ "${'$'}first_line" == *"com.termux/"* ]]; then
-                        sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
-                    fi
-                fi
-            fi
-        done
-    fi
-    
-    # Also fix shebangs in libexec and share directories
-    for extra_dir in "pkg_root/data/data/com.termux.kotlin/files/usr/libexec" \
-                     "pkg_root/data/data/com.termux.kotlin/files/usr/share"; do
-        if [ -d "${'$'}extra_dir" ]; then
-            find "${'$'}extra_dir" -type f 2>/dev/null | while read -r script; do
-                local magic
-                magic=${'$'}(head -c 2 "${'$'}script" 2>/dev/null)
-                if [ "${'$'}magic" = "#!" ]; then
-                    local first_line
-                    first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
-                    if [[ "${'$'}first_line" == *"com.termux/"* ]]; then
-                        sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
-                    fi
-                fi
-            done
-        fi
-    done
-    
-    # =========================================================================
-    # STEP 6: FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc)
-    # =========================================================================
-    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
+    # FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc.)
+    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/prerm pkg_root/DEBIAN/postrm pkg_root/DEBIAN/config; do
         if [ -f "${'$'}script" ]; then
-            sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" "${'$'}script" 2>/dev/null
-            chmod 0755 "${'$'}script"
+            sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script" 2>/dev/null
         fi
     done
     
-    # Fix conffiles if present
-    [ -f pkg_root/DEBIAN/conffiles ] && sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" pkg_root/DEBIAN/conffiles 2>/dev/null
+    # FIX SHEBANGS in DEBIAN scripts
+    for script in pkg_root/DEBIAN/*; do
+        if [ -f "${'$'}script" ]; then
+            head_bytes=${'$'}(head -c 2 "${'$'}script" 2>/dev/null || echo "")
+            if [ "${'$'}head_bytes" = "#!" ]; then
+                sed -i "1s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script" 2>/dev/null
+            fi
+        fi
+    done
     
-    # =========================================================================
-    # STEP 7: REBUILD PACKAGE (use gzip for speed instead of xz)
-    # -Zgzip: Use gzip compression (much faster than xz)
-    # -z1: Compression level 1 (fastest)
-    # =========================================================================
-    rm -f "${'$'}rewritten_deb"
-    if ! "${'$'}PREFIX/bin/dpkg-deb" -Zgzip -z1 --build pkg_root "${'$'}rewritten_deb" >>"${'$'}LOG_FILE" 2>&1; then
-        echo "[dpkg-wrapper] FAIL: Cannot rebuild ${'$'}deb_name" >> "${'$'}LOG_FILE"
-        cd /; rm -rf "${'$'}work_dir"
-        echo "${'$'}deb_file"
-        return 1
-    fi
+    # FIX SHEBANGS in data files (critical for executables)
+    find pkg_root/data -type f 2>/dev/null | while read -r file; do
+        head_bytes=${'$'}(head -c 2 "${'$'}file" 2>/dev/null || echo "")
+        if [ "${'$'}head_bytes" = "#!" ]; then
+            first_line=${'$'}(head -1 "${'$'}file" 2>/dev/null)
+            if echo "${'$'}first_line" | grep -q "${'$'}OLD_PREFIX"; then
+                sed -i "1s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|" "${'$'}file" 2>/dev/null
+            fi
+        fi
+    done
     
-    # Cleanup and return
+    # REBUILD with fast compression
+    "${'$'}PREFIX/bin/dpkg-deb" -Zgzip -z1 --build pkg_root "${'$'}rewritten_deb" 2>>"${'$'}LOG_FILE" || {
+        cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
+    }
+    
     cd /
     rm -rf "${'$'}work_dir"
-    
-    if [ -f "${'$'}rewritten_deb" ]; then
-        echo "[dpkg-wrapper] OK: Rewrote ${'$'}deb_name" >> "${'$'}LOG_FILE"
-        echo "${'$'}rewritten_deb"
-    else
-        echo "[dpkg-wrapper] WARN: Rewritten file missing, using original" >> "${'$'}LOG_FILE"
-        echo "${'$'}deb_file"
-    fi
+    echo "${'$'}rewritten_deb"
 }
 
-# Handle --version specially to avoid config dir access error
-case "${'$'}1" in
-    --version|-V)
-        echo "Debian 'dpkg' package management program version 1.22.6 (arm64)."
-        echo ""
-        echo "This is free software; see the GNU General Public License version 2 or"
-        echo "later for copying conditions. There is NO warranty."
-        exit 0
-        ;;
-    --help|-\?)
-        "${ourFilesPrefix}/usr/bin/dpkg.real" --help 2>/dev/null || \
-        echo "dpkg - Debian package management system"
-        exit 0
-        ;;
-esac
-
-# Check if this is a package installation command
-# IMPORTANT: apt passes flags before --unpack, e.g.:
-#   dpkg --status-fd 5 --no-triggers --unpack file.deb
-# So we must scan ALL arguments, not just $1
-install_mode=0
+# =============================================================================
+# MAIN LOGIC
+# =============================================================================
+is_install=false
 for arg in "${'$'}@"; do
     case "${'$'}arg" in
-        -i|--install|-x|--extract|--unpack)
-            install_mode=1
-            break
-            ;;
+        -i|--install|-R|--recursive|--unpack) is_install=true ;;
     esac
 done
 
-echo "[dpkg-wrapper] install_mode=${'$'}install_mode" >> "${'$'}LOG_FILE"
-
-# Check if --recursive flag is present (apt uses dpkg --recursive <dir>)
-recursive_mode=0
-for arg in "${'$'}@"; do
-    if [ "${'$'}arg" = "--recursive" ] || [ "${'$'}arg" = "-R" ]; then
-        recursive_mode=1
-        break
-    fi
-done
-
-echo "[dpkg-wrapper] recursive_mode=${'$'}recursive_mode" >> "${'$'}LOG_FILE"
-
-if [ "${'$'}install_mode" = "1" ]; then
-    # Rewrite .deb files that contain old paths
+if ${'$'}is_install; then
     new_args=()
     for arg in "${'$'}@"; do
         if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
-            # Individual .deb file
-            echo "[dpkg-wrapper] Processing deb file: ${'$'}arg" >> "${'$'}LOG_FILE"
-            # Use || to fallback to original if rewrite fails
             rewritten=${'$'}(rewrite_deb "${'$'}arg") || rewritten="${'$'}arg"
-            echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
             new_args+=("${'$'}rewritten")
-        elif [ -d "${'$'}arg" ] && [ "${'$'}recursive_mode" = "1" ]; then
-            # Directory with --recursive flag - rewrite all .deb files inside
-            echo "[dpkg-wrapper] Processing directory: ${'$'}arg" >> "${'$'}LOG_FILE"
-            
-            # Count packages for progress
-            pkg_count=0
-            pkg_total=0
-            for deb in "${'$'}arg"/*.deb; do [ -f "${'$'}deb" ] && pkg_total=${'$'}((pkg_total+1)); done
-            
+        elif [ -d "${'$'}arg" ]; then
             for deb in "${'$'}arg"/*.deb; do
                 if [ -f "${'$'}deb" ]; then
-                    pkg_count=${'$'}((pkg_count + 1))
-                    echo "Processing package [${'$'}pkg_count/${'$'}pkg_total]..." >&2
-                    echo "[dpkg-wrapper] Processing deb in dir: ${'$'}deb" >> "${'$'}LOG_FILE"
-                    # Use || true to prevent set -e from killing script if rewrite fails
                     rewritten=${'$'}(rewrite_deb "${'$'}deb") || rewritten="${'$'}deb"
-                    echo "[dpkg-wrapper] Rewritten to: ${'$'}rewritten" >> "${'$'}LOG_FILE"
-                    # Move rewritten deb back to original location so dpkg --recursive finds it
-                    # Only move if rewritten path differs from original
                     if [ "${'$'}rewritten" != "${'$'}deb" ] && [ -f "${'$'}rewritten" ]; then
-                        mv "${'$'}rewritten" "${'$'}deb" 2>>"${'$'}LOG_FILE"
+                        mv "${'$'}rewritten" "${'$'}deb" 2>/dev/null
                     fi
                 fi
             done
@@ -981,19 +830,15 @@ if [ "${'$'}install_mode" = "1" ]; then
             new_args+=("${'$'}arg")
         fi
     done
-    echo "Installing packages..." >&2
-    echo "[dpkg-wrapper] Calling dpkg.real with ${'$'}{#new_args[@]} args" >> "${'$'}LOG_FILE"
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
 else
-    # For all other commands, call the real binary directly
-    echo "[dpkg-wrapper] Non-install mode, passing through" >> "${'$'}LOG_FILE"
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 fi
 """
             dpkgFile.writeText(wrapperScript)
             Os.chmod(dpkgFile.absolutePath, 448) // 0700
             
-            Logger.logInfo(LOG_TAG, "Created dpkg wrapper script")
+            Logger.logInfo(LOG_TAG, "Created dpkg wrapper v3.0")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
         }
@@ -1163,6 +1008,148 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
             } catch (e: Exception) {
                 Logger.logError(LOG_TAG, "Failed to create $cmd wrapper: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Setup the LD_PRELOAD compatibility layer.
+     * 
+     * This installs libtermux_compat.so and configures the shell profile
+     * to automatically load it. The shim intercepts filesystem syscalls
+     * and redirects paths from com.termux to com.termux.kotlin.
+     * 
+     * This works in combination with the dpkg-wrapper to provide full
+     * compatibility with upstream Termux packages.
+     */
+    private fun setupCompatLayer(binDir: File, ourFilesPrefix: String, context: Context) {
+        try {
+            val usrDir = binDir.parentFile ?: return
+            val libDir = File(usrDir, "lib")
+            val etcDir = File(usrDir, "etc")
+            
+            // Create lib directory if needed
+            if (!libDir.exists()) {
+                libDir.mkdirs()
+            }
+            
+            // Extract libtermux_compat.c from assets (source code)
+            // We'll also create a compiled placeholder that can be built later
+            // For now, create a shell script that will compile it on first use
+            val compatSrcFile = File(libDir, "libtermux_compat.c")
+            val compatLibFile = File(libDir, "libtermux_compat.so")
+            val compatBuildScript = File(binDir, "termux-compat-build")
+            
+            // Copy C source from assets
+            try {
+                val assetManager = context.assets
+                assetManager.open("libtermux_compat.c").use { input ->
+                    compatSrcFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Logger.logInfo(LOG_TAG, "Installed libtermux_compat.c")
+            } catch (e: Exception) {
+                Logger.logWarn(LOG_TAG, "Could not extract libtermux_compat.c: ${e.message}")
+            }
+            
+            // Create build script that compiles the shim when clang is available
+            val buildScriptContent = """#!/${ourFilesPrefix}/usr/bin/bash
+# Build script for libtermux_compat.so
+# Run this after: pkg install clang
+
+PREFIX="${ourFilesPrefix}/usr"
+SRC="${'$'}PREFIX/lib/libtermux_compat.c"
+OUT="${'$'}PREFIX/lib/libtermux_compat.so"
+
+if [ ! -f "${'$'}SRC" ]; then
+    echo "Error: Source file not found: ${'$'}SRC"
+    exit 1
+fi
+
+if ! command -v clang >/dev/null 2>&1; then
+    echo "Error: clang not found. Run: pkg install clang"
+    exit 1
+fi
+
+echo "Building libtermux_compat.so..."
+clang -shared -fPIC -O2 -o "${'$'}OUT" "${'$'}SRC" -ldl
+
+if [ -f "${'$'}OUT" ]; then
+    echo "Success: ${'$'}OUT created"
+    echo ""
+    echo "To enable, add to your shell profile:"
+    echo "  export LD_PRELOAD=${'$'}PREFIX/lib/libtermux_compat.so"
+else
+    echo "Build failed"
+    exit 1
+fi
+"""
+            compatBuildScript.writeText(buildScriptContent)
+            Os.chmod(compatBuildScript.absolutePath, 493) // 0755
+            
+            // Update profile to enable LD_PRELOAD when shim exists
+            val profileFile = File(etcDir, "profile")
+            if (profileFile.exists()) {
+                val profileContent = profileFile.readText()
+                if (!profileContent.contains("libtermux_compat")) {
+                    val appendContent = """
+
+# Termux-Kotlin compatibility layer
+# Redirects /data/data/com.termux/ paths to /data/data/com.termux.kotlin/
+if [ -f "${ourFilesPrefix}/usr/lib/libtermux_compat.so" ]; then
+    export LD_PRELOAD="${ourFilesPrefix}/usr/lib/libtermux_compat.so"
+fi
+"""
+                    profileFile.appendText(appendContent)
+                    Logger.logInfo(LOG_TAG, "Updated profile with LD_PRELOAD")
+                }
+            }
+            
+            // Create config file documenting the compat layer
+            val compatConfigDir = File(etcDir, "termux-compat")
+            compatConfigDir.mkdirs()
+            val configFile = File(compatConfigDir, "config.yml")
+            configFile.writeText("""# Termux-Kotlin Compatibility Layer Configuration
+# 
+# This system provides compatibility with upstream Termux packages
+# that have hardcoded paths to /data/data/com.termux/
+
+compat_layer:
+  version: "3.0"
+  
+  # Paths
+  real_prefix: "${ourFilesPrefix}/usr"
+  upstream_prefix: "/data/data/com.termux/files/usr"
+  
+  # Components
+  dpkg_wrapper: "${ourFilesPrefix}/usr/bin/dpkg"
+  compat_shim: "${ourFilesPrefix}/usr/lib/libtermux_compat.so"
+  compat_source: "${ourFilesPrefix}/usr/lib/libtermux_compat.c"
+  build_script: "${ourFilesPrefix}/usr/bin/termux-compat-build"
+  
+  # Status
+  # shim_compiled: false  # Set to true after running termux-compat-build
+  
+# How it works:
+# 1. dpkg-wrapper (install-time):
+#    - Rewrites directory structure in packages
+#    - Fixes DEBIAN control scripts (postinst, etc.)
+#    - Fixes shebangs in executables
+#
+# 2. LD_PRELOAD shim (runtime):
+#    - Intercepts open(), stat(), access(), etc.
+#    - Redirects paths from com.termux to com.termux.kotlin
+#    - Handles binaries with hardcoded paths
+#
+# To enable full compatibility:
+# 1. pkg install clang
+# 2. termux-compat-build
+# 3. Restart your shell
+""")
+            Logger.logInfo(LOG_TAG, "Created compatibility layer config")
+            
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to setup compat layer: ${e.message}")
         }
     }
 
