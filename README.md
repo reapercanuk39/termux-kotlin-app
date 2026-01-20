@@ -58,6 +58,24 @@ Termux Kotlin uses its own package name (`com.termux.kotlin`) and can be install
 
 This means `pkg update` and all package operations work natively without any path-patching hacks.
 
+### 🔧 Hybrid Compatibility Layer (v1.2.0+)
+
+For full compatibility with upstream Termux packages, we use a two-tier approach:
+
+| Layer | When | What it Does |
+|-------|------|--------------|
+| **dpkg-wrapper** | Install-time | Rewrites package paths and scripts |
+| **LD_PRELOAD shim** | Runtime | Intercepts syscalls for hardcoded paths |
+
+**The shim auto-compiles when you install clang:**
+```bash
+pkg install clang   # Shim builds automatically!
+# "[termux-compat] Clang detected, auto-compiling..."
+# "[termux-compat] Success! Restart your shell..."
+```
+
+This ensures packages like Python, pip, and others work perfectly even when they have paths compiled into binaries.
+
 ### 📦 APK Size Explanation
 
 | Architecture | APK Size | Bootstrap Size |

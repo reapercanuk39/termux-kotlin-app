@@ -1846,4 +1846,54 @@ agent run system_agent --task "check_status"
 
 ---
 
+## Session 25: Hybrid Compatibility Layer v1.2.0 (2026-01-20)
+
+### Problem
+User wanted a better approach than rewriting entire packages at install time.
+
+### Solution: Hybrid Compatibility Layer
+
+Combines install-time and runtime path interception:
+
+#### 1. dpkg-wrapper v3.0 (Install-time)
+- Simplified to only rewrite DEBIAN scripts and shebangs
+- Much faster than v2.0 (no full text file scanning)
+- Fixes directory structure (com.termux → com.termux.kotlin)
+
+#### 2. LD_PRELOAD Shim (Runtime)
+- New `libtermux_compat.c` intercepts filesystem syscalls
+- Redirects `/data/data/com.termux/` → `/data/data/com.termux.kotlin/`
+- Zero overhead when not accessing old paths
+
+### Auto-Compilation Feature
+User requested automation so users don't have to manually compile.
+
+**Two triggers for auto-compilation:**
+
+1. **Profile hook** - On shell startup, if clang exists but shim doesn't, auto-compile
+2. **dpkg-wrapper hook** - After any package install, check if clang was just installed
+
+### User Experience
+```bash
+# Fresh install - everything is automatic!
+pkg update            # Works immediately
+pkg install clang     # Shim auto-compiles!
+# "[termux-compat] Clang detected, auto-compiling..."
+# "[termux-compat] Success! Restart your shell..."
+
+# After shell restart
+echo $LD_PRELOAD      # Shows the shim path
+pkg install python    # Full compatibility
+```
+
+### Files Modified
+| File | Purpose |
+|------|---------|
+| `TermuxInstaller.kt` | dpkg-wrapper v3.0 with auto-compile hook, profile with auto-compile |
+| `CHANGELOG.md` | v1.2.0 release notes |
+| `README.md` | Hybrid compatibility layer section |
+| `ARCHITECTURE.md` | LD_PRELOAD environment variable |
+
+---
+
 *Updated: 2026-01-20*

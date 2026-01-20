@@ -830,7 +830,21 @@ if ${'$'}is_install; then
             new_args+=("${'$'}arg")
         fi
     done
-    exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
+    
+    # Run dpkg
+    "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
+    dpkg_exit=${'$'}?
+    
+    # Auto-compile compat shim after clang is installed
+    if [ -f "${'$'}PREFIX/bin/clang" ] && [ ! -f "${'$'}PREFIX/lib/libtermux_compat.so" ]; then
+        if [ -f "${'$'}PREFIX/lib/libtermux_compat.c" ]; then
+            echo "[termux-compat] Clang detected, auto-compiling compatibility shim..."
+            "${'$'}PREFIX/bin/clang" -shared -fPIC -O2 -o "${'$'}PREFIX/lib/libtermux_compat.so" "${'$'}PREFIX/lib/libtermux_compat.c" -ldl 2>/dev/null && \
+                echo "[termux-compat] Success! Restart your shell to enable LD_PRELOAD."
+        fi
+    fi
+    
+    exit ${'$'}dpkg_exit
 else
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 fi
@@ -1088,6 +1102,7 @@ fi
             Os.chmod(compatBuildScript.absolutePath, 493) // 0755
             
             // Update profile to enable LD_PRELOAD when shim exists
+            // Also auto-compile if clang is available but shim isn't built yet
             val profileFile = File(etcDir, "profile")
             if (profileFile.exists()) {
                 val profileContent = profileFile.readText()
@@ -1096,12 +1111,31 @@ fi
 
 # Termux-Kotlin compatibility layer
 # Redirects /data/data/com.termux/ paths to /data/data/com.termux.kotlin/
-if [ -f "${ourFilesPrefix}/usr/lib/libtermux_compat.so" ]; then
-    export LD_PRELOAD="${ourFilesPrefix}/usr/lib/libtermux_compat.so"
-fi
+_termux_compat_init() {
+    local PREFIX="${ourFilesPrefix}/usr"
+    local COMPAT_SO="${'$'}PREFIX/lib/libtermux_compat.so"
+    local COMPAT_SRC="${'$'}PREFIX/lib/libtermux_compat.c"
+    
+    # If shim already exists, load it
+    if [ -f "${'$'}COMPAT_SO" ]; then
+        export LD_PRELOAD="${'$'}COMPAT_SO"
+        return
+    fi
+    
+    # Auto-compile if clang is available and source exists
+    if [ -f "${'$'}COMPAT_SRC" ] && command -v clang >/dev/null 2>&1; then
+        echo "[termux-compat] Auto-compiling compatibility shim..."
+        if clang -shared -fPIC -O2 -o "${'$'}COMPAT_SO" "${'$'}COMPAT_SRC" -ldl 2>/dev/null; then
+            echo "[termux-compat] Success! LD_PRELOAD shim enabled."
+            export LD_PRELOAD="${'$'}COMPAT_SO"
+        fi
+    fi
+}
+_termux_compat_init
+unset -f _termux_compat_init
 """
                     profileFile.appendText(appendContent)
-                    Logger.logInfo(LOG_TAG, "Updated profile with LD_PRELOAD")
+                    Logger.logInfo(LOG_TAG, "Updated profile with auto-compile LD_PRELOAD")
                 }
             }
             

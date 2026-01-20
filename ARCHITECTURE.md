@@ -198,6 +198,14 @@ The app sets these environment variables automatically for proper terminal opera
 | `DPKG_ADMINDIR` | `$PREFIX/var/lib/dpkg` | dpkg database location |
 | `DPKG_DATADIR` | `$PREFIX/share/dpkg` | dpkg data files |
 
+### Compatibility Layer Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `LD_PRELOAD` | `$PREFIX/lib/libtermux_compat.so` | Runtime path interception shim |
+
+The LD_PRELOAD shim is auto-compiled when clang is installed and loaded automatically on shell startup.
+
 ### SSL/TLS Variables
 
 | Variable | Value | Purpose |

@@ -1,3 +1,26 @@
+## [v1.2.0] - 2026-01-20
+
+### 🚀 Major Features
+- **Hybrid Compatibility Layer v3.0**: Two-tier approach for full upstream package compatibility
+  - **dpkg-wrapper v3.0**: Rewrites DEBIAN scripts and shebangs at install time
+  - **LD_PRELOAD shim**: Runtime path interception for binaries with hardcoded paths
+  - **Auto-compile**: Shim automatically builds when clang is installed
+  - **Self-healing**: AgentService verifies compat layer on startup
+
+### 🔧 Technical Details
+- New `libtermux_compat.c` intercepts filesystem syscalls (open, stat, access, execve, etc.)
+- Redirects `/data/data/com.termux/` → `/data/data/com.termux.kotlin/` at runtime
+- Profile updated to auto-load shim and auto-compile when clang available
+- dpkg-wrapper triggers compilation after clang installation
+
+### 📁 New Files
+- `$PREFIX/lib/libtermux_compat.c` - Shim source code
+- `$PREFIX/lib/libtermux_compat.so` - Compiled shim (auto-built)
+- `$PREFIX/bin/termux-compat-build` - Manual build script
+- `$PREFIX/etc/termux-compat/config.yml` - Configuration
+
+---
+
 ## [2026-01-20] Build #189
 
 ### Changes
