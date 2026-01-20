@@ -5,6 +5,16 @@
 
 ### Build Status
 - Prefix Validation: failure
+
+## [v1.1.10] - 2026-01-20
+
+### 🐛 Bug Fixes
+- **dpkg:** Comprehensive path rewriting for all text files
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update CHANGELOG for v1.1.9 [skip ci]
+
 - APK Build: skipped
 - Emulator Tests: skipped
 
