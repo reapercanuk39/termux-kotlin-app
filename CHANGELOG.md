@@ -1,3 +1,15 @@
+## [2026-01-20] Build #200
+
+### Changes
+- 7758152 Merge remote-tracking branch 'origin/main' - resolve CHANGELOG conflict
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [v1.2.3] - 2026-01-20
 
 ### 🐛 Critical Bug Fix: dpkg Wrapper v4.0
