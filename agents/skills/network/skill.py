@@ -252,7 +252,7 @@ class NetworkSkill(Skill):
         search_domains = []
         
         # Check Termux-specific path
-        prefix = os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr")
+        prefix = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
         termux_resolv = Path(prefix) / "etc" / "resolv.conf"
         
         config_path = None

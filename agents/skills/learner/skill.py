@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 AGENTS_ROOT = Path(PREFIX) / 'share' / 'agents'
 if str(AGENTS_ROOT) not in sys.path:
     sys.path.insert(0, str(AGENTS_ROOT))

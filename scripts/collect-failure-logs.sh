@@ -198,7 +198,7 @@ suggest_fixes() {
     if grep -qiE "com\.termux[^.]" "$LOG_FILE" 2>/dev/null; then
         suggestions="${suggestions}
 - **PREFIX VIOLATION DETECTED**
-- Replace 'com.termux' with 'com.termux.kotlin'
+- Replace 'com.termux' with 'com.termux'
 - Run scripts/validate-prefix.sh to find all violations"
     fi
     

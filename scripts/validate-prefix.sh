@@ -1,18 +1,18 @@
 #!/bin/sh
 # POSIX-compliant prefix validator script
-# Ensures com.termux is forbidden but com.termux.kotlin is allowed
+# Ensures com.termux is forbidden but com.termux is allowed
 #
 # Regex rules:
 #   FORBIDDEN: \bcom\.termux\b (exact match, no suffix)
-#   ALLOWED:   com.termux.kotlin (has .kotlin suffix)
+#   ALLOWED:   com.termux (has .kotlin suffix)
 #
 # IMPORTANT DISTINCTION:
 #   - Java/Kotlin PACKAGE NAMES (package com.termux.app) are ALLOWED
 #     These are namespace identifiers, not the Android application ID
-#   - Android APPLICATION ID must be com.termux.kotlin
+#   - Android APPLICATION ID must be com.termux
 #   - Runtime PATHS like /data/data/com.termux/ are FORBIDDEN
-#     Must use /data/data/com.termux.kotlin/
-#   - Configuration files with package references must use com.termux.kotlin
+#     Must use /data/data/com.termux/
+#   - Configuration files with package references must use com.termux
 
 set -e
 
@@ -87,7 +87,7 @@ check_file() {
     if command -v grep >/dev/null 2>&1; then
         # First, find all lines with com.termux
         if grep -q 'com\.termux' "$file" 2>/dev/null; then
-            # Now check if any of those are NOT com.termux.kotlin
+            # Now check if any of those are NOT com.termux
             # Pattern: com.termux followed by end-of-word (not .kotlin)
             # Using negative lookahead if available, else post-process
             
@@ -98,19 +98,19 @@ check_file() {
             echo "$matches" | while IFS= read -r line; do
                 [ -z "$line" ] && continue
                 
-                # Check if this line has com.termux.kotlin
+                # Check if this line has com.termux
                 if echo "$line" | grep -q 'com\.termux\.kotlin'; then
                     # Line has valid prefix, check for bare com.termux too
                     # Pattern: com.termux not followed by .kotlin
-                    # Replace com.termux.kotlin temporarily, then check for remaining com.termux
+                    # Replace com.termux temporarily, then check for remaining com.termux
                     cleaned=$(echo "$line" | sed 's/com\.termux\.kotlin/__VALID_PREFIX__/g')
                     if echo "$cleaned" | grep -q 'com\.termux'; then
-                        # Found bare com.termux alongside com.termux.kotlin
+                        # Found bare com.termux alongside com.termux
                         line_num=$(echo "$line" | cut -d: -f1)
                         echo "${file}:${line_num}:$(echo "$line" | cut -d: -f2-)"
                     fi
                 else
-                    # Line has com.termux but NOT com.termux.kotlin - violation!
+                    # Line has com.termux but NOT com.termux - violation!
                     line_num=$(echo "$line" | cut -d: -f1)
                     echo "${file}:${line_num}:$(echo "$line" | cut -d: -f2-)"
                 fi
@@ -123,7 +123,7 @@ check_file() {
 validate_directories() {
     log_info "Starting prefix validation..."
     log_info "Scanning for forbidden prefix: com.termux (without .kotlin suffix)"
-    log_info "Allowed prefix: com.termux.kotlin"
+    log_info "Allowed prefix: com.termux"
     echo ""
     
     violation_count=0
@@ -175,7 +175,7 @@ validate_directories() {
         
         echo "=========================================="
         log_error "Prefix validation FAILED"
-        log_error "All occurrences of 'com.termux' must be 'com.termux.kotlin'"
+        log_error "All occurrences of 'com.termux' must be 'com.termux'"
         echo ""
         
         return 1
@@ -291,12 +291,12 @@ fast_scan() {
                     continue
                 fi
                 
-                # Replace valid com.termux.kotlin references
+                # Replace valid com.termux references
                 cleaned=$(echo "$line" | sed 's/com\.termux\.kotlin/__VALID__/g')
                 
                 if echo "$cleaned" | grep -q 'com\.termux'; then
                     # Also skip sed replacement patterns that are correct
-                    # e.g., sed 's/com.termux/com.termux.kotlin/'
+                    # e.g., sed 's/com.termux/com.termux/'
                     if echo "$line" | grep -qE 'sed.*com\.termux.*com\.termux\.kotlin'; then
                         continue
                     fi
@@ -333,7 +333,7 @@ fast_scan() {
                     continue
                 fi
                 
-                # Skip if it's com.termux.kotlin
+                # Skip if it's com.termux
                 if echo "$line" | grep -q '/data/data/com\.termux\.kotlin\|/data/user/.*com\.termux\.kotlin'; then
                     # Check if there's ALSO a bare com.termux (not in a replacement pattern)
                     cleaned=$(echo "$line" | sed 's|com\.termux\.kotlin|__VALID__|g')
@@ -374,7 +374,7 @@ fast_scan() {
                     continue
                 fi
                 
-                # Skip if it's com.termux.kotlin
+                # Skip if it's com.termux
                 cleaned=$(echo "$line" | sed 's/"com\.termux\.kotlin"/__VALID__/g')
                 if echo "$cleaned" | grep -q '"com\.termux"'; then
                     # Skip replacement patterns
@@ -400,7 +400,7 @@ fast_scan() {
         log_error "  String:   $string_count"
         echo ""
         echo "=========================================="
-        echo "VIOLATIONS (com.termux must be com.termux.kotlin)"
+        echo "VIOLATIONS (com.termux must be com.termux)"
         echo "=========================================="
         
         # Show critical violations first
@@ -455,7 +455,7 @@ usage() {
     echo "  --help       Show this help message"
     echo ""
     echo "This script validates that no files contain the forbidden"
-    echo "prefix 'com.termux' (must be 'com.termux.kotlin' instead)."
+    echo "prefix 'com.termux' (must be 'com.termux' instead)."
 }
 
 # Parse arguments

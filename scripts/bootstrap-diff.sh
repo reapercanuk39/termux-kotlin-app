@@ -278,7 +278,7 @@ EOF
         echo "$prefix_issues" >> "$OUTPUT_FILE"
         echo '```' >> "$OUTPUT_FILE"
     else
-        echo "✅ No prefix issues detected. All paths use \`com.termux.kotlin\`." >> "$OUTPUT_FILE"
+        echo "✅ No prefix issues detected. All paths use \`com.termux\`." >> "$OUTPUT_FILE"
     fi
     
     # Footer

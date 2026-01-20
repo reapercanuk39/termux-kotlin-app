@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 from datetime import datetime
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 
 def collect_system_info() -> Dict[str, Any]:
@@ -121,7 +121,7 @@ def find_issues() -> Dict[str, Any]:
     # Check for old paths in environment
     for var in ['PATH', 'LD_LIBRARY_PATH', 'PYTHONPATH']:
         val = os.environ.get(var, '')
-        if '/data/data/com.termux/' in val and '/data/data/com.termux.kotlin/' not in val:
+        if '/data/data/com.termux/' in val and '/data/data/com.termux/' not in val:
             issues.append({
                 "severity": "high",
                 "issue": f"{var} contains old com.termux path",

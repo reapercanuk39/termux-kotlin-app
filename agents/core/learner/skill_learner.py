@@ -30,7 +30,7 @@ except ImportError:
 
 logger = logging.getLogger("agentd.learner")
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 SKILLS_DIR = Path(PREFIX) / 'share' / 'agents' / 'skills'
 MEMORY_DIR = Path(PREFIX) / 'var' / 'agents' / 'memory'
 
@@ -100,7 +100,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 def check() -> Dict[str, Any]:
     """Check status."""
@@ -129,7 +129,7 @@ import os
 import subprocess
 from typing import Dict, Any
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 def start(target: str = None) -> Dict[str, Any]:
     """Start a service/process."""
@@ -161,7 +161,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 def analyze(data: str = None) -> Dict[str, Any]:
     """Analyze data."""
@@ -192,7 +192,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 def diagnose() -> Dict[str, Any]:
     """Diagnose issues."""

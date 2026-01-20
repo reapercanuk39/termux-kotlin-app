@@ -62,7 +62,7 @@ class SecuritySkill(Skill):
         self.log(f"Auditing permissions: {path or 'PREFIX'}")
         
         if path is None:
-            path = os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr")
+            path = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
         
         target = Path(path)
         if not target.exists():
@@ -218,7 +218,7 @@ class SecuritySkill(Skill):
         """Create initial integrity manifest."""
         import json
         
-        prefix = Path(os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr"))
+        prefix = Path(os.environ.get("PREFIX", "/data/data/com.termux/files/usr"))
         bin_dir = prefix / "bin"
         
         manifest = {"files": {}, "created": str(Path(manifest_path))}
@@ -276,7 +276,7 @@ class SecuritySkill(Skill):
         self.log(f"Finding world-writable files: {path or 'PREFIX'}")
         
         if path is None:
-            path = os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr")
+            path = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
         
         target = Path(path)
         world_writable = []
@@ -298,7 +298,7 @@ class SecuritySkill(Skill):
         self.log(f"Checking SUID/SGID: {path or 'PREFIX'}")
         
         if path is None:
-            path = os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr")
+            path = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
         
         target = Path(path)
         suid_files = []

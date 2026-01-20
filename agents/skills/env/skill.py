@@ -7,16 +7,16 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
-HOME = os.environ.get('HOME', '/data/data/com.termux.kotlin/files/home')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
+HOME = os.environ.get('HOME', '/data/data/com.termux/files/home')
 
 
 def check_env() -> Dict[str, Any]:
     """Check all important environment variables."""
     expected = {
-        'PREFIX': f'/data/data/com.termux.kotlin/files/usr',
-        'HOME': f'/data/data/com.termux.kotlin/files/home',
-        'TMPDIR': f'/data/data/com.termux.kotlin/files/usr/tmp',
+        'PREFIX': f'/data/data/com.termux/files/usr',
+        'HOME': f'/data/data/com.termux/files/home',
+        'TMPDIR': f'/data/data/com.termux/files/usr/tmp',
     }
     
     checks = []
@@ -73,7 +73,7 @@ def fix_path() -> Dict[str, Any]:
     parts = new_path.split(':')
     cleaned_parts = []
     for part in parts:
-        if '/com.termux/' in part and '/com.termux.kotlin/' not in part:
+        if '/com.termux/' in part and '/com.termux/' not in part:
             fixes.append(f"Removed old path: {part}")
         else:
             cleaned_parts.append(part)
@@ -94,7 +94,7 @@ def validate_env() -> Dict[str, Any]:
     # Check for old paths
     for var in ['PATH', 'LD_LIBRARY_PATH', 'PYTHONPATH', 'MANPATH']:
         val = os.environ.get(var, '')
-        if '/com.termux/' in val and '/com.termux.kotlin/' not in val:
+        if '/com.termux/' in val and '/com.termux/' not in val:
             issues.append({
                 "variable": var,
                 "issue": "Contains old com.termux path",
@@ -109,10 +109,10 @@ def validate_env() -> Dict[str, Any]:
             "issue": "Not set",
             "severity": "high"
         })
-    elif 'com.termux.kotlin' not in prefix:
+    elif 'com.termux' not in prefix:
         issues.append({
             "variable": "PREFIX",
-            "issue": "Does not contain com.termux.kotlin",
+            "issue": "Does not contain com.termux",
             "severity": "high"
         })
     

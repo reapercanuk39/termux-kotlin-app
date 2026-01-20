@@ -1,6 +1,6 @@
 """
 Path Management Skill
-Handles path rewriting and verification for com.termux.kotlin.
+Handles path rewriting and verification for com.termux.
 """
 
 import os
@@ -8,9 +8,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 OLD_PREFIX = '/data/data/com.termux/'
-NEW_PREFIX = '/data/data/com.termux.kotlin/'
+NEW_PREFIX = '/data/data/com.termux/'
 
 
 def check_paths(directory: str = None) -> Dict[str, Any]:
@@ -70,7 +70,7 @@ def find_old_paths(directory: str = None, limit: int = 50) -> Dict[str, Any]:
 
 
 def rewrite_paths(file_path: str) -> Dict[str, Any]:
-    """Rewrite paths in a text file from com.termux to com.termux.kotlin."""
+    """Rewrite paths in a text file from com.termux to com.termux."""
     path = Path(file_path)
     if not path.exists():
         return {"error": f"File not found: {file_path}"}

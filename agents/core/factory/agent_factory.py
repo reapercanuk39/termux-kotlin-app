@@ -29,7 +29,7 @@ except ImportError:
 
 logger = logging.getLogger("agentd.factory")
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 MODELS_DIR = Path(PREFIX) / 'share' / 'agents' / 'models'
 SKILLS_DIR = Path(PREFIX) / 'share' / 'agents' / 'skills'
 

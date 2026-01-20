@@ -129,9 +129,9 @@ check_prefix_violations() {
         [ -z "$file" ] && continue
         [ ! -f "$ROOT_DIR/$file" ] && continue
         
-        # Check for forbidden com.termux (not com.termux.kotlin)
+        # Check for forbidden com.termux (not com.termux)
         if grep -q 'com\.termux' "$ROOT_DIR/$file" 2>/dev/null; then
-            # Verify it's not just com.termux.kotlin
+            # Verify it's not just com.termux
             cleaned=$(grep 'com\.termux' "$ROOT_DIR/$file" | sed 's/com\.termux\.kotlin/__VALID__/g')
             if echo "$cleaned" | grep -q 'com\.termux'; then
                 echo "$file"

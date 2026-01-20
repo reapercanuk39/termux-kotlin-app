@@ -69,8 +69,8 @@ cat /root/termux-kotlin-app/README.md /root/termux-kotlin-app/ARCHITECTURE.md /r
 ### Key Difference from Original Termux
 | Aspect | Original Termux | Termux Kotlin |
 |--------|-----------------|---------------|
-| Package name | `com.termux` | `com.termux.kotlin` |
-| Data path | `/data/data/com.termux/files/usr` | `/data/data/com.termux.kotlin/files/usr` |
+| Package name | `com.termux` | `com.termux` |
+| Data path | `/data/data/com.termux/files/usr` | `/data/data/com.termux/files/usr` |
 | Language | Java | 100% Kotlin |
 
 ### The Path Problem
@@ -86,7 +86,7 @@ These paths **cannot be changed** via:
 
 **The ONLY solution is rebuilding packages from source** with:
 ```bash
-TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"
+TERMUX_APP__PACKAGE_NAME="com.termux"
 ```
 
 ---
@@ -100,10 +100,10 @@ docker run -d --name termux-package-builder \
     -v ~/termux-packages:/home/builder/termux-packages \
     termux/package-builder tail -f /dev/null
 
-# Configure for com.termux.kotlin
+# Configure for com.termux
 docker exec termux-package-builder bash -c '
 cd /home/builder/termux-packages
-sed -i "s/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/" scripts/properties.sh
+sed -i "s/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/" scripts/properties.sh
 '
 ```
 
@@ -136,7 +136,7 @@ Built packages appear in:
 
 ### ✅ v1.0.40 - Full Native Path Support Complete!
 
-As of v1.0.40, **ALL 66 packages** with hardcoded paths have been rebuilt with native `com.termux.kotlin` paths. This includes **716+ binaries** across all 4 architectures.
+As of v1.0.40, **ALL 66 packages** with hardcoded paths have been rebuilt with native `com.termux` paths. This includes **716+ binaries** across all 4 architectures.
 
 #### Complete Rebuilt Package List (66 packages):
 
@@ -195,7 +195,7 @@ Certificate verification failed: The certificate is NOT trusted.
 
 **Root Cause:** `libgnutls.so` has hardcoded path to `/data/data/com.termux/files/usr/etc/tls/cert.pem`
 
-**Solution:** Rebuild `gnutls` package with `TERMUX_APP__PACKAGE_NAME="com.termux.kotlin"`
+**Solution:** Rebuild `gnutls` package with `TERMUX_APP__PACKAGE_NAME="com.termux"`
 
 **Note:** GnuTLS does NOT support `SSL_CERT_FILE` environment variable (unlike OpenSSL)
 
@@ -220,7 +220,7 @@ Certificate verification failed: The certificate is NOT trusted.
 ### CI/CD Pipeline
 ```
 .github/workflows/ci.yml              # Comprehensive CI/CD workflow (11 jobs)
-scripts/validate-prefix.sh            # Prefix validation (com.termux.kotlin required)
+scripts/validate-prefix.sh            # Prefix validation (com.termux required)
 scripts/detect-package-changes.sh     # Git-based package change detection
 scripts/bootstrap-diff.sh             # Bootstrap comparison report generator
 scripts/emulator-smoke-test.sh        # Automated emulator testing
@@ -323,7 +323,7 @@ repo/
   | `pkg install vim` | ✅ | dpkg wrapper rewriting paths |
   | `pkg install python` | ✅ | 20 packages (114MB) installed |
   | `python --version` | ✅ | Python 3.12.12 |
-  | `pip --version` | ✅ | pip 25.3 (correct com.termux.kotlin path) |
+  | `pip --version` | ✅ | pip 25.3 (correct com.termux path) |
   | `python -c "print(42)"` | ✅ | Executes correctly |
 
 - **Status:** ✅ Complete - All core functionality working, ready for release when desired
@@ -333,7 +333,7 @@ repo/
 - **Created Scripts:**
   | Script | Purpose |
   |--------|---------|
-  | `scripts/validate-prefix.sh` | POSIX-compliant validator ensuring `com.termux.kotlin` prefix. Intelligently skips Java package declarations/imports while catching real violations in runtime paths |
+  | `scripts/validate-prefix.sh` | POSIX-compliant validator ensuring `com.termux` prefix. Intelligently skips Java package declarations/imports while catching real violations in runtime paths |
   | `scripts/detect-package-changes.sh` | Detects which packages need rebuilding based on git diff against last successful build |
   | `scripts/bootstrap-diff.sh` | Generates Markdown diff reports comparing bootstrap versions (added/removed/changed files, size analysis) |
   | `scripts/emulator-smoke-test.sh` | Automated headless Android emulator tests (pkg update, install coreutils, termux-info, etc.) |
@@ -354,7 +354,7 @@ repo/
 
 - **Prefix Validation Rules:**
   - **FORBIDDEN:** `com.termux` (exact match, no suffix)
-  - **ALLOWED:** `com.termux.kotlin` (has .kotlin suffix)
+  - **ALLOWED:** `com.termux` (has .kotlin suffix)
   - **ALLOWED:** Java package declarations like `package com.termux.app` (namespace, not application ID)
   - **FORBIDDEN:** Runtime paths like `/data/data/com.termux/files/usr/bin/bash`
 
@@ -407,7 +407,7 @@ repo/
 ### 2026-01-17: SSL Certificate Issue (RESOLVED)
 - **Problem:** `pkg update` fails with certificate verification error
 - **Discovery:** libgnutls.so has hardcoded `/data/data/com.termux/files/usr/etc/tls/cert.pem`
-- **Solution:** Rebuilt libgnutls, libcurl, libgpg-error with native com.termux.kotlin paths
+- **Solution:** Rebuilt libgnutls, libcurl, libgpg-error with native com.termux paths
 - **Status:** ✅ Fixed in v1.0.39
 
 ### 2026-01-17: Upstream Package Compatibility (RESOLVED)
@@ -432,15 +432,15 @@ repo/
 ```
 
 ### Package Identity
-- **Package Name:** `com.termux.kotlin`
-- **Data Path:** `/data/data/com.termux.kotlin/files/usr`
+- **Package Name:** `com.termux`
+- **Data Path:** `/data/data/com.termux/files/usr`
 - **Can coexist with original Termux**
 
 ### Critical Environment Variables (TermuxShellEnvironment.kt)
 | Variable | Value |
 |----------|-------|
-| `HOME` | `/data/data/com.termux.kotlin/files/home` |
-| `PREFIX` | `/data/data/com.termux.kotlin/files/usr` |
+| `HOME` | `/data/data/com.termux/files/home` |
+| `PREFIX` | `/data/data/com.termux/files/usr` |
 | `LD_LIBRARY_PATH` | `$PREFIX/lib` (overrides RUNPATH!) |
 | `TERMINFO` | `$PREFIX/share/terminfo` |
 | `SSL_CERT_FILE` | `$PREFIX/etc/tls/cert.pem` |
@@ -457,7 +457,7 @@ Modules: app, terminal-emulator, terminal-view, termux-shared
 ```bash
 docker exec termux-package-builder bash -c '
   cd /home/builder/termux-packages
-  sed -i "s/com.termux/com.termux.kotlin/" scripts/properties.sh
+  sed -i "s/com.termux/com.termux/" scripts/properties.sh
   ./build-package.sh -a aarch64 <package-name>
 '
 ```
@@ -492,7 +492,7 @@ docker exec termux-package-builder bash -c '
 **Testing Results (v1.0.50):**
 | Test | Result |
 |------|--------|
-| Bootstrap completion | ✅ All paths use com.termux.kotlin |
+| Bootstrap completion | ✅ All paths use com.termux |
 | `pkg update` | ✅ Mirrors detected, packages fetched |
 | `pkg install vim` | ✅ **WORKS!** |
 | update-alternatives | ✅ All paths correct |
@@ -537,7 +537,7 @@ Result: Directory doesn't match → no rewrites → packages fail with "Permissi
 **Testing Results (v1.0.53):**
 | Test | Result |
 |------|--------|
-| Bootstrap completion | ✅ All paths use com.termux.kotlin |
+| Bootstrap completion | ✅ All paths use com.termux |
 | `pkg update` | ✅ Mirrors work |
 | `pkg install vim` | ✅ Works |
 | `pkg install python` | ✅ **Python 3.12.12 WORKS!** |
@@ -601,7 +601,7 @@ done < <(find pkg_root -type f -print0)
 
 ### 2026-01-18: v1.0.57-v1.0.59 - Double Replacement Fix 🎉
 
-**Session Summary:** Fixed the final critical bug - double sed replacement causing `com.termux.kotlin.kotlin`.
+**Session Summary:** Fixed the final critical bug - double sed replacement causing `com.termux.kotlin`.
 
 | Version | Error | Problem | Fix | Result |
 |---------|-------|---------|-----|--------|
@@ -610,10 +610,10 @@ done < <(find pkg_root -type f -print0)
 | v1.0.59 | #27 | Double sed replacement | Trailing slash fix | ✅ **ALL TESTS PASS!** |
 
 **Root Cause Analysis (Error #27):**
-The sed pattern `s|/data/data/com.termux|/data/data/com.termux.kotlin|g` was applied TWICE:
-1. First pass: `/data/data/com.termux/` → `/data/data/com.termux.kotlin/`
-2. Second pass: `com.termux` still matched as substring of `com.termux.kotlin`!
-3. Result: `/data/data/com.termux.kotlin.kotlin/` (DOUBLE!)
+The sed pattern `s|/data/data/com.termux|/data/data/com.termux|g` was applied TWICE:
+1. First pass: `/data/data/com.termux/` → `/data/data/com.termux/`
+2. Second pass: `com.termux` still matched as substring of `com.termux`!
+3. Result: `/data/data/com.termux.kotlin/` (DOUBLE!)
 
 **Critical Fix (v1.0.59):**
 ```bash
@@ -622,18 +622,18 @@ OLD_PREFIX="/data/data/com.termux"
 
 # After (trailing slash prevents substring match):
 OLD_PREFIX="/data/data/com.termux/"
-NEW_PREFIX="/data/data/com.termux.kotlin/"
+NEW_PREFIX="/data/data/com.termux/"
 ```
 
 **v1.0.59 Test Results - ALL PASSED! ✅**
 | Test | Result |
 |------|--------|
-| Bootstrap | ✅ com.termux.kotlin paths |
+| Bootstrap | ✅ com.termux paths |
 | pkg update | ✅ Mirrors work |
 | pkg install vim | ✅ Works |
 | pkg install python | ✅ Python 3.12.12 |
 | pip --version | ✅ pip 25.3 |
-| pip shebang | ✅ `#!/data/data/com.termux.kotlin/files/usr/bin/python3.12` (SINGLE .kotlin!) |
+| pip shebang | ✅ `#!/data/data/com.termux/files/usr/bin/python3.12` (SINGLE .kotlin!) |
 
 **Key Files Modified:**
 - `TermuxInstaller.kt` - Lines 703-705: Added trailing slash to OLD_PREFIX/NEW_PREFIX
@@ -668,7 +668,7 @@ NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 **v1.1.0 Release Features:**
 - ✅ Complete Kotlin conversion (100% Kotlin)
-- ✅ 66 packages rebuilt with native `com.termux.kotlin` paths
+- ✅ 66 packages rebuilt with native `com.termux` paths
 - ✅ 716+ binaries with correct compiled paths
 - ✅ Full upstream package compatibility (3000+ packages)
 - ✅ On-the-fly dpkg path rewriting
@@ -696,7 +696,7 @@ Starting fallback run of termux bootstrap second stage
 [*] Running termux bootstrap second stage
 [*] Running postinst maintainer scripts
 [*] Running 'coreutils' package postinst
-update-alternatives: using /data/data/com.termux.kotlin/files/usr/libexec/coreutils/cat to provide...
+update-alternatives: using /data/data/com.termux/files/usr/libexec/coreutils/cat to provide...
 ...
 -bash-5.3$
 ```
@@ -1212,7 +1212,7 @@ Most symlinks point to:
 ### Fixes Applied This Session
 
 1. **strings.xml Path Fix** (`termux-shared/src/main/res/values/strings.xml:12`)
-   - Changed: `TERMUX_PREFIX_DIR_PATH` entity from `/data/data/com.termux/files/usr` → `/data/data/com.termux.kotlin/files/usr`
+   - Changed: `TERMUX_PREFIX_DIR_PATH` entity from `/data/data/com.termux/files/usr` → `/data/data/com.termux/files/usr`
    - This ensures error messages display the correct path for Termux-Kotlin app
 
 2. **TermuxTools.kt Refactor** (`termux-shared/src/main/kotlin/com/termux/shared/tools/TermuxTools.kt`)
@@ -1225,7 +1225,7 @@ Most symlinks point to:
      - `termux-app_apt-android-7-debug_universal.apk` (140.9 MB)
      - `termux-app_apt-android-7-debug_x86_64.apk` (54.8 MB)
      - `termux-app_apt-android-7-debug_x86.apk` (53.9 MB)
-   - Verified APK contains correct path: `/data/data/com.termux.kotlin/files/usr`
+   - Verified APK contains correct path: `/data/data/com.termux/files/usr`
 
 ### Architecture Summary: How termux-kotlin-app Achieves Path Independence
 
@@ -1235,7 +1235,7 @@ The core challenge: **ELF binaries contain hardcoded paths to `/data/data/com.te
 
 | Layer | Solution | Location |
 |-------|----------|----------|
-| **Bootstrap** | Packages rebuilt with com.termux.kotlin paths (66 packages) | `app/src/main/cpp/bootstrap-*.zip` |
+| **Bootstrap** | Packages rebuilt with com.termux paths (66 packages) | `app/src/main/cpp/bootstrap-*.zip` |
 | **Text Files** | Path rewriting during bootstrap extraction | `TermuxInstaller.kt:417-615` |
 | **dpkg** | Wrapper script rewrites .deb files on-the-fly | `TermuxInstaller.kt:623-820` |
 | **apt** | Wrapper scripts pass `-o Dir::*` overrides | `TermuxInstaller.kt:984-1070` |
@@ -1245,7 +1245,7 @@ The core challenge: **ELF binaries contain hardcoded paths to `/data/data/com.te
 
 ### Known Limitation
 
-When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux.kotlin`) are installed:
+When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux`) are installed:
 - Upstream ELF binaries may still find `/data/data/com.termux/files/...` in filesystem
 - Can cause "Permission denied" errors if paths resolve to wrong app
 - **Recommendation**: Uninstall official Termux before using Termux-Kotlin
@@ -1254,7 +1254,7 @@ When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux.kotlin`)
 
 | Check | Status |
 |-------|--------|
-| `TermuxConstants.TERMUX_PACKAGE_NAME` = `com.termux.kotlin` | ✅ |
+| `TermuxConstants.TERMUX_PACKAGE_NAME` = `com.termux` | ✅ |
 | `TermuxConstants.TERMUX_UPSTREAM_PACKAGE_NAME` = `com.termux` | ✅ |
 | strings.xml `TERMUX_PREFIX_DIR_PATH` entity | ✅ Fixed |
 | TermuxInstaller dpkg wrapper OLD_PREFIX | ✅ (intentionally com.termux for replacement) |
@@ -1284,7 +1284,7 @@ The **Termux-Kotlin Agent Framework** is a fully offline, Python-based agent sys
 ### Directory Structure
 
 ```
-/data/data/com.termux.kotlin/files/usr/
+/data/data/com.termux/files/usr/
 ├── bin/
 │   └── agent              # CLI entrypoint (bash wrapper)
 ├── share/agents/
@@ -1629,7 +1629,7 @@ Workflows.security_audit().execute()
 
 ### Problem Analysis
 
-The original `com.termux.kotlin` app had a critical issue: **upstream Termux packages have `/data/data/com.termux/` paths hardcoded**, but our app installs to `/data/data/com.termux.kotlin/`. This causes:
+The original `com.termux` app had a critical issue: **upstream Termux packages have `/data/data/com.termux/` paths hardcoded**, but our app installs to `/data/data/com.termux/`. This causes:
 
 1. **Installation failures** - dpkg tries to extract files to paths we don't have permission to write
 2. **Shebang errors** - Scripts like `#!/data/data/com.termux/files/usr/bin/python` fail with "bad interpreter"
@@ -1649,7 +1649,7 @@ The original `com.termux.kotlin` app had a critical issue: **upstream Termux pac
 
 #### v1.1.8 - Initial Wrapper Optimization
 - Added fast path check using `dpkg-deb --contents` to list paths without extraction
-- Skip packages with `com.termux.kotlin` paths (our bootstrap - already correct)
+- Skip packages with `com.termux` paths (our bootstrap - already correct)
 - Skip packages with no `com.termux` paths at all
 - Use `-Zgzip -z1` for fast rebuild instead of slow xz compression
 - **Regression**: Removed text file scanning, breaking Python/pip
@@ -1674,7 +1674,7 @@ The original `com.termux.kotlin` app had a critical issue: **upstream Termux pac
 │                                                                  │
 │  1. FAST CHECK (< 1 second)                                     │
 │     ├── dpkg-deb --contents → list paths                        │
-│     ├── Has com.termux.kotlin? → SKIP (already correct)         │
+│     ├── Has com.termux? → SKIP (already correct)         │
 │     ├── Has com.termux? → NEEDS REWRITE                         │
 │     └── Neither? → Check DEBIAN scripts, maybe skip             │
 │                                                                  │
@@ -1684,7 +1684,7 @@ The original `com.termux.kotlin` app had a critical issue: **upstream Termux pac
 │                                                                  │
 │  3. FIX DIRECTORY STRUCTURE                                      │
 │     └── mv pkg_root/data/data/com.termux/*                      │
-│            pkg_root/data/data/com.termux.kotlin/                 │
+│            pkg_root/data/data/com.termux/                 │
 │                                                                  │
 │  4. FIX ALL TEXT FILES (NEW in v1.1.10)                         │
 │     └── grep -rIl + sed -i on all text files                    │
@@ -1720,12 +1720,12 @@ Official Termux uses `applicationId = "com.termux"`, so:
 - Packages have paths to `/data/data/com.termux/files/usr/`
 - Paths match exactly → **NO wrapper needed**
 
-We use `applicationId = "com.termux.kotlin"` to allow coexistence, which requires the wrapper.
+We use `applicationId = "com.termux"` to allow coexistence, which requires the wrapper.
 
 ### Alternative Approaches Considered
 
 1. **Change applicationId to `com.termux`** - Simplest, but conflicts with official Termux
-2. **Symlink `/data/data/com.termux` → `com.termux.kotlin`** - Requires root, won't work
+2. **Symlink `/data/data/com.termux` → `com.termux`** - Requires root, won't work
 3. **Build custom package repository** - Huge maintenance burden
 4. **Recompile bootstrap with new paths** - Already done, but upstream packages still need fixing
 
@@ -1764,7 +1764,7 @@ After v1.1.10:
 ### Problem
 User reported `agent list` command failing with:
 ```
-python3: can't open file '/data/data/com.termux.kotlin/files/usr/share/agents/bin/agent': [Errno 2] No such file or directory
+python3: can't open file '/data/data/com.termux/files/usr/share/agents/bin/agent': [Errno 2] No such file or directory
 ```
 
 ### Root Cause
@@ -1858,11 +1858,11 @@ Combines install-time and runtime path interception:
 #### 1. dpkg-wrapper v3.0 (Install-time)
 - Simplified to only rewrite DEBIAN scripts and shebangs
 - Much faster than v2.0 (no full text file scanning)
-- Fixes directory structure (com.termux → com.termux.kotlin)
+- Fixes directory structure (com.termux → com.termux)
 
 #### 2. LD_PRELOAD Shim (Runtime)
 - New `libtermux_compat.c` intercepts filesystem syscalls
-- Redirects `/data/data/com.termux/` → `/data/data/com.termux.kotlin/`
+- Redirects `/data/data/com.termux/` → `/data/data/com.termux/`
 - Zero overhead when not accessing old paths
 
 ### Auto-Compilation Feature
@@ -2128,7 +2128,7 @@ Restored comprehensive install-time path rewriting in dpkg wrapper v4.0:
 
 | Step | Action | Purpose |
 |------|--------|---------|
-| 1 | Directory rename | Move `com.termux/` → `com.termux.kotlin/` |
+| 1 | Directory rename | Move `com.termux/` → `com.termux/` |
 | 2 | grep -rIl + sed | Fix ALL text files containing old paths |
 | 3 | DEBIAN script fix | Rewrite postinst/prerm + set permissions |
 | 4 | Fast rebuild | dpkg-deb -Zgzip -z1 |

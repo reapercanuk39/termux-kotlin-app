@@ -28,7 +28,7 @@ android {
     def splitAPKsForReleaseBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS") ?: "0" // F-Droid does not support split APKs #1904
 
     defaultConfig {
-        applicationId "com.termux.kotlin"
+        applicationId "com.termux"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
         versionCode 123
@@ -39,7 +39,7 @@ android {
 
         buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\"" // Used by TermuxApplication class
 
-        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux.kotlin"
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
         manifestPlaceholders.TERMUX_APP_NAME = "Termux"
         manifestPlaceholders.TERMUX_API_APP_NAME = "Termux:API"
         manifestPlaceholders.TERMUX_BOOT_APP_NAME = "Termux:Boot"
@@ -286,14 +286,13 @@ def bootstrapProjectDir = projectDir
 task downloadBootstraps() {
     doLast {
         if (bootstrapPackageVariant == "apt-android-7") {
-            def version = "2026.01.17-r3" + "+" + bootstrapPackageVariant
-            // Custom bootstrap with native com.termux.kotlin paths for ALL architectures
-            // Built apt/dpkg/termux-tools/termux-exec from source with TERMUX_APP__PACKAGE_NAME=com.termux.kotlin
-            // All paths compiled natively into binaries - no runtime patching needed
-            downloadBootstrap("aarch64", "bc1026bd179931f62cc0a0a1c76600ac238aae1068edcc562de5531b1d03d0a7", version, bootstrapProjectDir)
-            downloadBootstrap("arm", "f54dcd02ee7b90034ee91c1b95adfbb3462d1ded7724ef9c5bad74e8ae2d09c0", version, bootstrapProjectDir)
-            downloadBootstrap("i686", "3688035a6433c5da6ffc91b5a5f31e771442c97257bf49e84630a132912bd224", version, bootstrapProjectDir)
-            downloadBootstrap("x86_64", "a9b227aa5acdc3194044e3844dd7e5ab153c3fa049779f0d221eaa3b4b533bd2", version, bootstrapProjectDir)
+            def version = "2026.01.18-r1" + "+" + bootstrapPackageVariant
+            // Official Termux bootstrap - uses com.termux paths which match our package name
+            // No custom bootstrap or path rewriting needed!
+            downloadBootstrap("aarch64", "e05701be1c9845284a743efa71a593f643cc7c9783f924859a3ecd87cee5d2f4", version, bootstrapProjectDir)
+            downloadBootstrap("arm", "7406476733f80ce7ccbb9dc0056b4fc5f30ecddc58a3f6cdd87b0bf181df1f94", version, bootstrapProjectDir)
+            downloadBootstrap("i686", "3086df03a6e17048a9dd0baf68da2c97c262724d0867026e3aeb12bc1cf7b639", version, bootstrapProjectDir)
+            downloadBootstrap("x86_64", "81bed91a51f2e5821f1d040cd263033ab0344a48214c58f3300a2fe8862e32b7", version, bootstrapProjectDir)
         } else if (bootstrapPackageVariant == "apt-android-5") {
             // Note: apt-android-5 is no longer actively maintained by Termux.
             // Using legacy checksums for compatibility with Android 5/6 devices.

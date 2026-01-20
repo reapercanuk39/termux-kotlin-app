@@ -266,7 +266,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('agentd')
 
-AGENTS_ROOT = Path(os.environ.get('AGENTS_ROOT', '/data/data/com.termux.kotlin/files/usr/share/agents'))
+AGENTS_ROOT = Path(os.environ.get('AGENTS_ROOT', '/data/data/com.termux/files/usr/share/agents'))
 PID_FILE = AGENTS_ROOT / 'logs' / 'agentd.pid'
 LOG_FILE = AGENTS_ROOT / 'logs' / 'agentd.log'
 

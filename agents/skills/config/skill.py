@@ -14,7 +14,7 @@ try:
 except ImportError:
     HAS_YAML = False
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 CONFIG_DIR = f"{PREFIX}/etc/termux-compat"
 
 
@@ -126,7 +126,7 @@ def reset_config(name: str) -> Dict[str, Any]:
     defaults = {
         "compat": {
             "old_prefix": "/data/data/com.termux",
-            "new_prefix": "/data/data/com.termux.kotlin",
+            "new_prefix": "/data/data/com.termux",
             "shim_enabled": True
         },
         "agents": {

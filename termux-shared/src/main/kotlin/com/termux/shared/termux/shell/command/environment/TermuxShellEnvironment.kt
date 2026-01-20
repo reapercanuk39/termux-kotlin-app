@@ -46,7 +46,7 @@ open class TermuxShellEnvironment : AndroidShellEnvironment() {
             } else {
                 // Termux binaries on Android 7+ normally rely on DT_RUNPATH, but upstream binaries
                 // have RUNPATH hardcoded to /data/data/com.termux/files/usr/lib which doesn't work
-                // for our com.termux.kotlin package. Setting LD_LIBRARY_PATH overrides RUNPATH.
+                // for our com.termux package. Setting LD_LIBRARY_PATH overrides RUNPATH.
                 environment[ENV_PATH] = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH
                 environment[ENV_LD_LIBRARY_PATH] = TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH
             }

@@ -17,7 +17,7 @@ __author__ = "Termux-Kotlin Project"
 from pathlib import Path
 
 # Termux-Kotlin paths
-TERMUX_PREFIX = Path("/data/data/com.termux.kotlin/files/usr")
+TERMUX_PREFIX = Path("/data/data/com.termux/files/usr")
 AGENTS_ROOT = TERMUX_PREFIX / "share" / "agents"
 AGENTS_BIN = TERMUX_PREFIX / "bin"
 AGENTS_ETC = TERMUX_PREFIX / "etc" / "agents"

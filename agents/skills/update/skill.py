@@ -7,7 +7,7 @@ import os
 import subprocess
 from typing import Dict, Any
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 
 def check_updates() -> Dict[str, Any]:

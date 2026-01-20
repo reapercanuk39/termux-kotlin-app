@@ -1,6 +1,6 @@
 #!/bin/bash
 # Termux Kotlin - Path and Shebang Rewriting Script
-# Rewrites all hardcoded com.termux paths to com.termux.kotlin
+# Rewrites all hardcoded com.termux paths to com.termux
 #
 # Usage: ./rewrite-paths.sh <directory> [--dry-run]
 
@@ -10,13 +10,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Path patterns
 OLD_PREFIX="/data/data/com.termux/files/usr"
-NEW_PREFIX="/data/data/com.termux.kotlin/files/usr"
+NEW_PREFIX="/data/data/com.termux/files/usr"
 OLD_HOME="/data/data/com.termux/files/home"
-NEW_HOME="/data/data/com.termux.kotlin/files/home"
+NEW_HOME="/data/data/com.termux/files/home"
 OLD_CACHE="/data/data/com.termux/cache"
-NEW_CACHE="/data/data/com.termux.kotlin/cache"
+NEW_CACHE="/data/data/com.termux/cache"
 OLD_PKG="com.termux"
-NEW_PKG="com.termux.kotlin"
+NEW_PKG="com.termux"
 
 # Colors
 RED='\033[0;31m'
@@ -41,7 +41,7 @@ usage() {
     cat << EOF
 Usage: $0 <directory> [options]
 
-Rewrite hardcoded com.termux paths to com.termux.kotlin
+Rewrite hardcoded com.termux paths to com.termux
 
 Options:
     --dry-run       Show what would be changed without modifying files
@@ -49,10 +49,10 @@ Options:
     -h, --help      Show this help message
 
 Transformations applied:
-    /data/data/com.termux/files/usr  ->  /data/data/com.termux.kotlin/files/usr
-    /data/data/com.termux/files/home ->  /data/data/com.termux.kotlin/files/home
-    /data/data/com.termux/cache      ->  /data/data/com.termux.kotlin/cache
-    com.termux (package refs)        ->  com.termux.kotlin
+    /data/data/com.termux/files/usr  ->  /data/data/com.termux/files/usr
+    /data/data/com.termux/files/home ->  /data/data/com.termux/files/home
+    /data/data/com.termux/cache      ->  /data/data/com.termux/cache
+    com.termux (package refs)        ->  com.termux
 
 EOF
     exit 0
@@ -103,10 +103,10 @@ rewrite_text_file() {
             # Replace cache paths
             sed -i "s|${OLD_CACHE}|${NEW_CACHE}|g" "$file"
             
-            # Replace package name (careful not to match com.termux.kotlin)
+            # Replace package name (careful not to match com.termux)
             # Match com.termux followed by non-dot or end of line
-            sed -i 's/com\.termux\([^.a-zA-Z]\)/com.termux.kotlin\1/g' "$file"
-            sed -i 's/com\.termux$/com.termux.kotlin/g' "$file"
+            sed -i 's/com\.termux\([^.a-zA-Z]\)/com.termux\1/g' "$file"
+            sed -i 's/com\.termux$/com.termux/g' "$file"
             
             if $VERBOSE; then
                 log_info "Rewrote: $file"
@@ -134,9 +134,9 @@ rewrite_shebang() {
         if $DRY_RUN; then
             log_info "[DRY-RUN] Would fix shebang in: $file"
             echo "  Old: $first_line"
-            echo "  New: ${first_line//com.termux/com.termux.kotlin}"
+            echo "  New: ${first_line//com.termux/com.termux}"
         else
-            sed -i "1s|com\.termux/files/usr|com.termux.kotlin/files/usr|g" "$file"
+            sed -i "1s|com\.termux/files/usr|com.termux/files/usr|g" "$file"
             if $VERBOSE; then
                 log_info "Fixed shebang: $file"
             fi
@@ -159,8 +159,8 @@ process_file() {
     if [[ -L "$file" ]]; then
         local target
         target=$(readlink "$file")
-        if [[ "$target" == *"com.termux"* ]] && [[ "$target" != *"com.termux.kotlin"* ]]; then
-            local new_target="${target//com.termux/com.termux.kotlin}"
+        if [[ "$target" == *"com.termux"* ]] && [[ "$target" != *"com.termux"* ]]; then
+            local new_target="${target//com.termux/com.termux}"
             if $DRY_RUN; then
                 log_info "[DRY-RUN] Would update symlink: $file -> $new_target"
             else

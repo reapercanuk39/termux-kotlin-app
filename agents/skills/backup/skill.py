@@ -294,8 +294,8 @@ class BackupSkill(Skill):
         if name is None:
             name = f"snapshot_{self._get_timestamp()}"
         
-        prefix = Path(os.environ.get("PREFIX", "/data/data/com.termux.kotlin/files/usr"))
-        home = Path(os.environ.get("HOME", "/data/data/com.termux.kotlin/files/home"))
+        prefix = Path(os.environ.get("PREFIX", "/data/data/com.termux/files/usr"))
+        home = Path(os.environ.get("HOME", "/data/data/com.termux/files/home"))
         
         snapshot_dir = self._get_backup_dir() / name
         snapshot_dir.mkdir(parents=True, exist_ok=True)

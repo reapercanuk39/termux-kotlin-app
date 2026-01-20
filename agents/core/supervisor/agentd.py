@@ -281,7 +281,7 @@ class AgentDaemon:
             self.agents_root = Path(agents_root)
         else:
             # Default Termux-Kotlin path
-            termux_prefix = Path("/data/data/com.termux.kotlin/files/usr")
+            termux_prefix = Path("/data/data/com.termux/files/usr")
             if termux_prefix.exists():
                 self.agents_root = termux_prefix / "share" / "agents"
             else:
@@ -499,7 +499,7 @@ class AgentDaemon:
                 return True, None
             
             # Allow access to PREFIX (with filesystem.write capability)
-            termux_prefix = Path("/data/data/com.termux.kotlin/files/usr")
+            termux_prefix = Path("/data/data/com.termux/files/usr")
             if resolved.is_relative_to(termux_prefix):
                 if agent.has_capability("filesystem.write"):
                     return True, None

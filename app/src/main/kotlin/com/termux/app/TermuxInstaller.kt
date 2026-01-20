@@ -151,8 +151,7 @@ object TermuxInstaller {
 
                 val zipBytes = loadZipBytes()
                 
-                // Build the path prefix for replacing upstream paths with our package paths
-                val upstreamFilesPrefix = "/data/data/${TermuxConstants.TERMUX_UPSTREAM_PACKAGE_NAME}/files"
+                // Since we use com.termux package name (same as upstream), no path replacement needed
                 val ourFilesPrefix = "/data/data/${TermuxConstants.TERMUX_PACKAGE_NAME}/files"
                 
                 ZipInputStream(ByteArrayInputStream(zipBytes)).use { zipInput ->
@@ -164,8 +163,8 @@ object TermuxInstaller {
                             while (line != null) {
                                 val parts = line.split("←")
                                 if (parts.size != 2) throw RuntimeException("Malformed symlink line: $line")
-                                // Replace upstream package path with our package path in symlink targets
-                                val oldPath = parts[0].replace(upstreamFilesPrefix, ourFilesPrefix)
+                                // Symlink paths - no replacement needed since we use com.termux package name
+                                val oldPath = parts[0]
                                 val newPath = "$TERMUX_STAGING_PREFIX_DIR_PATH/${parts[1]}"
                                 symlinks.add(Pair.create(oldPath, newPath))
 
@@ -201,10 +200,7 @@ object TermuxInstaller {
                                     Os.chmod(targetFile.absolutePath, 448) // 0700 octal
                                 }
                                 
-                                // Fix hardcoded paths in shell scripts and config files
-                                if (isTextFileNeedingPathFix(zipEntryName)) {
-                                    fixPathsInTextFile(targetFile, upstreamFilesPrefix, ourFilesPrefix)
-                                }
+                                // No path fixing needed - we use com.termux package name (same as upstream)
                             }
                         }
                         zipEntry = zipInput.nextEntry
@@ -232,21 +228,9 @@ object TermuxInstaller {
                 // We fix this by using --noprofile and manually sourcing our profile
                 fixLoginScript(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin/login"), ourFilesPrefix)
                 
-                // Create dpkg wrapper to handle hardcoded config path issues
-                createDpkgWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
-                
-                // Create update-alternatives wrapper to handle hardcoded paths
-                // The binary has paths like /data/data/com.termux/files/usr/var/log compiled in
-                createUpdateAlternativesWrapper(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
-                
-                // Create apt wrappers to handle hardcoded paths in libapt-pkg.so
-                // The library has /data/data/com.termux/files/usr/etc/apt etc. compiled in
-                // Cache dir is at /data/data/com.termux.kotlin/cache (parallel to /files)
-                val ourCacheDir = ourFilesPrefix.replace("/files/", "/cache/").replace("/files", "/cache")
-                createAptWrappers(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, ourCacheDir)
-                
-                // Setup LD_PRELOAD compatibility layer
-                setupCompatLayer(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, activity.applicationContext)
+                // NOTE: With com.termux package name, dpkg/apt wrappers are NOT needed
+                // The upstream packages already have correct paths for /data/data/com.termux/
+                // Keeping wrapper functions in code for reference but not calling them
                 
                 // Setup the agent framework CLI symlink
                 setupAgentFramework(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, activity.applicationContext)
@@ -426,7 +410,7 @@ object TermuxInstaller {
      * 
      * IMPORTANT: The upstream bootstrap contains many shell scripts with hardcoded
      * paths like #!/data/data/com.termux/files/usr/bin/sh - these MUST be fixed
-     * or the scripts will fail to execute on com.termux.kotlin package.
+     * or the scripts will fail to execute on com.termux package.
      */
     private fun isTextFileNeedingPathFix(entryName: String): Boolean {
         // Scripts in bin/ - login, chsh, su, termux-*, pkg, apt-key, etc.
@@ -540,9 +524,9 @@ object TermuxInstaller {
      * Replace hardcoded upstream package paths with our package paths in a text file.
      * 
      * This handles BOTH path patterns:
-     * - /data/data/com.termux/files/usr/... -> /data/data/com.termux.kotlin/files/usr/...
-     * - /data/data/com.termux/cache/... -> /data/data/com.termux.kotlin/cache/...
-     * - /data/data/com.termux (at end of string or before non-alphanum) -> /data/data/com.termux.kotlin
+     * - /data/data/com.termux/files/usr/... -> /data/data/com.termux/files/usr/...
+     * - /data/data/com.termux/cache/... -> /data/data/com.termux/cache/...
+     * - /data/data/com.termux (at end of string or before non-alphanum) -> /data/data/com.termux
      * 
      * The upstreamPrefix is typically "/data/data/com.termux/files" but we also need to
      * handle "/data/data/com.termux/cache" and other paths.
@@ -552,7 +536,7 @@ object TermuxInstaller {
             val content = file.readText()
             
             // Also fix the base package path (without /files suffix)
-            // e.g. /data/data/com.termux/cache -> /data/data/com.termux.kotlin/cache
+            // e.g. /data/data/com.termux/cache -> /data/data/com.termux/cache
             val upstreamBase = upstreamPrefix.removeSuffix("/files")
             val ourBase = ourPrefix.removeSuffix("/files")
             
@@ -560,7 +544,7 @@ object TermuxInstaller {
             var modified = false
             
             // IMPORTANT: Use regex with negative lookahead to avoid double-replacement
-            // This ensures we don't replace "com.termux.kotlin" -> "com.termux.kotlin.kotlin"
+            // This ensures we don't replace "com.termux" -> "com.termux.kotlin"
             // Only replace "com.termux" when NOT followed by ".kotlin"
             val upstreamPattern = Regex(Regex.escape(upstreamBase) + "(?!\\.kotlin)")
             if (upstreamPattern.containsMatchIn(fixedContent)) {
@@ -698,10 +682,10 @@ echo "[dpkg-wrapper-v4] === ${'$'}(date) ===" >> "${'$'}LOG_FILE" 2>/dev/null ||
 echo "[dpkg-wrapper-v4] args: ${'$'}@" >> "${'$'}LOG_FILE"
 
 # Define prefixes - CRITICAL: use trailing slash to prevent double replacement
-# e.g., prevents com.termux/ from matching com.termux.kotlin/ on second pass
+# e.g., prevents com.termux/ from matching com.termux/ on second pass
 OLD_PREFIX="/data/data/com.termu"
 OLD_PREFIX="${'$'}{OLD_PREFIX}x/"
-NEW_PREFIX="/data/data/com.termux.kotlin/"
+NEW_PREFIX="/data/data/com.termux/"
 
 # Pattern without trailing slash for directory detection
 OLD_PKG_BASE="/data/data/com.termu"
@@ -761,18 +745,18 @@ rewrite_deb() {
     
     # =========================================================================
     # STEP 1: FIX DIRECTORY STRUCTURE
-    # Move ./data/data/com.termux/* to ./data/data/com.termux.kotlin/
+    # Move ./data/data/com.termux/* to ./data/data/com.termux/
     # =========================================================================
     if [ -d "pkg_root/data/data" ]; then
         # Find the old package directory (handles any com.termux* without .kotlin)
         for old_dir in pkg_root/data/data/com.termux; do
-            if [ -d "${'$'}old_dir" ] && [ ! -d "pkg_root/data/data/com.termux.kotlin" ]; then
-                echo "[dpkg-wrapper-v4] Moving directory: ${'$'}old_dir -> com.termux.kotlin" >> "${'$'}LOG_FILE"
-                mv "${'$'}old_dir" "pkg_root/data/data/com.termux.kotlin" 2>>"${'$'}LOG_FILE"
+            if [ -d "${'$'}old_dir" ] && [ ! -d "pkg_root/data/data/com.termux" ]; then
+                echo "[dpkg-wrapper-v4] Moving directory: ${'$'}old_dir -> com.termux" >> "${'$'}LOG_FILE"
+                mv "${'$'}old_dir" "pkg_root/data/data/com.termux" 2>>"${'$'}LOG_FILE"
             elif [ -d "${'$'}old_dir" ]; then
                 # Target exists, merge contents
                 echo "[dpkg-wrapper-v4] Merging directory: ${'$'}old_dir" >> "${'$'}LOG_FILE"
-                cp -a "${'$'}old_dir"/* "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
+                cp -a "${'$'}old_dir"/* "pkg_root/data/data/com.termux/" 2>/dev/null
                 rm -rf "${'$'}old_dir"
             fi
         done
@@ -920,7 +904,7 @@ fi
             // --admindir: where administrative data is stored (default: /var/lib/dpkg/alternatives)
             // --log: log file location (default: /var/log/alternatives.log)
             val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
-# update-alternatives wrapper for com.termux.kotlin
+# update-alternatives wrapper for com.termux
 # Handles hardcoded path issues in the update-alternatives binary
 #
 # The binary has /data/data/com.termux/files/usr/... paths compiled in.
@@ -994,7 +978,7 @@ exec "${ourFilesPrefix}/usr/bin/update-alternatives.real" \
                 
                 // Create wrapper script that overrides hardcoded paths
                 val wrapperScript = """#!/system/bin/sh
-# $cmd wrapper for com.termux.kotlin
+# $cmd wrapper for com.termux
 # Handles hardcoded path issues in libapt-pkg.so
 #
 # The library has /data/data/com.termux/files/usr/... paths compiled in.
@@ -1051,7 +1035,7 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
      * 
      * This installs libtermux_compat.so and configures the shell profile
      * to automatically load it. The shim intercepts filesystem syscalls
-     * and redirects paths from com.termux to com.termux.kotlin.
+     * and redirects paths from com.termux to com.termux.
      * 
      * This works in combination with the dpkg-wrapper to provide full
      * compatibility with upstream Termux packages.
@@ -1131,7 +1115,7 @@ fi
                     val appendContent = """
 
 # Termux-Kotlin compatibility layer
-# Redirects /data/data/com.termux/ paths to /data/data/com.termux.kotlin/
+# Redirects /data/data/com.termux/ paths to /data/data/com.termux/
 _termux_compat_init() {
     local PREFIX="${ourFilesPrefix}/usr"
     local COMPAT_SO="${'$'}PREFIX/lib/libtermux_compat.so"
@@ -1193,7 +1177,7 @@ compat_layer:
 #
 # 2. LD_PRELOAD shim (runtime):
 #    - Intercepts open(), stat(), access(), etc.
-#    - Redirects paths from com.termux to com.termux.kotlin
+#    - Redirects paths from com.termux to com.termux
 #    - Handles binaries with hardcoded paths
 #
 # To enable full compatibility:
@@ -1286,7 +1270,7 @@ compat_layer:
             
             // Create the agent CLI wrapper script in bin/
             val agentScript = File(binDir, "agent")
-            val wrapperContent = """#!/data/data/com.termux.kotlin/files/usr/bin/bash
+            val wrapperContent = """#!/data/data/com.termux/files/usr/bin/bash
 # Termux-Kotlin Agent CLI
 # This is the main entrypoint for the agent framework.
 # Requires Python to be installed: pkg install python

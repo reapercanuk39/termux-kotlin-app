@@ -9,9 +9,9 @@ import re
 from pathlib import Path
 from typing import Dict, Any, List
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 OLD_PREFIX = "/data/data/com.termux"
-NEW_PREFIX = "/data/data/com.termux.kotlin"
+NEW_PREFIX = "/data/data/com.termux"
 
 
 def check_package(name: str) -> Dict[str, Any]:

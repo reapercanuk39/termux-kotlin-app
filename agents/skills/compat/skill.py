@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 SHIM_SO = f"{PREFIX}/lib/libtermux_compat.so"
 SHIM_SRC = f"{PREFIX}/lib/libtermux_compat.c"
 DPKG_WRAPPER = f"{PREFIX}/bin/dpkg"
@@ -112,7 +112,7 @@ def check_wrapper_status() -> Dict[str, Any]:
 def verify_paths() -> Dict[str, Any]:
     """Verify path translation is working correctly."""
     old_prefix = "/data/data/com.termux/"
-    new_prefix = "/data/data/com.termux.kotlin/"
+    new_prefix = "/data/data/com.termux/"
     
     checks = []
     

@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 
 
 def check_heal_needed() -> Dict[str, Any]:

@@ -30,9 +30,7 @@ object TermuxConstants {
     /** Termux app name */
     @JvmField val TERMUX_APP_NAME = "Termux"
     /** Termux package name */
-    @JvmField val TERMUX_PACKAGE_NAME = "com.termux.kotlin"
-    /** Upstream Termux package name used in bootstrap binaries */
-    @JvmField val TERMUX_UPSTREAM_PACKAGE_NAME = "com.termux"
+    @JvmField val TERMUX_PACKAGE_NAME = "com.termux"
     /** Termux GitHub repo name */
     @JvmField val TERMUX_GITHUB_REPO_NAME = "termux-app"
     /** Termux GitHub repo url */

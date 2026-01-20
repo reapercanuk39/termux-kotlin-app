@@ -375,7 +375,7 @@ def get_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
     if _registry is None:
         if skills_dir is None:
             # Default path
-            termux_prefix = Path("/data/data/com.termux.kotlin/files/usr")
+            termux_prefix = Path("/data/data/com.termux/files/usr")
             if termux_prefix.exists():
                 skills_dir = termux_prefix / "share" / "agents" / "skills"
             else:

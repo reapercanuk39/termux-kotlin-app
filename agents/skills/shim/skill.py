@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
-PREFIX = os.environ.get('PREFIX', '/data/data/com.termux.kotlin/files/usr')
+PREFIX = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
 SHIM_SO = f"{PREFIX}/lib/libtermux_compat.so"
 SHIM_SRC = f"{PREFIX}/lib/libtermux_compat.c"
 
@@ -89,7 +89,7 @@ def test_shim() -> Dict[str, Any]:
     
     # Test 2: Try to access old path (should be redirected)
     old_path = "/data/data/com.termux/files/usr/bin"
-    new_path = "/data/data/com.termux.kotlin/files/usr/bin"
+    new_path = "/data/data/com.termux/files/usr/bin"
     
     # If shim is working, accessing old path should work
     if Path(new_path).exists():

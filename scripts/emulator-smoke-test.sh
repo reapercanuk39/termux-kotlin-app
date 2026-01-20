@@ -16,8 +16,8 @@ NC='\033[0m'
 
 # Configuration
 APK_PATH="${APK_PATH:-app/build/outputs/apk/debug/app-debug.apk}"
-PACKAGE_NAME="${PACKAGE_NAME:-com.termux.kotlin}"
-MAIN_ACTIVITY="${MAIN_ACTIVITY:-com.termux.kotlin.app.TermuxActivity}"
+PACKAGE_NAME="${PACKAGE_NAME:-com.termux}"
+MAIN_ACTIVITY="${MAIN_ACTIVITY:-com.termux.app.TermuxActivity}"
 TEST_TIMEOUT="${TEST_TIMEOUT:-300}"
 BOOTSTRAP_TIMEOUT="${BOOTSTRAP_TIMEOUT:-180}"
 LOG_DIR="${LOG_DIR:-${TMPDIR:-/tmp}/emulator-test-logs}"

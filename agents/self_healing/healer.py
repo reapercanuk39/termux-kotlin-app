@@ -14,7 +14,7 @@ class PrefixDetector:
         for f in agents_root.rglob("*.py"):
             try:
                 content = f.read_text()
-                if "com.termux/" in content and "com.termux.kotlin" not in content:
+                if "com.termux/" in content and "com.termux" not in content:
                     issues.append({"file": str(f), "issue": "wrong_prefix"})
             except:
                 pass

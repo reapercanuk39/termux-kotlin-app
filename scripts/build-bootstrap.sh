@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build custom bootstrap with com.termux.kotlin paths
+# Build custom bootstrap with com.termux paths
 # This script builds apt and dpkg from source with native paths
 
 set -e
@@ -67,8 +67,8 @@ build_native_packages() {
         bash -c "
             cd /home/builder/termux-packages
             
-            # Set package name to com.termux.kotlin
-            sed -i 's/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux.kotlin\"/' scripts/properties.sh
+            # Set package name to com.termux
+            sed -i 's/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"com.termux\"/' scripts/properties.sh
             
             # Verify the change
             grep 'TERMUX_APP__PACKAGE_NAME=' scripts/properties.sh
@@ -90,7 +90,7 @@ build_native_packages() {
     log_info "Native packages for $arch extracted to ${WORK_DIR}/native-packages/${arch}"
 }
 
-# Process bootstrap: replace com.termux with com.termux.kotlin in text files
+# Process bootstrap: replace com.termux with com.termux in text files
 process_bootstrap_text() {
     local arch=$1
     local extract_dir="${WORK_DIR}/extracted/${arch}"
@@ -104,8 +104,8 @@ process_bootstrap_text() {
     find "$extract_dir" -type f | while read -r file; do
         if file "$file" | grep -q "text\|ASCII\|script"; then
             if grep -q "com\.termux" "$file" 2>/dev/null; then
-                sed -i 's/com\.termux\([^.]\)/com.termux.kotlin\1/g' "$file"
-                sed -i 's/com\.termux$/com.termux.kotlin/g' "$file"
+                sed -i 's/com\.termux\([^.]\)/com.termux\1/g' "$file"
+                sed -i 's/com\.termux$/com.termux/g' "$file"
             fi
         fi
     done
@@ -138,7 +138,7 @@ replace_native_binaries() {
     tar -xf data.tar.xz
     
     # Find the usr directory in the extracted apt
-    local apt_usr=$(find "$apt_extract" -type d -name "usr" -path "*/com.termux.kotlin/*" | head -1)
+    local apt_usr=$(find "$apt_extract" -type d -name "usr" -path "*/com.termux/*" | head -1)
     
     if [[ -n "$apt_usr" ]]; then
         # Replace apt binaries
@@ -157,7 +157,7 @@ replace_native_binaries() {
         ar x "$dpkg_deb"
         tar -xf data.tar.xz
         
-        local dpkg_usr=$(find "$dpkg_extract" -type d -name "usr" -path "*/com.termux.kotlin/*" | head -1)
+        local dpkg_usr=$(find "$dpkg_extract" -type d -name "usr" -path "*/com.termux/*" | head -1)
         
         if [[ -n "$dpkg_usr" ]]; then
             cp -v "$dpkg_usr/bin/dpkg"* "$extract_dir/bin/" 2>/dev/null || true
@@ -191,8 +191,8 @@ verify_bootstrap() {
     # Check libapt-pkg.so for correct paths
     local libapt="${extract_dir}/lib/libapt-pkg.so"
     if [[ -f "$libapt" ]]; then
-        if strings "$libapt" | grep -q "com.termux.kotlin"; then
-            log_info "✅ $arch: libapt-pkg.so has com.termux.kotlin paths"
+        if strings "$libapt" | grep -q "com.termux"; then
+            log_info "✅ $arch: libapt-pkg.so has com.termux paths"
         else
             log_warn "⚠️  $arch: libapt-pkg.so may still have old paths"
         fi

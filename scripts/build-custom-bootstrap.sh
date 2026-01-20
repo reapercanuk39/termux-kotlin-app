@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build custom Termux bootstrap for com.termux.kotlin
+# Build custom Termux bootstrap for com.termux
 # This script automates the process of building a custom bootstrap
 # with the correct package prefix baked into all binaries.
 #
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERMUX_PACKAGES_DIR="/root/termux-packages"
 OUTPUT_DIR="/root/termux-kotlin-bootstrap"
 APP_DIR="/root/termux-kotlin-app"
-PACKAGE_NAME="com.termux.kotlin"
+PACKAGE_NAME="com.termux"
 
 # Default to arm64 only (most common)
 ARCH="${1:-aarch64}"
