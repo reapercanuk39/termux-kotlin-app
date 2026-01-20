@@ -1622,3 +1622,140 @@ Workflows.security_audit().execute()
 ---
 
 *Agent Framework updated: 2026-01-19*
+
+---
+
+## Session: 2026-01-20 - dpkg Wrapper Optimization & Background Agents
+
+### Problem Analysis
+
+The original `com.termux.kotlin` app had a critical issue: **upstream Termux packages have `/data/data/com.termux/` paths hardcoded**, but our app installs to `/data/data/com.termux.kotlin/`. This causes:
+
+1. **Installation failures** - dpkg tries to extract files to paths we don't have permission to write
+2. **Shebang errors** - Scripts like `#!/data/data/com.termux/files/usr/bin/python` fail with "bad interpreter"
+3. **Config errors** - Python's `sys.prefix` and pip's config point to wrong paths
+
+### Solution: dpkg Wrapper Evolution
+
+#### v1.1.6 - Background Agent Service
+- Created `AgentService.kt` - Android foreground service for autonomous agent daemon
+- Agents now auto-start when APK launches
+- All agent models updated from `network.none` to `network.external`
+
+#### v1.1.7 - Bootstrap Staging Fix
+- Fixed critical bug where `setupAgentFramework()` created directories in final path instead of staging
+- Changed `File(filesDir, "usr/etc/agents")` → `File(usrDir, "etc/agents")` 
+- Fixed release workflow to checkout `main` for `workflow_dispatch` events
+
+#### v1.1.8 - Initial Wrapper Optimization
+- Added fast path check using `dpkg-deb --contents` to list paths without extraction
+- Skip packages with `com.termux.kotlin` paths (our bootstrap - already correct)
+- Skip packages with no `com.termux` paths at all
+- Use `-Zgzip -z1` for fast rebuild instead of slow xz compression
+- **Regression**: Removed text file scanning, breaking Python/pip
+
+#### v1.1.9 - Shebang Fix Attempt
+- Added shebang detection for `bin/`, `libexec/`, `share/` directories
+- Check `#!` magic bytes before reading to avoid binary files
+- **Issue**: Still didn't fix paths inside Python library files
+
+#### v1.1.10 - Comprehensive Path Rewriting
+- **STEP 4 (NEW)**: Scan ALL text files with `grep -rIl` and fix paths
+- Catches Python's `_sysconfigdata_*.py`, pip's configuration, etc.
+- Binary detection using `head -c 2` to check for `#!` magic
+- Reordered steps: text files → shebangs → DEBIAN scripts → rebuild
+
+### dpkg Wrapper Architecture (v1.1.10)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     dpkg Wrapper Flow                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. FAST CHECK (< 1 second)                                     │
+│     ├── dpkg-deb --contents → list paths                        │
+│     ├── Has com.termux.kotlin? → SKIP (already correct)         │
+│     ├── Has com.termux? → NEEDS REWRITE                         │
+│     └── Neither? → Check DEBIAN scripts, maybe skip             │
+│                                                                  │
+│  2. EXTRACT                                                      │
+│     ├── dpkg-deb --control → DEBIAN/                            │
+│     └── dpkg-deb --extract → data files                         │
+│                                                                  │
+│  3. FIX DIRECTORY STRUCTURE                                      │
+│     └── mv pkg_root/data/data/com.termux/*                      │
+│            pkg_root/data/data/com.termux.kotlin/                 │
+│                                                                  │
+│  4. FIX ALL TEXT FILES (NEW in v1.1.10)                         │
+│     └── grep -rIl + sed -i on all text files                    │
+│                                                                  │
+│  5. FIX SHEBANGS                                                 │
+│     ├── Check #! magic before reading                           │
+│     └── Fix line 1 only (fast)                                  │
+│                                                                  │
+│  6. FIX DEBIAN SCRIPTS                                           │
+│     └── Full sed replacement in postinst/prerm/etc              │
+│                                                                  │
+│  7. REBUILD                                                      │
+│     └── dpkg-deb -Zgzip -z1 --build (fast compression)          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Files Modified
+
+| File | Changes |
+|------|---------|
+| `TermuxInstaller.kt` | dpkg wrapper v2.0 with comprehensive path rewriting |
+| `AgentService.kt` | NEW - Android foreground service for agent daemon |
+| `TermuxApplication.kt` | Start AgentService on app launch |
+| `AndroidManifest.xml` | AgentService declaration |
+| `agents/models/*.yml` | Network capability: `none` → `external` |
+| `.github/workflows/release.yml` | Fixed checkout ref for workflow_dispatch |
+
+### Why Official Termux Doesn't Need This
+
+Official Termux uses `applicationId = "com.termux"`, so:
+- App installs to `/data/data/com.termux/files/usr/`
+- Packages have paths to `/data/data/com.termux/files/usr/`
+- Paths match exactly → **NO wrapper needed**
+
+We use `applicationId = "com.termux.kotlin"` to allow coexistence, which requires the wrapper.
+
+### Alternative Approaches Considered
+
+1. **Change applicationId to `com.termux`** - Simplest, but conflicts with official Termux
+2. **Symlink `/data/data/com.termux` → `com.termux.kotlin`** - Requires root, won't work
+3. **Build custom package repository** - Huge maintenance burden
+4. **Recompile bootstrap with new paths** - Already done, but upstream packages still need fixing
+
+### Performance Characteristics
+
+| Package Type | Handling |
+|--------------|----------|
+| Our bootstrap packages | SKIP (already have correct paths) |
+| Binary-only packages | Fast check, minimal processing |
+| Packages with text configs | Full grep + sed (necessary) |
+| Large packages (llvm, clang) | ~30s each due to extraction |
+
+### Testing Results
+
+After v1.1.10:
+- `pkg install python` - ✓ Works (20 packages, ~106MB)
+- `python --version` - ✓ Works
+- `pip --version` - ✓ Works
+- `pip install requests` - ✓ Works
+
+### Releases Created
+
+| Version | Changes |
+|---------|---------|
+| v1.1.6 | Background agent service, network enabled |
+| v1.1.7 | Bootstrap staging fix, CI workflow fix |
+| v1.1.8 | Fast wrapper (had regression) |
+| v1.1.9 | Shebang fix (incomplete) |
+| v1.1.10 | Comprehensive path rewriting |
+
+---
+
+*dpkg Wrapper updated: 2026-01-20*
