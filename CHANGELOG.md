@@ -1,3 +1,15 @@
+## [2026-01-20] Build #214
+
+### Changes
+- d6f1e41 docs: Update AI.md - Termux:API built-in, version v2.0.6
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #213
 
 ### Changes
