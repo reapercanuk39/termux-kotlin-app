@@ -246,7 +246,7 @@ object TermuxInstaller {
                 createAptWrappers(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, ourCacheDir)
                 
                 // Setup the agent framework CLI symlink
-                setupAgentFramework(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix)
+                setupAgentFramework(File(TERMUX_STAGING_PREFIX_DIR_PATH, "bin"), ourFilesPrefix, activity.applicationContext)
 
                 Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.")
 
@@ -1183,7 +1183,7 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
      * Note: The agent framework is fully offline - no external API calls.
      * It depends on Python being installed (pkg install python).
      */
-    private fun setupAgentFramework(binDir: File, ourFilesPrefix: String) {
+    private fun setupAgentFramework(binDir: File, ourFilesPrefix: String, context: Context) {
         try {
             val usrDir = binDir.parentFile ?: return  // bin's parent is usr (staging)
             val shareDir = File(usrDir, "share")
@@ -1191,17 +1191,48 @@ exec "${ourFilesPrefix}/usr/bin/$cmd.real" \
             // Create etc/agents in the staging usr directory, not the final location
             val etcAgentsDir = File(usrDir, "etc/agents")
             
-            // Create required directories
+            // Extract agent framework from assets
+            try {
+                val assetManager = context.assets
+                val zipStream = assetManager.open("agents.zip")
+                val zipFile = java.util.zip.ZipInputStream(zipStream)
+                
+                var entry = zipFile.nextEntry
+                while (entry != null) {
+                    // agents/bin/agent -> share/agents/bin/agent
+                    val destPath = if (entry.name.startsWith("agents/")) {
+                        entry.name.replaceFirst("agents/", "")
+                    } else {
+                        entry.name
+                    }
+                    val destFile = File(agentsDir, destPath)
+                    
+                    if (entry.isDirectory) {
+                        destFile.mkdirs()
+                    } else {
+                        destFile.parentFile?.mkdirs()
+                        destFile.outputStream().use { output ->
+                            zipFile.copyTo(output)
+                        }
+                        // Make Python files executable
+                        if (destPath.endsWith(".py") || destPath == "bin/agent") {
+                            Os.chmod(destFile.absolutePath, 493) // 0755
+                        }
+                    }
+                    zipFile.closeEntry()
+                    entry = zipFile.nextEntry
+                }
+                zipFile.close()
+                Logger.logInfo(LOG_TAG, "Extracted agent framework to ${agentsDir.absolutePath}")
+            } catch (e: Exception) {
+                Logger.logWarn(LOG_TAG, "Could not extract agents.zip: ${e.message}")
+            }
+            
+            // Create additional required directories (may already exist from zip)
             val dirs = listOf(
-                File(agentsDir, "core/supervisor"),
-                File(agentsDir, "core/runtime"),
-                File(agentsDir, "core/models"),
-                File(agentsDir, "skills"),
-                File(agentsDir, "models"),
                 File(agentsDir, "sandboxes"),
                 File(agentsDir, "memory"),
                 File(agentsDir, "logs"),
-                File(agentsDir, "templates"),
                 etcAgentsDir
             )
             
