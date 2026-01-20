@@ -353,6 +353,10 @@ fast_scan() {
                     if echo "$line" | grep -qE '(sed|replace|Regex|->|OLD_PREFIX|upstreamPrefix|mv |rm -rf)'; then
                         continue
                     fi
+                    # Skip shell for-loop patterns iterating over old directories to rename
+                    if echo "$line" | grep -qE 'for .* in .*com\.termux[^.k]'; then
+                        continue
+                    fi
                     # Skip if-tests for old paths (checking if old path exists before migration)
                     if echo "$line" | grep -qE '\[ -[def] .*com\.termux'; then
                         continue
