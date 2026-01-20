@@ -14,23 +14,15 @@ Components:
 __version__ = "1.0.0"
 __author__ = "Termux-Kotlin Project"
 
+import os
 from pathlib import Path
 
-# Termux-Kotlin paths
-TERMUX_PREFIX = Path("/data/data/com.termux/files/usr")
-AGENTS_ROOT = TERMUX_PREFIX / "share" / "agents"
+# Get paths from environment (set by wrapper script) or use defaults
+_prefix = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
+TERMUX_PREFIX = Path(_prefix)
+AGENTS_ROOT = Path(os.environ.get("AGENTS_ROOT", str(TERMUX_PREFIX / "share" / "agents")))
 AGENTS_BIN = TERMUX_PREFIX / "bin"
 AGENTS_ETC = TERMUX_PREFIX / "etc" / "agents"
 
-# Development fallback paths (for testing outside Termux)
-if not TERMUX_PREFIX.exists():
-    import os
-    _dev_root = Path(os.environ.get("AGENTS_DEV_ROOT", "/tmp/termux-agents"))
-    TERMUX_PREFIX = _dev_root / "usr"
-    AGENTS_ROOT = _dev_root / "agents"
-    AGENTS_BIN = _dev_root / "bin"
-    AGENTS_ETC = _dev_root / "etc" / "agents"
-
-# Ensure directories exist
-for _dir in [AGENTS_ROOT, AGENTS_BIN, AGENTS_ETC]:
-    _dir.mkdir(parents=True, exist_ok=True)
+# Don't try to create directories at import time - let the caller handle it
+# This avoids permission errors when running in restricted environments

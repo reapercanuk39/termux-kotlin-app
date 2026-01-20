@@ -375,11 +375,12 @@ def get_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
     if _registry is None:
         if skills_dir is None:
             # Default path
-            termux_prefix = Path("/data/data/com.termux/files/usr")
-            if termux_prefix.exists():
-                skills_dir = termux_prefix / "share" / "agents" / "skills"
+            # Use environment variables set by wrapper, or defaults
+            if "AGENTS_ROOT" in os.environ:
+                skills_dir = Path(os.environ["AGENTS_ROOT"]) / "skills"
             else:
-                skills_dir = Path(os.environ.get("AGENTS_ROOT", "/tmp/termux-agents")) / "skills"
+                prefix = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
+                skills_dir = Path(prefix) / "share" / "agents" / "skills"
         
         _registry = SkillRegistry(skills_dir)
         _registry.discover()

@@ -276,20 +276,15 @@ class AgentDaemon:
     """
     
     def __init__(self, agents_root: Optional[Path] = None):
-        # Set up paths
+        # Set up paths - prefer environment variables set by wrapper script
         if agents_root:
             self.agents_root = Path(agents_root)
+        elif "AGENTS_ROOT" in os.environ:
+            self.agents_root = Path(os.environ["AGENTS_ROOT"])
         else:
-            # Default Termux-Kotlin path
-            termux_prefix = Path("/data/data/com.termux/files/usr")
-            if termux_prefix.exists():
-                self.agents_root = termux_prefix / "share" / "agents"
-            else:
-                # Development fallback
-                self.agents_root = Path(os.environ.get(
-                    "AGENTS_ROOT",
-                    "/tmp/termux-agents"
-                ))
+            # Default Termux path
+            prefix = os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
+            self.agents_root = Path(prefix) / "share" / "agents"
         
         # Standard directories
         self.models_dir = self.agents_root / "models"
