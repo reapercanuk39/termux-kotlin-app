@@ -1,3 +1,15 @@
+## [2026-01-20] Build #190
+
+### Changes
+- 277a095 Auto-compile compat shim + update documentation
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [v1.2.0] - 2026-01-20
 
 ### 🚀 Major Features
