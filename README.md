@@ -82,7 +82,7 @@ No more separate plugin APKs! These features are now built-in:
 | **Termux:Boot** | ✅ Built-in | Auto-run scripts on device boot |
 | **Termux:Styling** | ✅ Built-in | 11 color schemes, custom fonts, Compose UI |
 | **Termux:Widget** | ✅ Built-in | 3 widget sizes, shortcut execution |
-| Termux:API | 📋 Planned | Hardware access APIs |
+| **Termux:API** | ✅ Built-in | 20+ hardware APIs (battery, sensors, camera, etc.) |
 | Termux:Tasker | 📋 Planned | Tasker integration |
 
 ### 📦 APK Size Explanation
