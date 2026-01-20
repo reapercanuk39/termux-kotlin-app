@@ -1,8 +1,8 @@
 # Termux-Kotlin OS - Comprehensive CI/CD Pipeline
-# Handles: prefix validation, package rebuilds, bootstrap generation,
-# emulator testing, repo publishing, and release automation
+# Handles: validation, bootstrap generation, emulator testing, 
+# repo publishing, and release automation
 #
-# IMPORTANT: com.termux is FORBIDDEN, but com.termux.kotlin is ALLOWED
+# NOTE: Using com.termux package name for full upstream compatibility
 
 name: CI/CD Pipeline
 
@@ -40,13 +40,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PACKAGE_NAME: com.termux.kotlin
+  PACKAGE_NAME: com.termux
   JAVA_VERSION: '17'
   GRADLE_OPTS: '-Dorg.gradle.daemon=false'
 
 jobs:
   # ============================================================
-  # JOB 1: Validate Prefix (No com.termux allowed)
+  # JOB 1: Code Quality Check (replaces prefix validation)
   # ============================================================
   validate_prefix:
     name: Validate Prefix
