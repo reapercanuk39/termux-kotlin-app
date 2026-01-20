@@ -76,6 +76,7 @@ cat /root/termux-kotlin-app/README.md /root/termux-kotlin-app/ARCHITECTURE.md /r
 | Termux:Boot | Separate APK | ✅ Built-in (v2.0.5+) |
 | Termux:Styling | Separate APK | ✅ Built-in (v2.0.5+) |
 | Termux:Widget | Separate APK | ✅ Built-in (v2.0.5+) |
+| Termux:API | Separate APK | ✅ Built-in (v2.0.5+) |
 
 ### The Path Solution (v2.0.0+)
 
@@ -88,7 +89,7 @@ Starting with v2.0.0, we use the same package name as upstream Termux (`com.term
 
 **Trade-off:** Cannot coexist with official Termux app (same package name, different signing key). Inspired by ZeroTermux which uses the same approach.
 
-### Current Version: v2.0.5
+### Current Version: v2.0.6
 
 | Feature | Status |
 |---------|--------|
@@ -98,6 +99,7 @@ Starting with v2.0.0, we use the same package name as upstream Termux (`com.term
 | Termux:Boot | ✅ Built-in |
 | Termux:Styling | ✅ 11 color schemes |
 | Termux:Widget | ✅ 3 widget sizes |
+| Termux:API | ✅ 20+ hardware APIs |
 
 ---
 
