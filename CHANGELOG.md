@@ -1,3 +1,15 @@
+## [2026-01-20] Build #185
+
+### Changes
+- c885ad3 fix(dpkg): Comprehensive path rewriting for all text files
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-19] Build #184
 
 ### Changes
