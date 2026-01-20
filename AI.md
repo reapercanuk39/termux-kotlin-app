@@ -1981,3 +1981,84 @@ Rebuilt to 138KB (was 97KB) with all new agents and skills included.
 ---
 
 *Updated: 2026-01-20*
+
+---
+
+## Session 27: Agent Factory & Learning System (2026-01-20)
+
+### User Request
+Expand agents so agentd can create new agents dynamically and learn new skills.
+
+### Solution: AgentFactory + SkillLearner
+
+#### 1. AgentFactory (`core/factory/agent_factory.py`)
+Creates new agents at runtime, like a manager hiring specialists.
+
+**Templates:**
+| Template | Purpose | Default Skills |
+|----------|---------|----------------|
+| `troubleshooter` | Fix/diagnose issues | diagnostic, log, heal |
+| `builder` | Build/compile projects | pkg, git, fs |
+| `monitor` | Watch system status | diagnostic, log, env |
+| `installer` | Install packages | pkg, compat, permission |
+| `custom` | Custom agent | (none) |
+
+**Methods:**
+- `create_agent(name, template, purpose, skills, capabilities)`
+- `clone_agent(source, new_name, modifications)`
+- `create_from_task(task_description)` - Auto-creates based on NL description
+- `delete_agent(name)` - Only auto-generated agents
+
+#### 2. SkillLearner (`core/learner/skill_learner.py`)
+Creates skills and learns from execution patterns.
+
+**Skill Templates:**
+| Template | Purpose | Provides |
+|----------|---------|----------|
+| `checker` | Verify/validate | check, verify, validate |
+| `manager` | Start/stop/control | start, stop, status, restart |
+| `analyzer` | Parse/report data | analyze, parse, summarize, report |
+| `fixer` | Fix/heal issues | diagnose, fix, heal, verify_fix |
+
+**Learning Features:**
+- `learn_from_execution(task_type, steps, success)` - Records patterns
+- `get_best_pattern(task_type)` - Returns most successful pattern
+- `export_patterns()` / `import_patterns()` - Share between agents
+
+#### 3. factory_agent
+A new agent that manages other agents:
+- Creates specialized agents on demand
+- Creates new skills from templates
+- Suggests what to create based on task
+
+### Network Access
+- `network.local` - Allowed for pkg install/update
+- `network.external` - Forbidden (offline mode)
+
+### Architecture
+```
+agentd (supervisor)
+├── skill_registry    - Discovers and validates skills
+├── agent_factory     - Creates new agents
+├── skill_learner     - Creates skills, learns patterns
+└── agents (20 total)
+    ├── factory_agent - Creates other agents
+    ├── heal_agent    - Coordinates healing
+    └── ... (18 more)
+```
+
+### Example Usage
+```bash
+# Create agent for a specific task
+agent run factory_agent --task create_from_task --args '{"task_description": "fix permission issues"}'
+
+# Create a skill
+agent run factory_agent --task create_skill --args '{"name": "myskill", "template": "checker"}'
+
+# Factory creates specialized agent
+# Result: fix_143052_agent with heal, diagnostic, permission skills
+```
+
+---
+
+*Updated: 2026-01-20*
