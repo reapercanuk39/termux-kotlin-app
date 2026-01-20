@@ -1,3 +1,15 @@
+## [2026-01-20] Build #202
+
+### Changes
+- a8a3441 BREAKING: Switch to com.termux package name for upstream compatibility
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #201
 
 ### Changes
