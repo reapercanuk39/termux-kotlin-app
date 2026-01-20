@@ -5,6 +5,15 @@
 
 ### Build Status
 - Prefix Validation: failure
+
+## [v1.1.11] - 2026-01-20
+
+### 📚 Documentation
+-  Update build documentation [skip ci]
+-  Update build documentation [skip ci]
+-  Update AI.md with dpkg wrapper optimization session
+-  Update CHANGELOG for v1.1.10 [skip ci]
+
 - APK Build: skipped
 - Emulator Tests: skipped
 
