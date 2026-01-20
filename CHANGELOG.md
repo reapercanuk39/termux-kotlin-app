@@ -1,3 +1,15 @@
+## [2026-01-20] Build #192
+
+### Changes
+- a7e6251 v1.2.1: Add 12 troubleshooting agents, update AI.md and CHANGELOG
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [v1.2.1] - 2026-01-20
 
 ### 🤖 Agent Framework Expansion
