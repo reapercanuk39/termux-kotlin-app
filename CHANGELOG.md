@@ -1,3 +1,15 @@
+## [2026-01-20] Build #205
+
+### Changes
+- 6e83fbd Fix /tmp/termux-agents permission denied error
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [v2.0.0] - 2026-01-20
 
 ### 🎉 BREAKING CHANGE: Package Name Compatibility Fix
