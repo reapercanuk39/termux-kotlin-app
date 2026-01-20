@@ -38,43 +38,28 @@
 
 This repository is a **complete Kotlin conversion** of the official [termux-app](https://github.com/termux/termux-app). Every Java file has been meticulously converted to idiomatic Kotlin while maintaining 100% compatibility with the original app.
 
-### 📦 Independent Package Identity
+### 📦 Full Upstream Compatibility (v2.0.0+)
 
-Termux Kotlin uses its own package name (`com.termux.kotlin`) and can be installed **alongside the original Termux app**. All system paths use the new prefix:
+Termux Kotlin App uses the `com.termux` package name for **100% compatibility with upstream Termux packages**. All packages install and work without any modification:
 
 ```
-/data/data/com.termux.kotlin/files/usr
+/data/data/com.termux/files/usr
 ```
 
-**All 66 packages rebuilt from source with native paths (v1.0.40):**
+**What works:**
+- ✅ `pkg install python` - Python 3.12.12 installs perfectly
+- ✅ `pip install <package>` - pip works out of the box
+- ✅ All upstream packages work without path rewriting
+- ✅ Uses official Termux bootstrap unchanged
 
-| Category | Packages |
-|----------|----------|
-| **Core** | apt, dpkg, bash, coreutils, grep, sed, tar, gzip |
-| **Network** | curl, openssl, libgnutls, libcurl, libssh2 |
-| **Utilities** | nano, less, findutils, diffutils, procps |
-| **Termux** | termux-exec, termux-tools, termux-api |
-| **+50 more** | See [CHANGELOG.md](CHANGELOG.md) for complete list |
+**Trade-off:** Cannot be installed alongside the official Termux app (same package name, different signing key). This approach is inspired by [ZeroTermux](https://github.com/hanxinhao000/ZeroTermux) which uses the same strategy.
 
-This means `pkg update` and all package operations work natively without any path-patching hacks.
+### 🆕 Kotlin Modernization
 
-### 🔧 Hybrid Compatibility Layer (v1.2.0+)
-
-For full compatibility with upstream Termux packages, we use a two-tier approach:
-
-| Layer | When | What it Does |
-|-------|------|--------------|
-| **dpkg-wrapper** | Install-time | Rewrites package paths and scripts |
-| **LD_PRELOAD shim** | Runtime | Intercepts syscalls for hardcoded paths |
-
-**The shim auto-compiles when you install clang:**
-```bash
-pkg install clang   # Shim builds automatically!
-# "[termux-compat] Clang detected, auto-compiling..."
-# "[termux-compat] Success! Restart your shell..."
-```
-
-This ensures packages like Python, pip, and others work perfectly even when they have paths compiled into binaries.
+This fork focuses on:
+- 100% Kotlin codebase (converted from Java)
+- Modern Android development practices
+- AI agent integration for development assistance
 
 ### 📦 APK Size Explanation
 

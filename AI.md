@@ -73,21 +73,16 @@ cat /root/termux-kotlin-app/README.md /root/termux-kotlin-app/ARCHITECTURE.md /r
 | Data path | `/data/data/com.termux/files/usr` | `/data/data/com.termux/files/usr` |
 | Language | Java | 100% Kotlin |
 
-### The Path Problem
-Many upstream Termux packages have **hardcoded paths** compiled into ELF binaries:
-```
-/data/data/com.termux/files/usr/...
-```
+### The Path Solution (v2.0.0+)
 
-These paths **cannot be changed** via:
-- Environment variables
-- Wrapper scripts
-- Symlinks (in many cases)
+Starting with v2.0.0, we use the same package name as upstream Termux (`com.termux`). This means:
 
-**The ONLY solution is rebuilding packages from source** with:
-```bash
-TERMUX_APP__PACKAGE_NAME="com.termux"
-```
+- ✅ All upstream packages work unchanged
+- ✅ Uses official Termux bootstrap unchanged
+- ✅ No path rewriting or dpkg wrappers needed
+- ✅ Python, pip, and all packages install perfectly
+
+**Trade-off:** Cannot coexist with official Termux app (same package name, different signing key). Inspired by ZeroTermux which uses the same approach.
 
 ---
 

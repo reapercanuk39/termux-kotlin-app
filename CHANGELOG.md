@@ -1,3 +1,41 @@
+## [v2.0.0] - 2026-01-20
+
+### 🎉 BREAKING CHANGE: Package Name Compatibility Fix
+
+**FIXED:** `pkg install python` and ALL other package installations now work perfectly!
+
+**The Problem:** 
+- Using `com.termux.kotlin` package name required complex path rewriting of upstream packages
+- Termux packages have `/data/data/com.termux/` paths hardcoded in ELF binaries and config files
+- dpkg wrapper v4.0 couldn't reliably rewrite all paths (especially in Python's _sysconfigdata, pip configs, etc.)
+
+**The Solution:**
+- Changed package name from `com.termux.kotlin` to `com.termux`
+- Now uses official Termux bootstrap unchanged (version 2026.01.18-r1)
+- All upstream packages work without any modification
+
+**Trade-off:**
+- Cannot coexist with official Termux app (same package name, different signing key)
+- Inspired by ZeroTermux which uses the same approach
+
+### Changes
+- a8a3441 Switch package name from com.termux.kotlin to com.termux
+- 2c9e512 Fix CI validation for com.termux package name
+- Updated TermuxConstants.kt: TERMUX_PACKAGE_NAME = "com.termux"
+- Updated build.gradle: applicationId = "com.termux"
+- Removed dpkg wrapper v4.0 (no longer needed)
+- Removed apt wrapper and update-alternatives wrapper (no longer needed)
+- Updated all agent Python files with correct paths
+- Updated all scripts with correct paths
+
+### Test Results
+- ✅ pkg update works
+- ✅ pkg install python (3.12.12) - WORKS!
+- ✅ pip 25.3 works
+- ✅ Python can execute code
+
+---
+
 ## [2026-01-20] Build #203
 
 ### Changes
