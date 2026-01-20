@@ -1,3 +1,15 @@
+## [2026-01-20] Build #191
+
+### Changes
+- d63d25d Add 12 new troubleshooting agents and skills
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #190
 
 ### Changes
