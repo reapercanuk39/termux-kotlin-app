@@ -1,3 +1,15 @@
+## [2026-01-20] Build #210
+
+### Changes
+- ec1ac60 Fix crash on startup: Capability.kt static initialization order bug
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] v2.0.5 - Kotlin Agent Daemon & Plugin Integration
 
 ### 🚀 Major Features
