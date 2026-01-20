@@ -1,3 +1,25 @@
+## [v1.2.1] - 2026-01-20
+
+### 🤖 Agent Framework Expansion
+- **12 New Troubleshooting Agents**: Specialized agents for common issues
+  - `compat_agent`, `diagnostic_agent`, `env_agent`, `heal_agent`
+  - `path_agent`, `log_agent`, `bootstrap_agent`, `shim_agent`
+  - `package_agent`, `update_agent`, `permission_agent`, `config_agent`
+- **Total Agents**: 19 (7 existing + 12 new)
+- **agents.zip**: Updated to 138KB with all new content
+
+### 🔧 New Skills
+Each agent has corresponding Python skill implementations:
+- `shim/` - LD_PRELOAD shim management
+- `package/` - Package troubleshooting
+- `permission/` - File permission fixes
+- `config/` - Configuration management
+- `update/` - pkg update/upgrade handling
+- `heal/` - Self-healing coordination
+- Plus 6 more...
+
+---
+
 ## [2026-01-20] Build #191
 
 ### Changes
@@ -9,6 +31,7 @@
 - Emulator Tests: skipped
 
 ---
+
 
 ## [2026-01-20] Build #190
 

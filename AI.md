@@ -1896,4 +1896,88 @@ pkg install python    # Full compatibility
 
 ---
 
+## Session 26: Agent Framework Expansion (2026-01-20)
+
+### Problem
+User wanted more agents to help with the troubleshooting tasks we keep encountering.
+
+### Solution: 12 New Troubleshooting Agents
+
+Created specialized agents for each type of common issue:
+
+| Agent | Purpose | Key Skills |
+|-------|---------|------------|
+| `compat_agent` | Manage compatibility layer | verify_layer, fix_wrapper, test_shim |
+| `diagnostic_agent` | System health checks | collect_info, run_diagnostics, check_paths |
+| `env_agent` | Environment variables | check_env, set_env, verify_prefix |
+| `heal_agent` | Self-healing coordinator | run_all_checks, coordinate_healing |
+| `path_agent` | Path rewriting verification | check_paths, find_old_paths, rewrite_path |
+| `log_agent` | Log analysis | find_errors, analyze_logs, get_recent |
+| `bootstrap_agent` | Bootstrap integrity | verify_files, check_structure, compare_checksums |
+| `shim_agent` | LD_PRELOAD shim management | check_shim, compile_shim, test_shim |
+| `package_agent` | Package troubleshooting | diagnose_install, verify_paths, find_broken |
+| `update_agent` | pkg update/upgrade | check_updates, run_upgrade, fix_mirrors |
+| `permission_agent` | File permissions | fix_bin_perms, audit_permissions |
+| `config_agent` | Configuration files | read_config, write_config, validate_config |
+
+### Total Agents: 19
+- 7 existing: system, build, debug, network, repo, security, backup
+- 12 new troubleshooting agents
+
+### Skill Implementations
+Each agent has a corresponding skill with:
+- YAML definition (`skill.yml`) - provides, requires_capabilities
+- Python implementation (`skill.py`) - 3-6 functions each
+
+### Example Usage (after Python + pyyaml installed)
+```bash
+# Check compatibility layer
+agent run compat_agent --task verify_layer
+
+# Diagnose package installation
+agent run package_agent --task diagnose_install --args '{"package": "vim"}'
+
+# Check shim status
+agent run shim_agent --task show_status
+
+# Run system diagnostics
+agent run diagnostic_agent --task run_all
+```
+
+### Files Created
+```
+agents/models/
+├── bootstrap_agent.yml
+├── compat_agent.yml
+├── config_agent.yml
+├── diagnostic_agent.yml
+├── env_agent.yml
+├── heal_agent.yml
+├── log_agent.yml
+├── package_agent.yml
+├── path_agent.yml
+├── permission_agent.yml
+├── shim_agent.yml
+└── update_agent.yml
+
+agents/skills/
+├── bootstrap/skill.{yml,py}
+├── compat/skill.{yml,py}
+├── config/skill.{yml,py}
+├── diagnostic/skill.{yml,py}
+├── env/skill.{yml,py}
+├── heal/skill.{yml,py}
+├── log/skill.{yml,py}
+├── package/skill.{yml,py}
+├── path/skill.{yml,py}
+├── permission/skill.{yml,py}
+├── shim/skill.{yml,py}
+└── update/skill.{yml,py}
+```
+
+### agents.zip Updated
+Rebuilt to 138KB (was 97KB) with all new agents and skills included.
+
+---
+
 *Updated: 2026-01-20*
