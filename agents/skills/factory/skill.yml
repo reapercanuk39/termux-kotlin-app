@@ -1,0 +1,16 @@
+name: factory
+description: Agent factory skill for creating agents
+version: "1.0.0"
+
+provides:
+  - create_agent
+  - clone_agent
+  - create_from_task
+  - delete_agent
+  - list_templates
+  - list_created
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write
+  - exec.python

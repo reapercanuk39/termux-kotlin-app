@@ -1,0 +1,57 @@
+name: factory_agent
+description: Agent that creates and manages other agents
+version: "1.0.0"
+
+purpose: |
+  The factory agent is agentd's helper for creating new agents dynamically.
+  It can spawn specialized agents based on task requirements, clone existing
+  agents with modifications, and manage the agent lifecycle.
+
+skills:
+  - factory
+  - learner
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - exec.python
+  - memory.read
+  - memory.write
+
+tasks:
+  - name: create_agent
+    description: Create a new agent from template
+    skill: factory
+    function: create_agent
+
+  - name: clone_agent
+    description: Clone an existing agent with modifications
+    skill: factory
+    function: clone_agent
+
+  - name: create_from_task
+    description: Auto-create agent based on task description
+    skill: factory
+    function: create_from_task
+
+  - name: create_skill
+    description: Create a new skill from template
+    skill: learner
+    function: create_skill
+
+  - name: suggest_skill
+    description: Suggest what skill to create for a task
+    skill: learner
+    function: suggest_skill
+
+  - name: list_templates
+    description: List available agent and skill templates
+    skill: factory
+    function: list_templates
+
+constraints:
+  memory_limit: "1MB"
+  sandbox_safe: true
+  offline_only: true
+  can_create_agents: true
+  can_create_skills: true

@@ -1,0 +1,19 @@
+name: learner
+description: Skill learning and pattern acquisition
+version: "1.0.0"
+
+provides:
+  - create_skill
+  - learn_from_execution
+  - get_best_pattern
+  - suggest_skill
+  - list_templates
+  - list_patterns
+  - export_patterns
+  - import_patterns
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
