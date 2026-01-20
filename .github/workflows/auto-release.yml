@@ -11,8 +11,7 @@ jobs:
   check-and-release:
     name: Auto Tag & Release
     runs-on: ubuntu-latest
-    # Only run if this is a merge commit (PR merge)
-    if: github.event.head_commit.message != '' && (startsWith(github.event.head_commit.message, 'Merge pull request') || contains(github.event.head_commit.message, '(#'))
+    # Run on every push to main
     
     steps:
       - name: Checkout code
