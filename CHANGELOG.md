@@ -1,3 +1,15 @@
+## [2026-01-20] Build #187
+
+### Changes
+- 5d63c4a Bundle agent framework in APK assets
+
+### Build Status
+- Prefix Validation: failure
+- APK Build: skipped
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #185
 
 ### Changes
