@@ -1,0 +1,22 @@
+# Developer Agent
+# ===============
+# Development workflow agent with git and file operations.
+
+name: developer
+description: Development workflow and git operations
+version: 1.0.0
+
+capabilities:
+  - exec.git
+  - exec.shell
+  - fs.read
+  - fs.write
+  - fs.exec
+  - net.external
+  - mem.read
+  - mem.write
+
+skills:
+  - git
+  - fs
+  - diagnostic

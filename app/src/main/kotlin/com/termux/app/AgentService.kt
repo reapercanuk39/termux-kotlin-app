@@ -5,33 +5,56 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
 import com.termux.R
+import com.termux.app.agents.daemon.AgentDaemon
+import com.termux.app.agents.daemon.DaemonStatistics
 import com.termux.shared.logger.Logger
 import com.termux.shared.termux.TermuxConstants
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 
 /**
  * Background service that runs the autonomous agent daemon.
  * 
  * This service starts automatically when Termux launches and keeps
- * the agent framework running in the background with full network access.
+ * the Kotlin-native agent framework running in the background with full
+ * network access. No Python dependency required for core functionality.
  */
+@AndroidEntryPoint
 class AgentService : Service() {
 
     companion object {
         private const val LOG_TAG = "AgentService"
         private const val NOTIFICATION_ID = 1338
         private const val CHANNEL_ID = "termux_agent_channel"
+        
+        // Intent actions for IPC
+        const val ACTION_RUN_TASK = "com.termux.agent.RUN_TASK"
+        const val ACTION_GET_STATUS = "com.termux.agent.GET_STATUS"
+        const val ACTION_STATUS_RESPONSE = "com.termux.agent.STATUS_RESPONSE"
+        const val ACTION_TASK_RESULT = "com.termux.agent.TASK_RESULT"
+        
+        // Intent extras
+        const val EXTRA_AGENT_NAME = "agent_name"
+        const val EXTRA_SKILL_NAME = "skill_name"
+        const val EXTRA_FUNCTION_NAME = "function_name"
+        const val EXTRA_PARAMS_JSON = "params_json"
+        const val EXTRA_RESULT_JSON = "result_json"
+        const val EXTRA_STATUS_JSON = "status_json"
         
         private val isRunning = AtomicBoolean(false)
         
@@ -60,24 +83,31 @@ class AgentService : Service() {
         }
     }
     
-    private val executor = Executors.newSingleThreadExecutor()
-    private var agentProcess: Process? = null
+    @Inject
+    lateinit var agentDaemon: AgentDaemon
+    
+    @Inject
+    lateinit var cliBridge: com.termux.app.agents.cli.CliBridge
+    
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val handler = Handler(Looper.getMainLooper())
+    private var commandReceiver: BroadcastReceiver? = null
     
     override fun onCreate() {
         super.onCreate()
         Logger.logInfo(LOG_TAG, "AgentService created")
         createNotificationChannel()
+        registerCommandReceiver()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Logger.logInfo(LOG_TAG, "AgentService starting")
+        Logger.logInfo(LOG_TAG, "AgentService starting with Kotlin-native daemon")
         
         // Start as foreground service with notification
         startForeground(NOTIFICATION_ID, buildNotification())
         
-        // Start the agent daemon in background
-        startAgentDaemon()
+        // Start the Kotlin-native agent daemon
+        startKotlinDaemon()
         
         isRunning.set(true)
         
@@ -88,12 +118,131 @@ class AgentService : Service() {
     override fun onDestroy() {
         Logger.logInfo(LOG_TAG, "AgentService stopping")
         isRunning.set(false)
-        stopAgentDaemon()
-        executor.shutdown()
+        stopKotlinDaemon()
+        unregisterCommandReceiver()
+        serviceScope.cancel()
         super.onDestroy()
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
+    
+    /**
+     * Register broadcast receiver for IPC commands.
+     */
+    private fun registerCommandReceiver() {
+        commandReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    ACTION_RUN_TASK -> handleRunTask(intent)
+                    ACTION_GET_STATUS -> handleGetStatus()
+                }
+            }
+        }
+        
+        val filter = IntentFilter().apply {
+            addAction(ACTION_RUN_TASK)
+            addAction(ACTION_GET_STATUS)
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(commandReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(commandReceiver, filter)
+        }
+    }
+    
+    private fun unregisterCommandReceiver() {
+        commandReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Error unregistering receiver: ${e.message}")
+            }
+        }
+        commandReceiver = null
+    }
+    
+    /**
+     * Handle a task execution request.
+     */
+    private fun handleRunTask(intent: Intent) {
+        val agentName = intent.getStringExtra(EXTRA_AGENT_NAME) ?: return
+        val skillName = intent.getStringExtra(EXTRA_SKILL_NAME) ?: return
+        val functionName = intent.getStringExtra(EXTRA_FUNCTION_NAME) ?: return
+        val paramsJson = intent.getStringExtra(EXTRA_PARAMS_JSON) ?: "{}"
+        
+        serviceScope.launch {
+            try {
+                val params = parseParams(paramsJson)
+                val result = agentDaemon.runTask(agentName, skillName, functionName, params)
+                
+                // Broadcast result
+                val resultIntent = Intent(ACTION_TASK_RESULT).apply {
+                    putExtra(EXTRA_RESULT_JSON, serializeResult(result))
+                }
+                sendBroadcast(resultIntent)
+                
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Task execution failed: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Handle status request.
+     */
+    private fun handleGetStatus() {
+        val stats = agentDaemon.getStatistics()
+        val statusJson = serializeStatistics(stats)
+        
+        val intent = Intent(ACTION_STATUS_RESPONSE).apply {
+            putExtra(EXTRA_STATUS_JSON, statusJson)
+        }
+        sendBroadcast(intent)
+    }
+    
+    private fun parseParams(json: String): Map<String, Any?> {
+        // Simple JSON parsing - in production use kotlinx.serialization
+        return try {
+            val trimmed = json.trim().removePrefix("{").removeSuffix("}")
+            if (trimmed.isBlank()) {
+                emptyMap()
+            } else {
+                trimmed.split(",").associate { pair ->
+                    val (key, value) = pair.split(":").map { it.trim().trim('"') }
+                    key to value
+                }
+            }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+    
+    private fun serializeResult(result: com.termux.app.agents.models.TaskResult): String {
+        return when (result) {
+            is com.termux.app.agents.models.TaskResult.Success -> 
+                """{"success":true,"data":${result.data}}"""
+            is com.termux.app.agents.models.TaskResult.Failure -> 
+                """{"success":false,"error":"${result.error.message}"}"""
+            is com.termux.app.agents.models.TaskResult.Timeout -> 
+                """{"success":false,"error":"timeout","duration":${result.durationMs}}"""
+            is com.termux.app.agents.models.TaskResult.Cancelled -> 
+                """{"success":false,"error":"cancelled","reason":"${result.reason}"}"""
+        }
+    }
+    
+    private fun serializeStatistics(stats: DaemonStatistics): String {
+        return """{
+            "state":"${stats.state}",
+            "uptime":"${stats.uptimeFormatted}",
+            "tasksExecuted":${stats.tasksExecuted},
+            "tasksSucceeded":${stats.tasksSucceeded},
+            "tasksFailed":${stats.tasksFailed},
+            "activeTasks":${stats.activeTasks},
+            "registeredAgents":${stats.registeredAgents},
+            "registeredSkills":${stats.registeredSkills}
+        }"""
+    }
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -102,7 +251,7 @@ class AgentService : Service() {
                 "Termux Agent Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Autonomous agent framework running in background"
+                description = "Kotlin-native agent framework running in background"
                 setShowBadge(false)
             }
             
@@ -118,6 +267,19 @@ class AgentService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         
+        val stats = if (::agentDaemon.isInitialized) {
+            agentDaemon.getStatistics()
+        } else null
+        
+        val statusText = when {
+            stats == null -> "Starting..."
+            stats.state == AgentDaemon.DaemonState.RUNNING -> 
+                "Running • ${stats.registeredAgents} agents • ${stats.registeredSkills} skills"
+            stats.state == AgentDaemon.DaemonState.PAUSED -> "Paused"
+            stats.state == AgentDaemon.DaemonState.ERROR -> "Error"
+            else -> "Initializing..."
+        }
+        
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
         } else {
@@ -126,89 +288,91 @@ class AgentService : Service() {
         }
         
         return builder
-            .setContentTitle("Termux Agent")
-            .setContentText("Autonomous agents running")
+            .setContentTitle("Termux Agent Daemon")
+            .setContentText(statusText)
             .setSmallIcon(R.drawable.ic_service_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()
     }
     
-    private fun startAgentDaemon() {
-        executor.execute {
+    /**
+     * Start the Kotlin-native agent daemon.
+     * No Python dependency required.
+     */
+    private fun startKotlinDaemon() {
+        serviceScope.launch {
             try {
-                val prefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH
-                val agentsRoot = "$prefix/share/agents"
-                val pythonPath = "$prefix/bin/python3"
-                val agentDaemon = "$agentsRoot/bin/agentd"
+                Logger.logInfo(LOG_TAG, "Starting Kotlin-native agent daemon")
                 
-                // Self-healing: Verify compat layer
-                verifyCompatLayer(prefix)
+                val success = agentDaemon.start()
                 
-                // Check if Python is available
-                val pythonFile = File(pythonPath)
-                if (!pythonFile.exists()) {
-                    Logger.logWarn(LOG_TAG, "Python not installed, agent daemon will start when Python is available")
-                    scheduleRetry()
-                    return@execute
-                }
-                
-                // Check if agent daemon exists
-                val daemonFile = File(agentDaemon)
-                if (!daemonFile.exists()) {
-                    Logger.logInfo(LOG_TAG, "Creating agent daemon script")
-                    createAgentDaemonScript(agentsRoot)
-                }
-                
-                // Set environment variables
-                val env = arrayOf(
-                    "HOME=${TermuxConstants.TERMUX_HOME_DIR_PATH}",
-                    "PREFIX=$prefix",
-                    "PATH=$prefix/bin:$prefix/bin/applets",
-                    "PYTHONPATH=$agentsRoot",
-                    "AGENTS_ROOT=$agentsRoot",
-                    "TERMUX_VERSION=${TermuxConstants.TERMUX_APP_NAME}",
-                    "LD_LIBRARY_PATH=$prefix/lib",
-                    "LANG=en_US.UTF-8"
-                )
-                
-                Logger.logInfo(LOG_TAG, "Starting agent daemon")
-                
-                // Start the daemon process
-                val processBuilder = ProcessBuilder(pythonPath, agentDaemon, "--daemon")
-                    .directory(File(agentsRoot))
-                    .redirectErrorStream(true)
-                
-                processBuilder.environment().apply {
-                    put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH)
-                    put("PREFIX", prefix)
-                    put("PATH", "$prefix/bin:$prefix/bin/applets")
-                    put("PYTHONPATH", agentsRoot)
-                    put("AGENTS_ROOT", agentsRoot)
-                    put("LD_LIBRARY_PATH", "$prefix/lib")
-                    put("LANG", "en_US.UTF-8")
-                }
-                
-                agentProcess = processBuilder.start()
-                
-                // Read output in background
-                val reader = BufferedReader(InputStreamReader(agentProcess!!.inputStream))
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    Logger.logDebug(LOG_TAG, "agentd: $line")
-                }
-                
-                val exitCode = agentProcess?.waitFor() ?: -1
-                Logger.logInfo(LOG_TAG, "Agent daemon exited with code: $exitCode")
-                
-                // Restart if it crashes
-                if (isRunning.get() && exitCode != 0) {
+                if (success) {
+                    Logger.logInfo(LOG_TAG, "Kotlin agent daemon started successfully")
+                    
+                    // Start CLI bridge for shell command IPC
+                    cliBridge.start()
+                    Logger.logInfo(LOG_TAG, "CLI bridge started")
+                    
+                    // Schedule WorkManager periodic tasks
+                    com.termux.app.agents.daemon.AgentWorker.schedulePeriodicWork(this@AgentService)
+                    Logger.logInfo(LOG_TAG, "WorkManager tasks scheduled")
+                    
+                    // Update notification with running status
+                    handler.post {
+                        val notification = buildNotification()
+                        val manager = getSystemService(NotificationManager::class.java)
+                        manager?.notify(NOTIFICATION_ID, notification)
+                    }
+                    
+                    // Start periodic notification updates
+                    startNotificationUpdates()
+                    
+                } else {
+                    Logger.logError(LOG_TAG, "Failed to start Kotlin agent daemon")
                     scheduleRetry()
                 }
                 
             } catch (e: Exception) {
-                Logger.logError(LOG_TAG, "Failed to start agent daemon: ${e.message}")
+                Logger.logError(LOG_TAG, "Exception starting daemon: ${e.message}")
                 scheduleRetry()
+            }
+        }
+    }
+    
+    /**
+     * Stop the Kotlin-native daemon.
+     */
+    private fun stopKotlinDaemon() {
+        try {
+            // Stop CLI bridge
+            cliBridge.stop()
+            
+            // Stop daemon
+            agentDaemon.stop()
+            Logger.logInfo(LOG_TAG, "Kotlin agent daemon stopped")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Error stopping daemon: ${e.message}")
+        }
+    }
+    
+    /**
+     * Update notification periodically with daemon statistics.
+     */
+    private fun startNotificationUpdates() {
+        serviceScope.launch {
+            while (isActive && isRunning.get()) {
+                delay(30_000) // Update every 30 seconds
+                
+                try {
+                    handler.post {
+                        val notification = buildNotification()
+                        val manager = getSystemService(NotificationManager::class.java)
+                        manager?.notify(NOTIFICATION_ID, notification)
+                    }
+                } catch (e: Exception) {
+                    // Ignore notification update errors
+                }
             }
         }
     }
@@ -217,238 +381,10 @@ class AgentService : Service() {
         if (isRunning.get()) {
             handler.postDelayed({
                 if (isRunning.get()) {
-                    Logger.logInfo(LOG_TAG, "Retrying agent daemon start")
-                    startAgentDaemon()
+                    Logger.logInfo(LOG_TAG, "Retrying Kotlin daemon start")
+                    startKotlinDaemon()
                 }
             }, 30000) // Retry after 30 seconds
-        }
-    }
-    
-    private fun stopAgentDaemon() {
-        try {
-            agentProcess?.destroy()
-            agentProcess = null
-        } catch (e: Exception) {
-            Logger.logError(LOG_TAG, "Error stopping agent daemon: ${e.message}")
-        }
-    }
-    
-    private fun createAgentDaemonScript(agentsRoot: String) {
-        val binDir = File(agentsRoot, "bin")
-        binDir.mkdirs()
-        
-        val daemonScript = File(binDir, "agentd")
-        val content = """#!/usr/bin/env python3
-\"\"\"
-Termux-Kotlin Agent Daemon
-==========================
-
-Background daemon that runs autonomous agents with full network access.
-\"\"\"
-
-import os
-import sys
-import json
-import time
-import signal
-import logging
-import argparse
-from pathlib import Path
-from datetime import datetime
-
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger('agentd')
-
-AGENTS_ROOT = Path(os.environ.get('AGENTS_ROOT', '/data/data/com.termux/files/usr/share/agents'))
-PID_FILE = AGENTS_ROOT / 'logs' / 'agentd.pid'
-LOG_FILE = AGENTS_ROOT / 'logs' / 'agentd.log'
-
-class AgentDaemon:
-    \"\"\"Main agent daemon process.\"\"\"
-    
-    def __init__(self):
-        self.running = True
-        self.agents = {}
-        self.start_time = datetime.now()
-        
-        # Setup signal handlers
-        signal.signal(signal.SIGTERM, self._handle_signal)
-        signal.signal(signal.SIGINT, self._handle_signal)
-    
-    def _handle_signal(self, signum, frame):
-        logger.info(f"Received signal {signum}, shutting down...")
-        self.running = False
-    
-    def write_pid(self):
-        \"\"\"Write PID file.\"\"\"
-        PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PID_FILE.write_text(str(os.getpid()))
-        logger.info(f"PID file written: {PID_FILE}")
-    
-    def cleanup_pid(self):
-        \"\"\"Remove PID file.\"\"\"
-        try:
-            PID_FILE.unlink()
-        except:
-            pass
-    
-    def load_agents(self):
-        \"\"\"Load agent configurations.\"\"\"
-        agents_dir = AGENTS_ROOT / 'models'
-        if agents_dir.exists():
-            for agent_file in agents_dir.glob('*.json'):
-                try:
-                    agent_config = json.loads(agent_file.read_text())
-                    name = agent_config.get('name', agent_file.stem)
-                    self.agents[name] = agent_config
-                    logger.info(f"Loaded agent: {name}")
-                except Exception as e:
-                    logger.error(f"Failed to load agent {agent_file}: {e}")
-        
-        logger.info(f"Loaded {len(self.agents)} agents")
-    
-    def run_autonomous_tasks(self):
-        \"\"\"Run autonomous background tasks.\"\"\"
-        try:
-            # Import the autonomous executor
-            sys.path.insert(0, str(AGENTS_ROOT))
-            
-            # Check for pending tasks in memory
-            memory_dir = AGENTS_ROOT / 'memory'
-            if memory_dir.exists():
-                for mem_file in memory_dir.glob('*.json'):
-                    try:
-                        memory = json.loads(mem_file.read_text())
-                        pending = memory.get('pending_tasks', [])
-                        if pending:
-                            logger.info(f"Found {len(pending)} pending tasks for {mem_file.stem}")
-                            # Process tasks...
-                    except:
-                        pass
-        except Exception as e:
-            logger.debug(f"Autonomous task check: {e}")
-    
-    def run(self):
-        \"\"\"Main daemon loop.\"\"\"
-        logger.info("Agent daemon starting")
-        logger.info(f"AGENTS_ROOT: {AGENTS_ROOT}")
-        logger.info(f"Network: ENABLED")
-        
-        self.write_pid()
-        self.load_agents()
-        
-        # Main loop
-        cycle = 0
-        while self.running:
-            try:
-                cycle += 1
-                
-                # Run autonomous tasks every 60 seconds
-                if cycle % 60 == 0:
-                    self.run_autonomous_tasks()
-                
-                # Health check every 10 cycles
-                if cycle % 10 == 0:
-                    uptime = datetime.now() - self.start_time
-                    logger.debug(f"Daemon healthy, uptime: {uptime}")
-                
-                time.sleep(1)
-                
-            except Exception as e:
-                logger.error(f"Error in main loop: {e}")
-                time.sleep(5)
-        
-        self.cleanup_pid()
-        logger.info("Agent daemon stopped")
-
-def main():
-    parser = argparse.ArgumentParser(description='Termux Agent Daemon')
-    parser.add_argument('--daemon', action='store_true', help='Run as daemon')
-    parser.add_argument('--status', action='store_true', help='Check daemon status')
-    parser.add_argument('--stop', action='store_true', help='Stop daemon')
-    args = parser.parse_args()
-    
-    if args.status:
-        if PID_FILE.exists():
-            pid = PID_FILE.read_text().strip()
-            print(f"Agent daemon running (PID: {pid})")
-        else:
-            print("Agent daemon not running")
-        return
-    
-    if args.stop:
-        if PID_FILE.exists():
-            pid = int(PID_FILE.read_text().strip())
-            os.kill(pid, signal.SIGTERM)
-            print(f"Sent SIGTERM to PID {pid}")
-        else:
-            print("Agent daemon not running")
-        return
-    
-    # Run daemon
-    daemon = AgentDaemon()
-    daemon.run()
-
-if __name__ == '__main__':
-    main()
-"""
-        daemonScript.writeText(content)
-        daemonScript.setExecutable(true)
-        Logger.logInfo(LOG_TAG, "Created agent daemon script at ${daemonScript.absolutePath}")
-    }
-    
-    /**
-     * Verify the compatibility layer is properly installed.
-     * This performs self-healing if components are missing.
-     */
-    private fun verifyCompatLayer(prefix: String) {
-        try {
-            val compatSrc = File("$prefix/lib/libtermux_compat.c")
-            val compatSo = File("$prefix/lib/libtermux_compat.so")
-            val dpkgWrapper = File("$prefix/bin/dpkg")
-            val dpkgReal = File("$prefix/bin/dpkg.real")
-            val buildScript = File("$prefix/bin/termux-compat-build")
-            
-            // Check dpkg wrapper
-            if (dpkgWrapper.exists() && dpkgReal.exists()) {
-                // Verify wrapper is a script, not ELF
-                val firstBytes = ByteArray(4)
-                dpkgWrapper.inputStream().use { it.read(firstBytes) }
-                val isElf = firstBytes[0] == 0x7F.toByte() && 
-                            firstBytes[1] == 'E'.code.toByte()
-                if (isElf) {
-                    Logger.logWarn(LOG_TAG, "dpkg wrapper corrupted, needs repair")
-                } else {
-                    Logger.logDebug(LOG_TAG, "dpkg wrapper OK")
-                }
-            }
-            
-            // Check compat source
-            if (compatSrc.exists()) {
-                Logger.logDebug(LOG_TAG, "compat source OK")
-            } else {
-                Logger.logWarn(LOG_TAG, "compat source missing: $compatSrc")
-            }
-            
-            // Check compat library
-            if (compatSo.exists()) {
-                Logger.logInfo(LOG_TAG, "compat shim compiled and ready")
-            } else if (compatSrc.exists() && buildScript.exists()) {
-                Logger.logInfo(LOG_TAG, "compat shim not compiled. Run: termux-compat-build")
-            }
-            
-            // Log overall status
-            Logger.logDebug(LOG_TAG, "Compat layer verification complete")
-            
-        } catch (e: Exception) {
-            Logger.logError(LOG_TAG, "Compat layer verification failed: ${e.message}")
         }
     }
 }

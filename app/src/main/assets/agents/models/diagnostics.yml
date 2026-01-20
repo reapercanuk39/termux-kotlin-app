@@ -1,0 +1,18 @@
+# Diagnostics Agent
+# =================
+# System health monitoring and troubleshooting agent.
+
+name: diagnostics
+description: System health and troubleshooting
+version: 1.0.0
+
+capabilities:
+  - fs.read
+  - sys.info
+  - sys.proc
+  - sys.env
+  - net.local
+
+skills:
+  - diagnostic
+  - fs

@@ -1,0 +1,20 @@
+# Maintenance Agent
+# =================
+# System maintenance and package management agent.
+
+name: maintenance
+description: System maintenance and package management
+version: 1.0.0
+
+capabilities:
+  - exec.pkg
+  - exec.shell
+  - fs.read
+  - fs.write
+  - fs.delete
+  - sys.info
+
+skills:
+  - pkg
+  - fs
+  - diagnostic

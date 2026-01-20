@@ -103,6 +103,13 @@
             android:label="@string/title_activity_termux_settings"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
+        <!-- Styling Activity for theme configuration -->
+        <activity
+            android:name=".app.styling.StylingActivity"
+            android:exported="true"
+            android:label="Terminal Styling"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
         <activity
             android:name=".shared.activities.ReportActivity"
             android:theme="@style/Theme.MarkdownViewActivity.DayNight"
@@ -189,6 +196,16 @@
             </intent-filter>
         </receiver>
 
+        <!-- Agent Worker for periodic health checks -->
+        <receiver
+            android:name=".app.agents.daemon.AgentWorker"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.termux.agent.HEALTH_CHECK" />
+                <action android:name="com.termux.agent.SIGNAL_CLEANUP" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
             android:exported="false" />
@@ -225,6 +242,46 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Autonomous agent framework for background task execution" />
         </service>
+
+        <!-- Boot Service for executing ~/.termux/boot/ scripts on device boot -->
+        <service
+            android:name=".app.boot.BootService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Execute boot scripts when device starts" />
+        </service>
+
+        <!-- Widget Provider - Simple 1x1 -->
+        <receiver
+            android:name=".app.widget.TermuxWidgetProvider"
+            android:exported="true"
+            android:label="Termux Shortcut">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_simple_info" />
+        </receiver>
+
+        <!-- Widget Configuration Activity -->
+        <activity
+            android:name=".app.widget.WidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Widget RemoteViews Service for list widget -->
+        <service
+            android:name=".app.widget.WidgetRemoteViewsService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
 
 
         <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the

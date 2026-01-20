@@ -1,0 +1,204 @@
+#!/data/data/com.termux/files/usr/bin/bash
+#
+# Termux Agent CLI
+# ================
+# 
+# Command-line interface to the Kotlin-native agent daemon.
+# Communicates with AgentService via file-based IPC.
+#
+
+CLI_DIR="/data/data/com.termux/files/usr/share/termux-agents/cli"
+REQUEST_FILE="$CLI_DIR/request.json"
+RESPONSE_FILE="$CLI_DIR/response.json"
+TIMEOUT=30
+
+# Ensure CLI directory exists
+mkdir -p "$CLI_DIR"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+usage() {
+    echo -e "${BLUE}Termux Agent CLI${NC}"
+    echo ""
+    echo "Usage: agent <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  status              Show daemon status"
+    echo "  agents              List registered agents"
+    echo "  skills              List available skills"
+    echo "  run                 Execute a task"
+    echo "  self-test           Run skill self-tests"
+    echo "  help                Show this help"
+    echo ""
+    echo "Run options:"
+    echo "  agent run --agent=<name> --skill=<skill> --function=<func> [--param=value...]"
+    echo ""
+    echo "Examples:"
+    echo "  agent status"
+    echo "  agent agents"
+    echo "  agent run --agent=maintenance --skill=pkg --function=update_packages"
+    echo "  agent run --agent=dev --skill=git --function=status --path=."
+    echo ""
+}
+
+send_request() {
+    local command="$1"
+    shift
+    
+    # Build JSON request
+    local json="{\"command\": \"$command\""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --*=*)
+                key="${1#--}"
+                key="${key%%=*}"
+                value="${1#*=}"
+                json="$json, \"arg_$key\": \"$value\""
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+    
+    json="$json}"
+    
+    # Write request
+    echo "$json" > "$REQUEST_FILE"
+    
+    # Wait for response
+    local elapsed=0
+    while [[ ! -f "$RESPONSE_FILE" ]] && [[ $elapsed -lt $TIMEOUT ]]; do
+        sleep 0.1
+        elapsed=$((elapsed + 1))
+    done
+    
+    if [[ -f "$RESPONSE_FILE" ]]; then
+        cat "$RESPONSE_FILE"
+        rm -f "$RESPONSE_FILE"
+    else
+        echo -e "${RED}Error: Timeout waiting for response${NC}"
+        echo "Make sure the agent daemon is running."
+        return 1
+    fi
+}
+
+format_status() {
+    local response="$1"
+    
+    # Simple JSON parsing with sed/grep
+    local state=$(echo "$response" | grep -o '"state"[^,}]*' | cut -d'"' -f4)
+    local uptime=$(echo "$response" | grep -o '"uptime"[^,}]*' | cut -d'"' -f4)
+    local agents=$(echo "$response" | grep -o '"registered_agents"[^,}]*' | grep -o '[0-9]*')
+    local skills=$(echo "$response" | grep -o '"registered_skills"[^,}]*' | grep -o '[0-9]*')
+    local tasks=$(echo "$response" | grep -o '"tasks_executed"[^,}]*' | grep -o '[0-9]*')
+    local rate=$(echo "$response" | grep -o '"success_rate"[^,}]*' | cut -d'"' -f4)
+    
+    echo -e "${BLUE}Termux Agent Daemon${NC}"
+    echo "========================"
+    
+    if [[ "$state" == "RUNNING" ]]; then
+        echo -e "State:   ${GREEN}$state${NC}"
+    else
+        echo -e "State:   ${YELLOW}$state${NC}"
+    fi
+    
+    echo "Uptime:  $uptime"
+    echo "Agents:  $agents registered"
+    echo "Skills:  $skills available"
+    echo "Tasks:   $tasks executed ($rate success)"
+}
+
+format_agents() {
+    local response="$1"
+    
+    echo -e "${BLUE}Registered Agents${NC}"
+    echo "=================="
+    echo ""
+    
+    # Extract count
+    local count=$(echo "$response" | grep -o '"count"[^,}]*' | grep -o '[0-9]*')
+    
+    if [[ "$count" -eq 0 ]]; then
+        echo "No agents registered."
+        return
+    fi
+    
+    # Simple extraction - in production use jq
+    echo "$response" | grep -o '"name"[^,}]*' | cut -d'"' -f4 | while read name; do
+        echo "  • $name"
+    done
+}
+
+format_skills() {
+    local response="$1"
+    
+    echo -e "${BLUE}Available Skills${NC}"
+    echo "================"
+    echo ""
+    
+    local count=$(echo "$response" | grep -o '"count"[^,}]*' | grep -o '[0-9]*')
+    echo "Total: $count skills"
+    echo ""
+    
+    # Extract skills list
+    echo "$response" | grep -o '"skills":\[.*\]' | tr ',' '\n' | grep -o '"[^"]*"' | tr -d '"' | while read skill; do
+        if [[ -n "$skill" && "$skill" != "skills" ]]; then
+            echo "  • $skill"
+        fi
+    done
+}
+
+# Main
+case "${1:-help}" in
+    status)
+        response=$(send_request "status")
+        if echo "$response" | grep -q '"success": true'; then
+            format_status "$response"
+        else
+            echo -e "${RED}Error: $(echo "$response" | grep -o '"error"[^}]*' | cut -d'"' -f4)${NC}"
+        fi
+        ;;
+    agents)
+        response=$(send_request "agents")
+        if echo "$response" | grep -q '"success": true'; then
+            format_agents "$response"
+        else
+            echo "$response"
+        fi
+        ;;
+    skills)
+        response=$(send_request "skills")
+        if echo "$response" | grep -q '"success": true'; then
+            format_skills "$response"
+        else
+            echo "$response"
+        fi
+        ;;
+    run)
+        shift
+        response=$(send_request "run" "$@")
+        echo "$response"
+        ;;
+    self-test)
+        echo "Running self-tests..."
+        response=$(send_request "self-test")
+        echo "$response"
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo ""
+        usage
+        exit 1
+        ;;
+esac

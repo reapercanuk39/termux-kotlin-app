@@ -4,12 +4,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.core.content.ContextCompat
+import com.termux.app.boot.BootService
 import com.termux.shared.data.IntentUtils
 import com.termux.shared.logger.Logger
 import com.termux.shared.termux.TermuxUtils
 import com.termux.shared.termux.file.TermuxFileUtils
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import com.termux.shared.termux.shell.TermuxShellManager
+import java.io.File
 
 class SystemEventReceiver : BroadcastReceiver() {
 
@@ -30,7 +33,31 @@ class SystemEventReceiver : BroadcastReceiver() {
 
     @Synchronized
     fun onActionBootCompleted(context: Context, intent: Intent) {
+        Logger.logInfo(LOG_TAG, "BOOT_COMPLETED received")
+        
+        // Call existing shell manager hook
         TermuxShellManager.onActionBootCompleted(context, intent)
+        
+        // Start BootService to execute ~/.termux/boot/ scripts
+        val bootDir = File("/data/data/com.termux/files/home/.termux/boot")
+        if (bootDir.exists() && bootDir.isDirectory) {
+            val scripts = bootDir.listFiles()?.filter { 
+                it.isFile && it.canExecute() && !it.name.startsWith(".") 
+            }
+            if (!scripts.isNullOrEmpty()) {
+                Logger.logInfo(LOG_TAG, "Found ${scripts.size} boot scripts, starting BootService")
+                val bootIntent = Intent(context, BootService::class.java)
+                try {
+                    ContextCompat.startForegroundService(context, bootIntent)
+                } catch (e: Exception) {
+                    Logger.logError(LOG_TAG, "Failed to start BootService: ${e.message}")
+                }
+            } else {
+                Logger.logDebug(LOG_TAG, "No executable boot scripts found")
+            }
+        } else {
+            Logger.logDebug(LOG_TAG, "Boot directory does not exist: ${bootDir.absolutePath}")
+        }
     }
 
     @Synchronized

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple 1x1 widget layout - icon only -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="4dp"
+    android:background="@drawable/widget_background">
+
+    <ImageView
+        android:id="@+id/widget_icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="@string/application_name" />
+
+</FrameLayout>
