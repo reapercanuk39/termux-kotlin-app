@@ -31,23 +31,26 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-# Add agents to Python path
-SCRIPT_DIR = Path(__file__).parent.resolve()
-AGENTS_ROOT = SCRIPT_DIR.parent / "share" / "agents"
+# Determine AGENTS_ROOT based on script location
+# When installed: /data/data/com.termux/files/usr/share/agents/bin/agent
+# AGENTS_ROOT should be: /data/data/com.termux/files/usr/share/agents
+SCRIPT_DIR = Path(__file__).parent.resolve()  # .../share/agents/bin
+AGENTS_ROOT = SCRIPT_DIR.parent  # .../share/agents
 
-# Also check development path
-if not AGENTS_ROOT.exists():
-    # Try relative to script location for development
+# Verify the directory structure is correct
+if not (AGENTS_ROOT / "core").exists():
+    # Try development paths
     dev_paths = [
-        Path(__file__).parent.parent / "agents",
         Path("/root/termux-kotlin-app/agents"),
+        Path.home() / "termux-kotlin-app" / "agents",
     ]
     for p in dev_paths:
-        if p.exists():
+        if (p / "core").exists():
             AGENTS_ROOT = p
             break
 
-# Add to Python path
+# For "from agents.core..." to work, AGENTS_ROOT.parent must be on path
+# So if AGENTS_ROOT = /usr/share/agents, then /usr/share must be on path
 sys.path.insert(0, str(AGENTS_ROOT.parent))
 os.environ["AGENTS_ROOT"] = str(AGENTS_ROOT)
 

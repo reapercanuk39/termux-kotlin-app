@@ -1292,8 +1292,8 @@ if ! python3 -c "import yaml" 2>/dev/null; then
     echo "Install with: pip install pyyaml"
 fi
 
-# Set Python path to include agents
-export PYTHONPATH="${'$'}AGENTS_ROOT:${'$'}PYTHONPATH"
+# Set Python path - need AGENTS_ROOT parent (share/) on path for "from agents.core..." imports
+export PYTHONPATH="${'$'}PREFIX/share:${'$'}PYTHONPATH"
 
 # Run the agent CLI
 exec python3 "${'$'}AGENTS_ROOT/bin/agent" "${'$'}@"
