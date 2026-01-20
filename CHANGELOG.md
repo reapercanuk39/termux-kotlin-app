@@ -1,3 +1,26 @@
+## [v1.2.3] - 2026-01-20
+
+### 🐛 Critical Bug Fix: dpkg Wrapper v4.0
+
+**Fixed:** `pkg install python` and other package installations failing with "Permission denied" errors.
+
+**Root Cause:** The v3.0 dpkg wrapper (introduced in v1.2.0) relied on an LD_PRELOAD shim for runtime path interception. However, the shim requires `clang` to compile, but `clang` couldn't install because the wrapper wasn't properly rewriting package paths - a chicken-and-egg problem.
+
+**Solution:** dpkg wrapper v4.0 restores comprehensive install-time path rewriting:
+
+1. **Full text file scanning** - Uses `grep -rIl` to find and fix ALL text files containing old paths (catches Python's `_sysconfigdata`, pip configs, shebangs, etc.)
+2. **Proper directory structure handling** - Correctly moves `./data/data/com.termux/*` to `./data/data/com.termux.kotlin/`
+3. **DEBIAN script fixes** - Rewrites postinst/prerm/etc. with executable permissions
+4. **Fast compression** - Uses gzip level 1 for fast rebuilds
+
+**Error Fixed:**
+```
+dpkg: error processing archive ... (--unpack):
+ unable to stat './data/data/com.termux' (which was about to be installed): Permission denied
+```
+
+---
+
 ## [v1.2.2] - 2026-01-20
 
 ### 🚀 Auto-Release Enhancement

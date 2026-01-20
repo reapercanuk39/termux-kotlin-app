@@ -1789,3 +1789,66 @@ The trailing slash fix (`com.termux/` → `com.termux.kotlin/`) successfully pre
 - v1059_shebang2.png - Shows correct shebang with single .kotlin
 
 ---
+
+## Error #29: dpkg wrapper v3.0 regression - pkg install fails with Permission denied
+**Date:** 2026-01-20  
+**Versions Affected:** v1.2.0 - v1.2.2
+**Status:** ✅ Fixed in v1.2.3
+
+### Error Message:
+```
+dpkg: error processing archive ... (--unpack):
+ unable to stat './data/data/com.termux' (which was about to be installed): Permission denied
+dpkg-deb: error: paste subprocess was killed by signal (Broken pipe)
+```
+
+### Root Cause:
+The v3.0 dpkg wrapper introduced in v1.2.0 was designed as a "hybrid" approach:
+1. Minimal install-time rewriting (only DEBIAN scripts)
+2. Runtime path interception via LD_PRELOAD shim (`libtermux_compat.so`)
+
+**The Problem:** The shim requires `clang` to compile, but `clang` can't install because:
+- Packages contain `./data/data/com.termux/` paths in their data archives
+- The v3.0 wrapper only checked/fixed DEBIAN control scripts
+- Data file paths were NOT being rewritten
+- dpkg tries to extract to `./data/data/com.termux/` which we can't write to
+
+This created a **chicken-and-egg problem**: clang → shim → path interception → clang install.
+
+### Additional Issues Found:
+1. Directory structure fix was checking wrong path (`pkg_root/data/data/com.termux` vs actual extracted paths)
+2. Text file scanning was completely removed (broke Python's _sysconfigdata, pip configs)
+3. Shell scripts without `.sh` extension weren't being detected
+
+### Fix Applied (v1.2.3):
+Restored comprehensive install-time path rewriting in dpkg wrapper v4.0:
+
+```bash
+# STEP 1: Fix directory structure
+mv pkg_root/data/data/com.termux pkg_root/data/data/com.termux.kotlin
+
+# STEP 2: Fix ALL text files (the missing critical step!)
+text_files=$(grep -rIl "$OLD_PREFIX" pkg_root)
+echo "$text_files" | while read file; do
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+done
+
+# STEP 3: Fix DEBIAN control scripts
+for script in postinst preinst prerm postrm config conffiles; do
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$script"
+    chmod 0755 "$script"
+done
+
+# STEP 4: Rebuild package with fast gzip
+dpkg-deb -Zgzip -z1 --build pkg_root rewritten.deb
+```
+
+### Key Insights:
+- `grep -rIl` finds all text files containing a pattern (skips binaries automatically)
+- Trailing slash in patterns (`com.termux/` → `com.termux.kotlin/`) prevents double replacement
+- gzip level 1 is 10x faster than xz with acceptable size increase
+
+### Why v1.0.59/v1.1.3 Worked:
+Those versions had comprehensive text file rewriting. The v3.0 "optimization" removed it.
+
+---

@@ -670,25 +670,20 @@ exec -a "-bash" "${ourFilesPrefix}/usr/bin/bash" --noprofile --norc
             }
             
             // =============================================================================
-            // DPKG WRAPPER v3.0 - Hybrid Compatibility Layer
+            // DPKG WRAPPER v4.0 - Comprehensive Path Rewriting
             // =============================================================================
-            // This wrapper works with the LD_PRELOAD shim (libtermux_compat.so) to provide
-            // full compatibility with upstream Termux packages.
+            // This wrapper performs COMPLETE path rewriting at install time.
+            // It handles all text files, shebangs, directory structure, and DEBIAN scripts.
             //
-            // DPKG-WRAPPER handles:
-            //   - DEBIAN control scripts (postinst, prerm, etc.) - rewritten at install time
-            //   - Directory structure in packages - paths rewritten at install time
-            //
-            // LD_PRELOAD SHIM handles:
-            //   - Runtime path lookups by compiled binaries
-            //   - Text files that reference old paths (intercepted at open/read time)
-            //
-            // This hybrid approach minimizes install-time rewriting while ensuring
-            // full runtime compatibility.
+            // Key fixes in v4.0:
+            //   1. Uses grep -rIl for efficient text file discovery (skips binaries)
+            //   2. Fixes directory structure with proper path handling
+            //   3. Rewrites ALL text files containing old paths
+            //   4. Uses trailing slash in patterns to prevent double replacement
             // =============================================================================
             val wrapperScript = """#!/${ourFilesPrefix}/usr/bin/bash
-# dpkg wrapper v3.0 - Hybrid Compatibility Layer
-# Only rewrites DEBIAN scripts; runtime handled by LD_PRELOAD shim
+# dpkg wrapper v4.0 - Comprehensive Path Rewriting
+# Fully rewrites package paths at install time
 
 PREFIX="${ourFilesPrefix}/usr"
 export TMPDIR="${ourFilesPrefix}/usr/tmp"
@@ -699,16 +694,21 @@ export DPKG_DATADIR="${ourFilesPrefix}/usr/share/dpkg"
 mkdir -p "${'$'}TMPDIR" 2>/dev/null || true
 
 LOG_FILE="${'$'}TMPDIR/dpkg_wrapper.log"
-echo "[dpkg-wrapper-v3] === ${'$'}(date) ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
-echo "[dpkg-wrapper-v3] args: ${'$'}@" >> "${'$'}LOG_FILE"
+echo "[dpkg-wrapper-v4] === ${'$'}(date) ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
+echo "[dpkg-wrapper-v4] args: ${'$'}@" >> "${'$'}LOG_FILE"
 
-# Define prefixes (split to avoid CI false positives)
+# Define prefixes - CRITICAL: use trailing slash to prevent double replacement
+# e.g., prevents com.termux/ from matching com.termux.kotlin/ on second pass
 OLD_PREFIX="/data/data/com.termu"
 OLD_PREFIX="${'$'}{OLD_PREFIX}x/"
 NEW_PREFIX="/data/data/com.termux.kotlin/"
 
+# Pattern without trailing slash for directory detection
+OLD_PKG_BASE="/data/data/com.termu"
+OLD_PKG_BASE="${'$'}{OLD_PKG_BASE}x"
+
 # =============================================================================
-# REWRITE FUNCTION - Only handles DEBIAN scripts and directory structure
+# REWRITE FUNCTION - Comprehensive path rewriting
 # =============================================================================
 rewrite_deb() {
     local deb_file="${'$'}1"
@@ -716,24 +716,25 @@ rewrite_deb() {
     local rewritten_deb="${'$'}TMPDIR/rewritten_${'$'}deb_name"
     local work_dir="${'$'}TMPDIR/deb_work_${'$'}${'$'}_${'$'}RANDOM"
     
-    # FAST CHECK: Already has correct paths?
+    # FAST CHECK: Get path listing from package
     local path_listing
-    path_listing=${'$'}("${'$'}PREFIX/bin/dpkg-deb" --contents "${'$'}deb_file" 2>/dev/null | head -50)
+    path_listing=${'$'}("${'$'}PREFIX/bin/dpkg-deb" --contents "${'$'}deb_file" 2>/dev/null | head -100)
     
+    # Already has correct paths? (our bootstrap packages)
     if echo "${'$'}path_listing" | grep -q "com\.termux\.kotlin/"; then
-        echo "[dpkg-wrapper-v3] SKIP (correct paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+        echo "[dpkg-wrapper-v4] SKIP (already correct): ${'$'}deb_name" >> "${'$'}LOG_FILE"
         echo "${'$'}deb_file"
         return 0
     fi
     
-    # FAST CHECK: No old paths at all?
+    # No package paths at all? Check control files too
     if ! echo "${'$'}path_listing" | grep -q "com\.termux/"; then
-        local ctrl_temp="${'$'}TMPDIR/ctrl_${'$'}${'$'}"
+        local ctrl_temp="${'$'}TMPDIR/ctrl_check_${'$'}${'$'}"
         mkdir -p "${'$'}ctrl_temp" 2>/dev/null
         "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" "${'$'}ctrl_temp" 2>/dev/null
         if ! grep -rq "com\.termux/" "${'$'}ctrl_temp" 2>/dev/null; then
             rm -rf "${'$'}ctrl_temp"
-            echo "[dpkg-wrapper-v3] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
+            echo "[dpkg-wrapper-v4] SKIP (no old paths): ${'$'}deb_name" >> "${'$'}LOG_FILE"
             echo "${'$'}deb_file"
             return 0
         fi
@@ -741,64 +742,81 @@ rewrite_deb() {
     fi
     
     # NEEDS REWRITING
-    echo "  Patching: ${'$'}deb_name" >&2
-    echo "[dpkg-wrapper-v3] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
+    echo "  Rewriting: ${'$'}deb_name" >&2
+    echo "[dpkg-wrapper-v4] Rewriting: ${'$'}deb_name" >> "${'$'}LOG_FILE"
     
-    mkdir -p "${'$'}work_dir/pkg_root/DEBIAN" || { echo "${'$'}deb_file"; return 1; }
+    mkdir -p "${'$'}work_dir/pkg_root" || { echo "${'$'}deb_file"; return 1; }
     cd "${'$'}work_dir" || { echo "${'$'}deb_file"; return 1; }
     
     # Extract control and data
+    mkdir -p pkg_root/DEBIAN
     "${'$'}PREFIX/bin/dpkg-deb" --control "${'$'}deb_file" pkg_root/DEBIAN 2>>"${'$'}LOG_FILE" || {
+        echo "[dpkg-wrapper-v4] ERROR: Failed to extract control" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
     }
     "${'$'}PREFIX/bin/dpkg-deb" --extract "${'$'}deb_file" pkg_root 2>>"${'$'}LOG_FILE" || {
+        echo "[dpkg-wrapper-v4] ERROR: Failed to extract data" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
     }
     
-    # FIX DIRECTORY STRUCTURE
-    OLD_PKG_DIR="pkg_root/data/data/com.termu"
-    OLD_PKG_DIR="${'$'}{OLD_PKG_DIR}x"
-    if [ -d "${'$'}OLD_PKG_DIR" ]; then
-        mkdir -p "pkg_root/data/data/com.termux.kotlin"
-        for item in "${'$'}OLD_PKG_DIR"/*; do
-            [ -e "${'$'}item" ] && mv "${'$'}item" "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
+    # =========================================================================
+    # STEP 1: FIX DIRECTORY STRUCTURE
+    # Move ./data/data/com.termux/* to ./data/data/com.termux.kotlin/
+    # =========================================================================
+    if [ -d "pkg_root/data/data" ]; then
+        # Find the old package directory (handles any com.termux* without .kotlin)
+        for old_dir in pkg_root/data/data/com.termux; do
+            if [ -d "${'$'}old_dir" ] && [ ! -d "pkg_root/data/data/com.termux.kotlin" ]; then
+                echo "[dpkg-wrapper-v4] Moving directory: ${'$'}old_dir -> com.termux.kotlin" >> "${'$'}LOG_FILE"
+                mv "${'$'}old_dir" "pkg_root/data/data/com.termux.kotlin" 2>>"${'$'}LOG_FILE"
+            elif [ -d "${'$'}old_dir" ]; then
+                # Target exists, merge contents
+                echo "[dpkg-wrapper-v4] Merging directory: ${'$'}old_dir" >> "${'$'}LOG_FILE"
+                cp -a "${'$'}old_dir"/* "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
+                rm -rf "${'$'}old_dir"
+            fi
         done
-        rmdir "${'$'}OLD_PKG_DIR" 2>/dev/null || rm -rf "${'$'}OLD_PKG_DIR"
     fi
     
-    # FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc.)
-    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/prerm pkg_root/DEBIAN/postrm pkg_root/DEBIAN/config; do
+    # =========================================================================
+    # STEP 2: FIX ALL TEXT FILES (grep -rIl finds text files with pattern)
+    # This catches Python's _sysconfigdata, pip configs, shebangs, everything
+    # =========================================================================
+    local text_files
+    text_files=${'$'}(grep -rIl "${'$'}OLD_PKG_BASE" pkg_root 2>/dev/null || true)
+    if [ -n "${'$'}text_files" ]; then
+        echo "[dpkg-wrapper-v4] Fixing text files..." >> "${'$'}LOG_FILE"
+        echo "${'$'}text_files" | while read -r file; do
+            if [ -f "${'$'}file" ]; then
+                sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}file" 2>/dev/null
+                echo "[dpkg-wrapper-v4]   Fixed: ${'$'}file" >> "${'$'}LOG_FILE"
+            fi
+        done
+    fi
+    
+    # =========================================================================
+    # STEP 3: FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc.)
+    # =========================================================================
+    for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/prerm pkg_root/DEBIAN/postrm pkg_root/DEBIAN/config pkg_root/DEBIAN/conffiles; do
         if [ -f "${'$'}script" ]; then
             sed -i "s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script" 2>/dev/null
-        fi
-    done
-    
-    # FIX SHEBANGS in DEBIAN scripts
-    for script in pkg_root/DEBIAN/*; do
-        if [ -f "${'$'}script" ]; then
-            head_bytes=${'$'}(head -c 2 "${'$'}script" 2>/dev/null || echo "")
-            if [ "${'$'}head_bytes" = "#!" ]; then
-                sed -i "1s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|g" "${'$'}script" 2>/dev/null
+            # Ensure executable permissions for scripts
+            if [ "${'$'}script" != "pkg_root/DEBIAN/conffiles" ]; then
+                chmod 0755 "${'$'}script" 2>/dev/null
             fi
         fi
     done
     
-    # FIX SHEBANGS in data files (critical for executables)
-    find pkg_root/data -type f 2>/dev/null | while read -r file; do
-        head_bytes=${'$'}(head -c 2 "${'$'}file" 2>/dev/null || echo "")
-        if [ "${'$'}head_bytes" = "#!" ]; then
-            first_line=${'$'}(head -1 "${'$'}file" 2>/dev/null)
-            if echo "${'$'}first_line" | grep -q "${'$'}OLD_PREFIX"; then
-                sed -i "1s|${'$'}OLD_PREFIX|${'$'}NEW_PREFIX|" "${'$'}file" 2>/dev/null
-            fi
-        fi
-    done
-    
-    # REBUILD with fast compression
-    "${'$'}PREFIX/bin/dpkg-deb" -Zgzip -z1 --build pkg_root "${'$'}rewritten_deb" 2>>"${'$'}LOG_FILE" || {
+    # =========================================================================
+    # STEP 4: REBUILD PACKAGE
+    # Use gzip level 1 for fast compression (speed over size)
+    # =========================================================================
+    "${'$'}PREFIX/bin/dpkg-deb" -Zgzip -z1 --build pkg_root "${'$'}rewritten_deb" >>"${'$'}LOG_FILE" 2>&1 || {
+        echo "[dpkg-wrapper-v4] ERROR: Failed to rebuild package" >> "${'$'}LOG_FILE"
         cd /; rm -rf "${'$'}work_dir"; echo "${'$'}deb_file"; return 1
     }
     
+    echo "[dpkg-wrapper-v4] SUCCESS: ${'$'}rewritten_deb" >> "${'$'}LOG_FILE"
     cd /
     rm -rf "${'$'}work_dir"
     echo "${'$'}rewritten_deb"
@@ -808,9 +826,11 @@ rewrite_deb() {
 # MAIN LOGIC
 # =============================================================================
 is_install=false
+is_recursive=false
 for arg in "${'$'}@"; do
     case "${'$'}arg" in
-        -i|--install|-R|--recursive|--unpack) is_install=true ;;
+        -i|--install|--unpack) is_install=true ;;
+        -R|--recursive) is_install=true; is_recursive=true ;;
     esac
 done
 
@@ -818,14 +838,17 @@ if ${'$'}is_install; then
     new_args=()
     for arg in "${'$'}@"; do
         if [ -f "${'$'}arg" ] && [[ "${'$'}arg" == *.deb ]]; then
-            rewritten=${'$'}(rewrite_deb "${'$'}arg") || rewritten="${'$'}arg"
+            # Single .deb file
+            rewritten=${'$'}(rewrite_deb "${'$'}arg")
             new_args+=("${'$'}rewritten")
-        elif [ -d "${'$'}arg" ]; then
+        elif [ -d "${'$'}arg" ] && ${'$'}is_recursive; then
+            # Directory with --recursive: rewrite all .debs in place
+            echo "[dpkg-wrapper-v4] Processing directory: ${'$'}arg" >> "${'$'}LOG_FILE"
             for deb in "${'$'}arg"/*.deb; do
                 if [ -f "${'$'}deb" ]; then
-                    rewritten=${'$'}(rewrite_deb "${'$'}deb") || rewritten="${'$'}deb"
+                    rewritten=${'$'}(rewrite_deb "${'$'}deb")
                     if [ "${'$'}rewritten" != "${'$'}deb" ] && [ -f "${'$'}rewritten" ]; then
-                        mv "${'$'}rewritten" "${'$'}deb" 2>/dev/null
+                        mv -f "${'$'}rewritten" "${'$'}deb" 2>/dev/null
                     fi
                 fi
             done
@@ -835,28 +858,22 @@ if ${'$'}is_install; then
         fi
     done
     
-    # Run dpkg
+    # Run dpkg.real with rewritten packages
+    echo "[dpkg-wrapper-v4] Executing: dpkg.real ${'$'}{new_args[*]}" >> "${'$'}LOG_FILE"
     "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}{new_args[@]}"
     dpkg_exit=${'$'}?
     
-    # Auto-compile compat shim after clang is installed
-    if [ -f "${'$'}PREFIX/bin/clang" ] && [ ! -f "${'$'}PREFIX/lib/libtermux_compat.so" ]; then
-        if [ -f "${'$'}PREFIX/lib/libtermux_compat.c" ]; then
-            echo "[termux-compat] Clang detected, auto-compiling compatibility shim..."
-            "${'$'}PREFIX/bin/clang" -shared -fPIC -O2 -o "${'$'}PREFIX/lib/libtermux_compat.so" "${'$'}PREFIX/lib/libtermux_compat.c" -ldl 2>/dev/null && \
-                echo "[termux-compat] Success! Restart your shell to enable LD_PRELOAD."
-        fi
-    fi
-    
+    echo "[dpkg-wrapper-v4] Exit code: ${'$'}dpkg_exit" >> "${'$'}LOG_FILE"
     exit ${'$'}dpkg_exit
 else
+    # Non-install operations (--configure, --status, etc.) - pass through
     exec "${ourFilesPrefix}/usr/bin/dpkg.real" "${'$'}@"
 fi
 """
             dpkgFile.writeText(wrapperScript)
             Os.chmod(dpkgFile.absolutePath, 448) // 0700
             
-            Logger.logInfo(LOG_TAG, "Created dpkg wrapper v3.0")
+            Logger.logInfo(LOG_TAG, "Created dpkg wrapper v4.0")
         } catch (e: Exception) {
             Logger.logError(LOG_TAG, "Failed to create dpkg wrapper: ${e.message}")
         }

@@ -2103,3 +2103,57 @@ Updated `.github/workflows/auto-release.yml` to:
 ---
 
 *Updated: 2026-01-20*
+
+---
+
+## Session 29: dpkg Wrapper v4.0 Critical Fix (2026-01-20)
+
+### Problem
+User reported `pkg install python` failing with "Permission denied" errors on v1.2.2:
+```
+dpkg: error processing archive ... (--unpack):
+ unable to stat './data/data/com.termux' (which was about to be installed): Permission denied
+```
+
+### Root Cause Analysis
+The v3.0 dpkg wrapper (introduced in v1.2.0) had a critical flaw:
+
+1. **Hybrid Approach Design**: v3.0 only rewrote DEBIAN scripts at install time, relying on an LD_PRELOAD shim for runtime path interception
+2. **Shim Compilation**: The shim (`libtermux_compat.so`) requires `clang` to compile
+3. **Chicken-and-Egg**: But `clang` can't install because packages have `./data/data/com.termux/` paths that aren't being rewritten
+4. **Missing Text File Rewriting**: The grep -rIl comprehensive text file scan was removed in v3.0
+
+### Fix Applied (v1.2.3)
+Restored comprehensive install-time path rewriting in dpkg wrapper v4.0:
+
+| Step | Action | Purpose |
+|------|--------|---------|
+| 1 | Directory rename | Move `com.termux/` → `com.termux.kotlin/` |
+| 2 | grep -rIl + sed | Fix ALL text files containing old paths |
+| 3 | DEBIAN script fix | Rewrite postinst/prerm + set permissions |
+| 4 | Fast rebuild | dpkg-deb -Zgzip -z1 |
+
+### Key Code Changes
+```kotlin
+// TermuxInstaller.kt - dpkg wrapper v4.0
+// Uses grep -rIl to find ALL text files (skips binaries)
+text_files=$(grep -rIl "$OLD_PKG_BASE" pkg_root 2>/dev/null || true)
+echo "$text_files" | while read -r file; do
+    sed -i "s|$OLD_PREFIX|$NEW_PREFIX|g" "$file"
+done
+```
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `TermuxInstaller.kt` | dpkg wrapper v4.0 with comprehensive rewriting |
+| `app/build.gradle` | Version 1.2.3 |
+| `CHANGELOG.md` | v1.2.3 release notes |
+| `error.md` | Error #29 documentation |
+
+### Why v1.0.59/v1.1.3 Worked
+Those versions had the comprehensive `grep -rIl` text file rewriting. The v3.0 "optimization" removed it, creating the regression.
+
+---
+
+*Updated: 2026-01-20*
