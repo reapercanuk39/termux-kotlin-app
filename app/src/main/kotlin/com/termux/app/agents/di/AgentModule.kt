@@ -24,7 +24,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AgentModule {
     
-    private const val AGENTS_BASE_DIR = "/data/data/com.termux/files/usr/share/termux-agents"
+    private const val AGENTS_BASE_DIR = "/data/data/com.termux/files/usr/share/agents"
     private const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
     private const val TERMUX_HOME = "/data/data/com.termux/files/home"
     

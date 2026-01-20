@@ -273,8 +273,12 @@ class AgentService : Service() {
         
         val statusText = when {
             stats == null -> "Starting..."
-            stats.state == AgentDaemon.DaemonState.RUNNING -> 
-                "Running • ${stats.registeredAgents} agents • ${stats.registeredSkills} skills"
+            stats.state == AgentDaemon.DaemonState.RUNNING -> {
+                val signalInfo = if (stats.activeSignals > 0) {
+                    " • ${stats.activeSignals} signals"
+                } else ""
+                "Active • ${stats.registeredAgents} agents$signalInfo"
+            }
             stats.state == AgentDaemon.DaemonState.PAUSED -> "Paused"
             stats.state == AgentDaemon.DaemonState.ERROR -> "Error"
             else -> "Initializing..."

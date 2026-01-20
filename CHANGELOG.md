@@ -1,3 +1,44 @@
+## [2026-01-20] v2.0.6 - Agent Swarm Synchronization
+
+### 🔧 Bug Fixes
+
+#### Swarm Signal Path Unification
+- **Fixed path mismatch** between Kotlin and Python agent systems
+  - Kotlin now uses `/usr/share/agents/` (was `/usr/share/termux-agents/`)
+  - Both systems now share the same swarm signal directory
+  - `agent swarm` CLI now correctly shows signals from Kotlin daemon
+
+#### Notification Now Reflects Actual Activity  
+- Changed notification from static "3 agents • 4 skills" to dynamic "Active • N agents • M signals"
+- Notification updates every 30 seconds with actual swarm signal count
+- Users can now verify agent activity is working via notification
+
+#### AgentWorker Now Emits Real Signals
+- Health checks emit `HEARTBEAT` signals every 15 minutes
+- Signal cleanup runs decay cycles every hour
+- Added Hilt EntryPoint injection for proper dependency access
+
+### 📝 Changes
+
+#### New Signal Types
+- Added `HEARTBEAT` - Daemon health check pulse
+- Added `STARTUP` - Daemon started notification  
+- Added `SHUTDOWN` - Daemon stopping notification
+
+#### Files Modified
+- `AgentModule.kt` - Updated base path
+- `AgentDaemon.kt` - Path fix, startup signal, stats include signal count
+- `AgentRegistry.kt` - Path fix
+- `PythonSkillBridge.kt` - Path fix
+- `CliBridge.kt` - Path fix
+- `AgentWorker.kt` - Full implementation with Hilt EntryPoint
+- `AgentService.kt` - Dynamic notification text
+- `Signal.kt` - New signal types
+- `SwarmCoordinator.kt` - Made runDecayCycle() public
+- `agents/core/swarm/swarm.py` - New signal types for Python
+
+---
+
 ## [2026-01-20] Build #210
 
 ### Changes

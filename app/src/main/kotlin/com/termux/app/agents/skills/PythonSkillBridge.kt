@@ -29,7 +29,7 @@ class PythonSkillBridge(
     }
     
     companion object {
-        private const val PYTHON_SKILLS_PATH = "/data/data/com.termux/files/usr/share/termux-agents/skills"
+        private const val PYTHON_SKILLS_PATH = "/data/data/com.termux/files/usr/share/agents/skills"
         private val PYTHON_COMMANDS = listOf("python3", "python")
         
         /**

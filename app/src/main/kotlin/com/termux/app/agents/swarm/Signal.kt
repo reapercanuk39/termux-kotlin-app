@@ -27,7 +27,12 @@ enum class SignalType(val displayName: String) {
     // Discovery signals - sharing knowledge
     LEARNED("learned"),
     OPTIMIZED("optimized"),
-    DEPRECATED("deprecated");
+    DEPRECATED("deprecated"),
+    
+    // Lifecycle signals - daemon status
+    HEARTBEAT("heartbeat"),
+    STARTUP("startup"),
+    SHUTDOWN("shutdown");
     
     companion object {
         fun fromString(value: String): SignalType? {

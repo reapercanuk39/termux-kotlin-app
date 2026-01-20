@@ -47,6 +47,11 @@ class SignalType(Enum):
     LEARNED = "learned"           # New pattern/skill discovered
     OPTIMIZED = "optimized"       # Found a better way
     DEPRECATED = "deprecated"     # Old approach no longer works
+    
+    # Lifecycle signals - daemon status (from Kotlin daemon)
+    HEARTBEAT = "heartbeat"       # Daemon health check pulse
+    STARTUP = "startup"           # Daemon started
+    SHUTDOWN = "shutdown"         # Daemon stopping
 
 
 @dataclass

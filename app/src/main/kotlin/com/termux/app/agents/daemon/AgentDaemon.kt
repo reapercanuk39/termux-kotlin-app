@@ -39,7 +39,7 @@ class AgentDaemon @Inject constructor(
         const val CHANNEL_NAME = "Agent Daemon"
         const val NOTIFICATION_ID = 1001
         
-        private const val DATA_DIR = "/data/data/com.termux/files/usr/share/termux-agents"
+        private const val DATA_DIR = "/data/data/com.termux/files/usr/share/agents"
         private const val LOG_DIR = "$DATA_DIR/logs"
     }
     
@@ -119,10 +119,16 @@ class AgentDaemon @Inject constructor(
             
             // Emit startup signal
             swarmCoordinator.emit(
-                signalType = SignalType.SUCCESS,
+                signalType = SignalType.STARTUP,
                 sourceAgent = "daemon",
                 target = "startup",
-                data = mapOf("message" to "Agent daemon started with $validCount agents")
+                data = mapOf(
+                    "message" to "Agent daemon started with $validCount agents",
+                    "agents" to validCount,
+                    "skills" to skillExecutor.getSkillNames().size,
+                    "timestamp" to System.currentTimeMillis()
+                ),
+                ttl = 3600_000L  // 1 hour TTL for startup signal
             )
             
             log("Agent daemon started successfully")
@@ -325,6 +331,9 @@ class AgentDaemon @Inject constructor(
      * Get daemon statistics.
      */
     fun getStatistics(): DaemonStatistics {
+        val swarmStatus = swarmCoordinator.getStatus()
+        val signalCount = swarmStatus["total_signals"] as? Int ?: 0
+        
         return DaemonStatistics(
             state = _state.value,
             uptime = if (startTime > 0) System.currentTimeMillis() - startTime else 0,
@@ -338,7 +347,8 @@ class AgentDaemon @Inject constructor(
             validatedAgents = scope.run {
                 runBlocking { registry.getValidatedAgents().size }
             },
-            registeredSkills = skillExecutor.getSkillNames().size
+            registeredSkills = skillExecutor.getSkillNames().size,
+            activeSignals = signalCount
         )
     }
     
@@ -533,7 +543,8 @@ data class DaemonStatistics(
     val activeTasks: Int,
     val registeredAgents: Int,
     val validatedAgents: Int,
-    val registeredSkills: Int
+    val registeredSkills: Int,
+    val activeSignals: Int = 0
 ) {
     val successRate: Double
         get() = if (tasksExecuted > 0) {

@@ -9,6 +9,10 @@ import android.os.SystemClock
 import com.termux.app.agents.swarm.SignalType
 import com.termux.app.agents.swarm.SwarmCoordinator
 import com.termux.shared.logger.Logger
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +24,16 @@ import java.util.concurrent.TimeUnit
  * Uses AlarmManager for periodic execution.
  */
 class AgentWorker : BroadcastReceiver() {
+    
+    /**
+     * Hilt EntryPoint to access singleton dependencies from BroadcastReceiver.
+     */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface AgentWorkerEntryPoint {
+        fun swarmCoordinator(): SwarmCoordinator
+        fun agentDaemon(): AgentDaemon
+    }
     
     companion object {
         private const val LOG_TAG = "AgentWorker"
@@ -113,14 +127,17 @@ class AgentWorker : BroadcastReceiver() {
         
         Logger.logDebug(LOG_TAG, "Received action: $action")
         
-        // Get daemon and coordinator from application
-        // Note: In production, these would be injected via EntryPointAccessors
-        // For simplicity, we access them through the application
+        // Get dependencies via Hilt EntryPoint
+        val entryPoint = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            AgentWorkerEntryPoint::class.java
+        )
+        
         scope.launch {
             try {
                 when (action) {
-                    ACTION_HEALTH_CHECK -> performHealthCheck(context)
-                    ACTION_SIGNAL_CLEANUP -> performSignalCleanup(context)
+                    ACTION_HEALTH_CHECK -> performHealthCheck(context, entryPoint)
+                    ACTION_SIGNAL_CLEANUP -> performSignalCleanup(context, entryPoint)
                 }
             } catch (e: Exception) {
                 Logger.logError(LOG_TAG, "Error in worker: ${e.message}")
@@ -128,16 +145,56 @@ class AgentWorker : BroadcastReceiver() {
         }
     }
     
-    private suspend fun performHealthCheck(context: Context) {
+    private suspend fun performHealthCheck(context: Context, entryPoint: AgentWorkerEntryPoint) {
         Logger.logDebug(LOG_TAG, "Performing health check")
-        // Health check logic - check if daemon is responsive
-        // In a real implementation, this would use EntryPointAccessors to get the daemon
-        Logger.logInfo(LOG_TAG, "Health check completed")
+        
+        val swarmCoordinator = entryPoint.swarmCoordinator()
+        val agentDaemon = entryPoint.agentDaemon()
+        
+        // Get current statistics
+        val stats = agentDaemon.getStatistics()
+        
+        // Emit heartbeat signal with daemon status
+        swarmCoordinator.emit(
+            signalType = SignalType.HEARTBEAT,
+            sourceAgent = "daemon",
+            target = "health_check",
+            data = mapOf(
+                "state" to stats.state.name,
+                "uptime_ms" to stats.uptime,
+                "agents" to stats.registeredAgents,
+                "skills" to stats.registeredSkills,
+                "tasks_executed" to stats.tasksExecuted,
+                "success_rate" to stats.successRate,
+                "timestamp" to System.currentTimeMillis()
+            ),
+            ttl = 1800_000L  // 30 minutes TTL for heartbeat
+        )
+        
+        Logger.logInfo(LOG_TAG, "Health check completed - emitted heartbeat signal")
     }
     
-    private suspend fun performSignalCleanup(context: Context) {
+    private suspend fun performSignalCleanup(context: Context, entryPoint: AgentWorkerEntryPoint) {
         Logger.logDebug(LOG_TAG, "Performing signal cleanup")
-        // Signal cleanup logic
-        Logger.logInfo(LOG_TAG, "Signal cleanup completed")
+        
+        val swarmCoordinator = entryPoint.swarmCoordinator()
+        
+        // Get status before cleanup
+        val beforeStatus = swarmCoordinator.getStatus()
+        val beforeCount = beforeStatus["total_signals"] as? Int ?: 0
+        
+        // Run decay cycle to clean up old/weak signals
+        swarmCoordinator.runDecayCycle()
+        
+        // Get status after cleanup
+        val afterStatus = swarmCoordinator.getStatus()
+        val afterCount = afterStatus["total_signals"] as? Int ?: 0
+        val removed = beforeCount - afterCount
+        
+        if (removed > 0) {
+            Logger.logInfo(LOG_TAG, "Signal cleanup completed - removed $removed weak/expired signals")
+        } else {
+            Logger.logDebug(LOG_TAG, "Signal cleanup completed - no signals removed")
+        }
     }
 }

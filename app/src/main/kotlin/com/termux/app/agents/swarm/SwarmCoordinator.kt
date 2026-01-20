@@ -179,9 +179,10 @@ class SwarmCoordinator(
     }
     
     /**
-     * Run a decay cycle - reduce all signal strengths
+     * Run a decay cycle - reduce all signal strengths.
+     * Can be called manually or by the periodic decay loop.
      */
-    private fun runDecayCycle() {
+    fun runDecayCycle() {
         var removed = 0
         var decayed = 0
         

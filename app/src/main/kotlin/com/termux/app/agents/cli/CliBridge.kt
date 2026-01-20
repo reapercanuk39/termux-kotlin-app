@@ -28,7 +28,7 @@ class CliBridge @Inject constructor(
     private val agentDaemon: AgentDaemon
 ) {
     companion object {
-        private const val CLI_DIR = "/data/data/com.termux/files/usr/share/termux-agents/cli"
+        private const val CLI_DIR = "/data/data/com.termux/files/usr/share/agents/cli"
         private const val REQUEST_FILE = "$CLI_DIR/request.json"
         private const val RESPONSE_FILE = "$CLI_DIR/response.json"
         private const val LOCK_FILE = "$CLI_DIR/.lock"

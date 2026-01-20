@@ -27,7 +27,7 @@ class AgentRegistry @Inject constructor(
     // Standard asset paths
     companion object {
         const val AGENTS_ASSET_PATH = "agents/models"
-        const val AGENTS_DATA_PATH = "/data/data/com.termux/files/usr/share/termux-agents/models"
+        const val AGENTS_DATA_PATH = "/data/data/com.termux/files/usr/share/agents/models"
     }
     
     /**
