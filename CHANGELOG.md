@@ -1,3 +1,14 @@
+## [2026-01-20] Build #208 - Swarm Intelligence Docs
+
+### Added
+- **Swarm Intelligence Documentation**
+  - Updated AI.md with swarm intelligence section
+  - Updated docs/AGENTS.md with full swarm documentation
+  - Added session notes for 2026-01-20
+- Agent Framework version: 1.0.0 → 1.1.0
+
+---
+
 ## [2026-01-20] Build #207
 
 ### Changes
@@ -7,6 +18,28 @@
 - Prefix Validation: success
 - APK Build: success
 - Emulator Tests: skipped
+=======
+## [2026-01-20] Build #207 - Swarm Intelligence
+
+### Added
+- **Swarm Intelligence Module** (`agents/core/swarm/`) - Emergent multi-agent coordination
+  - `SwarmCoordinator` - Filesystem-based stigmergy coordination
+  - `Signal` class with 12 types: SUCCESS, FAILURE, BLOCKED, DANGER, WORKING, CLAIMING, RELEASING, HELP_NEEDED, LEARNED, OPTIMIZED, DEPRECATED, RESOURCE_FOUND
+  - `SignalEmitter` - Semantic signal emission interface
+  - `SignalSensor` - Pattern-based signal sensing
+  - Pheromone decay (5% per cycle, every 5 minutes)
+  - Consensus system for decision recommendations
+- New CLI command: `agent swarm` - Show swarm status and signals
+
+### Changed
+- `AgentDaemon` now auto-initializes swarm on startup
+- Task execution automatically emits SUCCESS/FAILURE signals
+- Agent Framework version: 1.0.0 → 1.1.0
+
+### Fixed
+- `autonomous.py:275` - Changed `get_agent()` to `get_agent_info()`
+- `skill_learner.py:35` - Changed `var/agents/memory` to `share/agents/memory`
+>>>>>>> 49ac553b (Update documentation for Swarm Intelligence v2.0.3)
 
 ---
 

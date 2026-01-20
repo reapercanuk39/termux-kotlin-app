@@ -355,12 +355,148 @@ agent run my_agent fs.list_dir path=/
 ## Future Enhancements
 
 - [ ] Natural language task interpretation
-- [ ] Agent-to-agent communication
+- [x] Agent-to-agent communication (Swarm Intelligence v1.0)
 - [ ] SQLite memory backend
 - [ ] Resource limits (CPU, memory)
 - [ ] Agent scheduling/cron
 - [ ] Web dashboard for monitoring
+- [ ] Darwin Gödel Machine (self-evolving skills)
+- [ ] Meta-learning (cross-skill pattern transfer)
 
 ---
 
-*Termux-Kotlin Agent Framework v1.0.0*
+## Swarm Intelligence (NEW in v2.0.3)
+
+The agent framework now supports **emergent multi-agent coordination** through stigmergy-based swarm intelligence. Agents communicate indirectly by leaving "pheromone" signals in a shared space.
+
+### How It Works
+
+1. **Agents emit signals** after tasks (automatically on success/failure)
+2. **Signals decay** over time (5% per cycle, every 5 minutes)
+3. **Signals reinforce** when repeated (strength increases, TTL extends)
+4. **Other agents sense** signals to guide decisions
+5. **Consensus system** analyzes signals for recommendations
+
+### Signal Types
+
+| Signal | Purpose | Behavior |
+|--------|---------|----------|
+| `SUCCESS` | Task completed | Attracts other agents |
+| `FAILURE` | Task failed | Warns/repels agents |
+| `BLOCKED` | Path blocked | Long-lived warning (2hr) |
+| `DANGER` | Critical failure | Max strength, 24hr TTL |
+| `WORKING` | Agent busy | Short-lived (2min) |
+| `CLAIMING` | Exclusive claim | Prevents duplicate work |
+| `RELEASING` | Release claim | Very short-lived |
+| `HELP_NEEDED` | Request help | 30min TTL |
+| `LEARNED` | New discovery | Shared knowledge (12hr) |
+| `OPTIMIZED` | Better approach | Improvement signal |
+| `DEPRECATED` | Old approach dead | 24hr warning |
+| `RESOURCE_FOUND` | Found resource | Attracts agents |
+
+### CLI Command
+
+```bash
+# Show swarm status and active signals
+agent swarm
+
+# JSON output
+agent swarm --json
+```
+
+### Example Output
+
+```
+=== Swarm Intelligence Status ===
+Enabled: True
+Total Signals: 5
+Average Strength: 0.87
+Last Decay: 2026-01-20T08:07:14
+
+Signals by Type:
+  success: 3
+  failure: 1
+  learned: 1
+
+Recent Signals:
+Type    | Agent        | Target        | Strength | Age
+--------------------------------------------------------
+success | system_agent | pkg.install   | 1.00     | 2m
+success | build_agent  | git.clone     | 0.95     | 5m
+failure | debug_agent  | apk.decode    | 0.80     | 8m
+```
+
+### Using Swarm in Skills
+
+```python
+from agents.core.swarm import SignalEmitter, SignalSensor
+
+class MySkill(Skill):
+    def my_function(self, **kwargs):
+        # Get swarm interfaces
+        emitter = self.executor.daemon.get_swarm_emitter(self.agent_name)
+        sensor = self.executor.daemon.get_swarm_sensor(self.agent_name)
+        
+        if sensor:
+            # Check if task is safe to proceed
+            recommendation = sensor.should_proceed("my_task")
+            if not recommendation["proceed"]:
+                return {"error": f"Swarm advises: {recommendation['reason']}"}
+        
+        # Do work...
+        result = self.do_something()
+        
+        if emitter:
+            if result["success"]:
+                emitter.report_success("my_task", result)
+            else:
+                emitter.report_failure("my_task", result.get("error"))
+        
+        return result
+```
+
+### Architecture
+
+```
+agents/
+├── core/
+│   └── swarm/
+│       ├── __init__.py       # Module exports
+│       ├── swarm.py          # SwarmCoordinator, Signal, SignalType
+│       └── signals.py        # SignalEmitter, SignalSensor
+└── swarm/
+    ├── index.json            # Signal index
+    └── signals/              # Individual signal files
+        └── *.json
+```
+
+### Key Classes
+
+| Class | Purpose |
+|-------|---------|
+| `SwarmCoordinator` | Central coordinator, manages signal lifecycle |
+| `Signal` | Individual pheromone signal with strength/decay |
+| `SignalType` | Enum of signal types |
+| `SignalEmitter` | Agent-friendly signal emission interface |
+| `SignalSensor` | Agent-friendly signal sensing interface |
+
+### Swarm Consensus
+
+The swarm provides recommendations based on collective signal analysis:
+
+```python
+consensus = coordinator.get_consensus("pkg.install")
+# Returns:
+# {
+#   "sentiment": "positive",  # positive/negative/neutral/unknown
+#   "confidence": 0.8,        # 0.0 to 1.0
+#   "recommendation": "proceed",  # proceed/avoid/caution/explore
+#   "signals_count": 5,
+#   "positive_score": 3.2,
+#   "negative_score": 0.5
+# }
+```
+
+---
+
+*Termux-Kotlin Agent Framework v1.1.0 (with Swarm Intelligence)*

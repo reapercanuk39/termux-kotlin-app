@@ -1262,7 +1262,7 @@ When both official Termux (`com.termux`) and Termux-Kotlin (`com.termux`) are in
 
 ---
 
-## 🤖 Agent Framework (v1.0.0)
+## 🤖 Agent Framework (v1.1.0)
 
 ### Overview
 
@@ -1552,9 +1552,87 @@ Skills may require additional tools:
 
 - [x] Natural language task interpretation *(v1.0.64)*
 - [x] Agent-to-agent communication *(v1.0.64)*
+- [x] Swarm Intelligence - emergent multi-agent coordination *(v2.0.3)*
+- [ ] Darwin Gödel Machine - self-evolving skills
+- [ ] Meta-learning - cross-skill pattern transfer
 - [ ] SQLite memory backend option
 - [ ] Web UI for agent management
 - [ ] Integration with LLM inference (local Ollama/llama.cpp)
+
+### Swarm Intelligence (NEW in v2.0.3)
+
+Agents now communicate indirectly through **stigmergy** - leaving "pheromone" signals that influence other agents' decisions.
+
+**Key Features:**
+- **12 Signal Types**: SUCCESS, FAILURE, BLOCKED, DANGER, WORKING, CLAIMING, RELEASING, HELP_NEEDED, LEARNED, OPTIMIZED, DEPRECATED, RESOURCE_FOUND
+- **Automatic Emission**: AgentDaemon emits signals after every task
+- **Decay System**: Signals fade over time (5% per cycle) unless reinforced
+- **Consensus System**: Analyzes signals to recommend proceed/avoid/caution
+
+**CLI:**
+```bash
+agent swarm          # Show swarm status
+agent swarm --json   # JSON output
+```
+
+**Architecture:**
+```
+agents/core/swarm/
+├── swarm.py     # SwarmCoordinator, Signal, SignalType
+└── signals.py   # SignalEmitter, SignalSensor
+```
+
+**Usage in Skills:**
+```python
+emitter = self.daemon.get_swarm_emitter(agent_name)
+sensor = self.daemon.get_swarm_sensor(agent_name)
+
+# Sense before acting
+if sensor.should_proceed("pkg.install")["proceed"]:
+    # Do work...
+    emitter.report_success("pkg.install", details)
+```
+
+See `docs/AGENTS.md` for complete documentation.
+
+---
+
+## Session: 2026-01-20 - Swarm Intelligence Implementation
+
+### Changes Made
+
+**v2.0.3 - Swarm Intelligence:**
+- New module: `agents/core/swarm/` (~750 lines)
+  - `swarm.py` - SwarmCoordinator, Signal class, SignalType enum
+  - `signals.py` - SignalEmitter, SignalSensor convenience classes
+- 12 signal types for stigmergy-based coordination
+- Automatic signal emission on task success/failure
+- Pheromone decay system (5% per cycle, 5-minute intervals)
+- Signal reinforcement for repeated patterns
+- Consensus system for decision recommendations
+- New CLI command: `agent swarm`
+
+### Bug Fixes (from earlier session)
+- Fixed `autonomous.py:275` - Changed `get_agent()` to `get_agent_info()`
+- Fixed `skill_learner.py:35` - Changed `var/agents/memory` to `share/agents/memory`
+
+### Theoretical Research Completed
+- Darwin Gödel Machine - Self-evolving agents via empirical testing
+- BDI Architecture - Belief-Desire-Intention cognitive model
+- Hierarchical Task Networks - Formal task decomposition
+- Multi-Type Memory - Episodic, Semantic, Procedural, Working
+- Recursive Introspection (RISE) - Self-critique and improvement
+- World Models - Predictive internal simulation
+- Open-Ended Learning - Curiosity-driven exploration
+
+### Testing Checklist
+- [x] SwarmCoordinator unit tests pass
+- [x] SignalEmitter/SignalSensor integration works
+- [x] AgentDaemon swarm initialization
+- [x] CLI `agent swarm` command
+- [ ] Multi-agent coordination test on device
+- [ ] Signal decay over time verification
+- [ ] Consensus recommendations accuracy
 
 ---
 
