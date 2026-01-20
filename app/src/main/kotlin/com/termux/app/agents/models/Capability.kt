@@ -154,9 +154,12 @@ sealed class Capability {
     
     companion object {
         /**
-         * All known capabilities as a set
+         * All known capabilities as a set.
+         * Must be lazy to avoid static initialization order issues with sealed class companions.
          */
-        val ALL: Set<Capability> = (Filesystem.all() + Network.all() + Exec.all() + Memory.all() + System.all()).toSet()
+        val ALL: Set<Capability> by lazy {
+            (Filesystem.all() + Network.all() + Exec.all() + Memory.all() + System.all()).toSet()
+        }
         
         /**
          * All known capabilities

@@ -1852,3 +1852,60 @@ dpkg-deb -Zgzip -z1 --build pkg_root rewritten.deb
 Those versions had comprehensive text file rewriting. The v3.0 "optimization" removed it.
 
 ---
+
+## Error #28: App crashes on startup - Capability.kt static initialization order bug
+**Date:** 2026-01-20
+**Version:** v2.0.5
+**Error Message:**
+```
+FATAL EXCEPTION: main
+Process: com.termux, PID: 8315
+java.lang.ExceptionInInitializerError
+    at com.termux.app.agents.skills.PkgSkill.<init>(PkgSkill.kt:23)
+    at com.termux.app.agents.runtime.SkillExecutor.<init>(SkillExecutor.kt:37)
+    at com.termux.app.agents.di.AgentModule.provideSkillExecutor(AgentModule.kt:80)
+    at com.termux.app.agents.di.AgentModule_ProvideSkillExecutorFactory.provideSkillExecutor(...)
+    ...
+    at com.termux.app.AgentService.onCreate(AgentService.kt:97)
+Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 
+'java.util.List com.termux.app.agents.models.Capability$Exec$Companion.all()' 
+on a null object reference
+    at com.termux.app.agents.models.Capability.<clinit>(Capability.kt:159)
+```
+
+**Status:** ✅ Fixed in v2.0.6
+**Root Cause:** In Capability.kt, line 159, the `ALL` property was defined as:
+```kotlin
+val ALL: Set<Capability> = (Filesystem.all() + Network.all() + Exec.all() + Memory.all() + System.all()).toSet()
+```
+
+This is a **static initialization order bug**. When the `Capability.Companion` object is initialized, it immediately evaluates the `ALL` property which calls `Exec.all()`. However, the nested `Exec.Companion` object inside the sealed class hierarchy may not be initialized yet, resulting in a NullPointerException.
+
+This is a well-known Kotlin/JVM issue with nested companion objects in sealed class hierarchies.
+
+**Fix Applied:**
+Changed the `ALL` property to use Kotlin's `lazy` delegate:
+```kotlin
+val ALL: Set<Capability> by lazy {
+    (Filesystem.all() + Network.all() + Exec.all() + Memory.all() + System.all()).toSet()
+}
+```
+
+The `lazy` delegate defers initialization until first access, ensuring all nested companion objects are fully initialized first.
+
+**File Changed:** `app/src/main/kotlin/com/termux/app/agents/models/Capability.kt`
+
+**How to Reproduce (before fix):**
+1. Build v2.0.5 APK
+2. Install on any Android device (tested on Android 15 x86_64 emulator)
+3. Launch app
+4. Observe crash immediately after bootstrap starts
+
+**Verified Fix:**
+- App launches successfully
+- Bootstrap completes: "Bootstrap packages installed successfully"
+- Agent daemon starts: "Kotlin agent daemon started successfully"
+- CLI bridge starts: "CLI bridge started"
+- WorkManager scheduled: "Scheduled periodic agent work"
+
+---
