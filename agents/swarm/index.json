@@ -1,0 +1,11 @@
+{
+  "signals": {
+    "24943c09": {
+      "signal_type": "success",
+      "source_agent": "system_agent",
+      "target": "test.skill",
+      "created_at": 1768896434.4001331
+    }
+  },
+  "last_decay": 1768896434.3998349
+}

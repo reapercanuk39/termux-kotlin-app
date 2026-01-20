@@ -292,10 +292,11 @@ class AgentDaemon:
         self.sandboxes_dir = self.agents_root / "sandboxes"
         self.memory_dir = self.agents_root / "memory"
         self.logs_dir = self.agents_root / "logs"
+        self.swarm_dir = self.agents_root / "swarm"
         
         # Ensure directories exist
         for d in [self.models_dir, self.skills_dir, self.sandboxes_dir,
-                  self.memory_dir, self.logs_dir]:
+                  self.memory_dir, self.logs_dir, self.swarm_dir]:
             d.mkdir(parents=True, exist_ok=True)
         
         # Load capabilities
@@ -308,12 +309,58 @@ class AgentDaemon:
         # Skill manifest cache (for validation)
         self._skill_manifests: Dict[str, Dict[str, Any]] = {}
         
+        # Initialize swarm coordinator for emergent multi-agent behavior
+        self._init_swarm()
+        
         logger.info(f"AgentDaemon initialized at {self.agents_root}")
         logger.info(f"Loaded {len(self._agents)} agents")
     
     # =========================================================================
     # SECTION: Initialization & Loading
     # =========================================================================
+    
+    def _init_swarm(self) -> None:
+        """Initialize swarm intelligence coordinator."""
+        try:
+            from agents.core.swarm import SwarmCoordinator
+            self.swarm = SwarmCoordinator(self.swarm_dir)
+            # Run decay on startup to clean old signals
+            self.swarm.maybe_decay()
+            logger.info("Swarm intelligence initialized")
+        except ImportError as e:
+            logger.warning(f"Swarm module not available: {e}")
+            self.swarm = None
+        except Exception as e:
+            logger.warning(f"Swarm initialization failed: {e}")
+            self.swarm = None
+    
+    def get_swarm_emitter(self, agent_name: str):
+        """Get a SignalEmitter for an agent."""
+        if not self.swarm:
+            return None
+        try:
+            from agents.core.swarm import SignalEmitter
+            return SignalEmitter(self.swarm, agent_name)
+        except ImportError:
+            return None
+    
+    def get_swarm_sensor(self, agent_name: str):
+        """Get a SignalSensor for an agent."""
+        if not self.swarm:
+            return None
+        try:
+            from agents.core.swarm import SignalSensor
+            return SignalSensor(self.swarm, agent_name)
+        except ImportError:
+            return None
+    
+    def get_swarm_stats(self) -> Dict[str, Any]:
+        """Get swarm statistics."""
+        if not self.swarm:
+            return {"enabled": False}
+        stats = self.swarm.get_stats()
+        stats["enabled"] = True
+        return stats
     
     def _load_capabilities(self) -> Dict[str, Any]:
         """Load capability definitions."""
@@ -416,6 +463,55 @@ class AgentDaemon:
         
         with open(log_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
+    
+    def _emit_swarm_signal(
+        self,
+        agent_name: str,
+        task: str,
+        success: bool,
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None
+    ) -> None:
+        """
+        Emit a swarm signal after task execution.
+        
+        This enables emergent multi-agent coordination through stigmergy:
+        - Success signals attract other agents to successful approaches
+        - Failure signals warn other agents to try different approaches
+        """
+        if not self.swarm:
+            return
+        
+        try:
+            from agents.core.swarm import SignalType
+            
+            if success:
+                self.swarm.emit(
+                    signal_type=SignalType.SUCCESS,
+                    source_agent=agent_name,
+                    target=task,
+                    data={
+                        "result_keys": list(result.keys()) if result else [],
+                        "success": True
+                    }
+                )
+            else:
+                self.swarm.emit(
+                    signal_type=SignalType.FAILURE,
+                    source_agent=agent_name,
+                    target=task,
+                    data={
+                        "error": error or "unknown",
+                        "recoverable": True
+                    }
+                )
+            
+            # Periodically run decay to clean up old signals
+            self.swarm.maybe_decay()
+            
+        except Exception as e:
+            # Swarm errors should not affect task execution
+            logger.debug(f"Swarm signal emission failed: {e}")
     
     # =========================================================================
     # SECTION: Capability Enforcement (Section 2 of System Prompt)
@@ -985,6 +1081,13 @@ class AgentDaemon:
             step.completed_at = datetime.now().isoformat()
             steps.append(step)
             
+            # Emit swarm signal for task completion
+            self._emit_swarm_signal(
+                agent_name, task, 
+                success=result.get("success", False),
+                result=result
+            )
+            
             # Log completion
             self._log_action(
                 agent_name, "run_task", "completed",
@@ -1004,6 +1107,12 @@ class AgentDaemon:
             ).to_dict()
             
         except AgentException as e:
+            # Emit swarm failure signal
+            self._emit_swarm_signal(
+                agent_name, task,
+                success=False,
+                error=e.agent_error.message if hasattr(e, 'agent_error') else str(e)
+            )
             self._log_action(
                 agent_name, "run_task", "failed",
                 error=e.agent_error
@@ -1022,6 +1131,12 @@ class AgentDaemon:
             
         except Exception as e:
             logger.exception(f"Task failed: {e}")
+            # Emit swarm failure signal
+            self._emit_swarm_signal(
+                agent_name, task,
+                success=False,
+                error=str(e)
+            )
             error = AgentError(
                 error_type=AgentErrorType.EXECUTION_ERROR,
                 message=str(e),

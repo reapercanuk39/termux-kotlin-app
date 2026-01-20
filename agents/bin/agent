@@ -13,6 +13,7 @@ Commands:
   logs <name>       Show agent logs
   skills            List all available skills
   validate          Validate agent configs and skills
+  swarm             Show swarm intelligence status
   help              Show this help message
 
 Examples:
@@ -21,6 +22,7 @@ Examples:
   agent run debug_agent "apk.analyze" --apk_path=/path/to/app.apk
   agent logs system_agent
   agent skills
+  agent swarm
   agent validate
 """
 
@@ -306,6 +308,72 @@ def cmd_validate(args):
             sys.exit(1)
 
 
+def cmd_swarm(args):
+    """Show swarm intelligence status and signals."""
+    from agents.core.supervisor.agentd import AgentDaemon
+    
+    daemon = AgentDaemon(AGENTS_ROOT)
+    
+    if not daemon.swarm:
+        if args.json:
+            print_json({"enabled": False, "error": "Swarm not initialized"})
+        else:
+            print("Swarm intelligence: DISABLED")
+        return
+    
+    stats = daemon.get_swarm_stats()
+    
+    if args.json:
+        # Include recent signals in JSON output
+        signals = daemon.swarm.sense(limit=50)
+        stats["signals"] = [s.to_dict() for s in signals]
+        print_json(stats)
+    else:
+        print("=== Swarm Intelligence Status ===")
+        print(f"Enabled: {stats.get('enabled', False)}")
+        print(f"Total Signals: {stats.get('total_signals', 0)}")
+        print(f"Average Strength: {stats.get('average_strength', 0):.2f}")
+        print(f"Last Decay: {stats.get('last_decay', 'never')}")
+        print()
+        
+        # Signals by type
+        by_type = stats.get("signals_by_type", {})
+        if by_type:
+            print("Signals by Type:")
+            for sig_type, count in sorted(by_type.items()):
+                print(f"  {sig_type}: {count}")
+            print()
+        
+        # Signals by agent
+        by_agent = stats.get("signals_by_agent", {})
+        if by_agent:
+            print("Signals by Agent:")
+            for agent, count in sorted(by_agent.items()):
+                print(f"  {agent}: {count}")
+            print()
+        
+        # Show recent signals
+        signals = daemon.swarm.sense(limit=10)
+        if signals:
+            print("Recent Signals:")
+            headers = ["Type", "Agent", "Target", "Strength", "Age"]
+            rows = []
+            import time
+            for sig in signals:
+                age = int(time.time() - sig.created_at)
+                age_str = f"{age}s" if age < 60 else f"{age // 60}m"
+                rows.append([
+                    sig.signal_type.value,
+                    sig.source_agent[:15],
+                    sig.target[:25],
+                    f"{sig.strength:.2f}",
+                    age_str
+                ])
+            print_table(headers, rows)
+        else:
+            print("No active signals")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Termux-Kotlin Agent CLI",
@@ -359,6 +427,10 @@ Examples:
     # validate
     validate_parser = subparsers.add_parser("validate", help="Validate configs")
     validate_parser.set_defaults(func=cmd_validate)
+    
+    # swarm
+    swarm_parser = subparsers.add_parser("swarm", help="Show swarm intelligence status")
+    swarm_parser.set_defaults(func=cmd_swarm)
     
     args = parser.parse_args()
     

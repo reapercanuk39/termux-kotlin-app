@@ -1,0 +1,17 @@
+{
+  "id": "24943c09",
+  "signal_type": "success",
+  "source_agent": "system_agent",
+  "target": "test.skill",
+  "strength": 1.0,
+  "data": {
+    "details": {
+      "test": true
+    },
+    "timestamp": 1768896434.4001095
+  },
+  "created_at": 1768896434.4001331,
+  "updated_at": 1768896434.4001331,
+  "ttl": 3600,
+  "reinforcement_count": 0
+}
