@@ -1,3 +1,15 @@
+## [2026-01-20] Build #213
+
+### Changes
+- ea40894 docs: Fix README - Termux:API is already built-in
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-20] Build #212
 
 ### Changes
