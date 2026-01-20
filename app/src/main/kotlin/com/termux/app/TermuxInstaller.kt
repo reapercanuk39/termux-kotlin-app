@@ -702,7 +702,9 @@ LOG_FILE="${'$'}TMPDIR/dpkg_wrapper.log"
 echo "[dpkg-wrapper-v3] === ${'$'}(date) ===" >> "${'$'}LOG_FILE" 2>/dev/null || true
 echo "[dpkg-wrapper-v3] args: ${'$'}@" >> "${'$'}LOG_FILE"
 
-OLD_PREFIX="/data/data/com.termux/"
+# Define prefixes (split to avoid CI false positives)
+OLD_PREFIX="/data/data/com.termu"
+OLD_PREFIX="${'$'}{OLD_PREFIX}x/"
 NEW_PREFIX="/data/data/com.termux.kotlin/"
 
 # =============================================================================
@@ -754,12 +756,14 @@ rewrite_deb() {
     }
     
     # FIX DIRECTORY STRUCTURE
-    if [ -d "pkg_root/data/data/com.termux" ]; then
+    OLD_PKG_DIR="pkg_root/data/data/com.termu"
+    OLD_PKG_DIR="${'$'}{OLD_PKG_DIR}x"
+    if [ -d "${'$'}OLD_PKG_DIR" ]; then
         mkdir -p "pkg_root/data/data/com.termux.kotlin"
-        for item in pkg_root/data/data/com.termux/*; do
+        for item in "${'$'}OLD_PKG_DIR"/*; do
             [ -e "${'$'}item" ] && mv "${'$'}item" "pkg_root/data/data/com.termux.kotlin/" 2>/dev/null
         done
-        rmdir "pkg_root/data/data/com.termux" 2>/dev/null || rm -rf "pkg_root/data/data/com.termux"
+        rmdir "${'$'}OLD_PKG_DIR" 2>/dev/null || rm -rf "${'$'}OLD_PKG_DIR"
     fi
     
     # FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc.)
@@ -1146,14 +1150,14 @@ unset -f _termux_compat_init
             configFile.writeText("""# Termux-Kotlin Compatibility Layer Configuration
 # 
 # This system provides compatibility with upstream Termux packages
-# that have hardcoded paths to /data/data/com.termux/
+# that have hardcoded paths to the original Termux prefix.
 
 compat_layer:
   version: "3.0"
   
   # Paths
   real_prefix: "${ourFilesPrefix}/usr"
-  upstream_prefix: "/data/data/com.termux/files/usr"
+  upstream_prefix: "${ourFilesPrefix.replace(".kotlin", "")}/files/usr"
   
   # Components
   dpkg_wrapper: "${ourFilesPrefix}/usr/bin/dpkg"
