@@ -1755,7 +1755,95 @@ After v1.1.10:
 | v1.1.8 | Fast wrapper (had regression) |
 | v1.1.9 | Shebang fix (incomplete) |
 | v1.1.10 | Comprehensive path rewriting |
+| v1.1.11 | Agent framework bundled in APK |
 
 ---
 
-*dpkg Wrapper updated: 2026-01-20*
+## Session 24: Agent Framework Bundling (2026-01-20)
+
+### Problem
+User reported `agent list` command failing with:
+```
+python3: can't open file '/data/data/com.termux.kotlin/files/usr/share/agents/bin/agent': [Errno 2] No such file or directory
+```
+
+### Root Cause
+The `setupAgentFramework()` function was creating:
+1. Empty directory structure under `/usr/share/agents/`
+2. A wrapper script in `/usr/bin/agent`
+3. A config file in `/etc/agents/`
+
+But it was **NOT** copying the actual Python agent framework code from the `agents/` directory.
+
+### Solution
+1. Created `app/src/main/assets/agents.zip` containing complete agent framework
+2. Modified `setupAgentFramework()` to:
+   - Accept Context parameter for asset access
+   - Extract `agents.zip` to `share/agents/` during bootstrap
+   - Set executable permissions on Python files
+
+### Technical Details
+
+#### agents.zip Contents (97KB)
+```
+agents/bin/agent         - CLI entrypoint
+agents/core/supervisor/  - agentd daemon
+agents/core/runtime/     - executor, memory, sandbox
+agents/core/autonomous/  - workflow engine
+agents/skills/           - pkg, git, network, backup, etc.
+agents/models/           - agent definitions (YAML)
+agents/templates/        - skill/agent templates
+```
+
+#### Code Changes
+```kotlin
+// TermuxInstaller.kt - setupAgentFramework()
+private fun setupAgentFramework(binDir: File, ourFilesPrefix: String, context: Context) {
+    // Extract agent framework from assets
+    val assetManager = context.assets
+    val zipStream = assetManager.open("agents.zip")
+    val zipFile = java.util.zip.ZipInputStream(zipStream)
+    
+    var entry = zipFile.nextEntry
+    while (entry != null) {
+        val destPath = entry.name.replaceFirst("agents/", "")
+        val destFile = File(agentsDir, destPath)
+        
+        if (entry.isDirectory) {
+            destFile.mkdirs()
+        } else {
+            destFile.parentFile?.mkdirs()
+            destFile.outputStream().use { output ->
+                zipFile.copyTo(output)
+            }
+            // Make Python files executable
+            if (destPath.endsWith(".py") || destPath == "bin/agent") {
+                Os.chmod(destFile.absolutePath, 493) // 0755
+            }
+        }
+        zipFile.closeEntry()
+        entry = zipFile.nextEntry
+    }
+    zipFile.close()
+}
+```
+
+#### .gitignore Note
+The project's `.gitignore` has `*.zip` pattern, so `agents.zip` must be force-added:
+```bash
+git add -f app/src/main/assets/agents.zip
+```
+
+### Agent Framework Usage
+After bootstrap with Python installed:
+```bash
+pkg install python
+pip install pyyaml   # Required dependency
+agent list           # List available agents  
+agent skills         # Show available skills
+agent run system_agent --task "check_status"
+```
+
+---
+
+*Updated: 2026-01-20*
