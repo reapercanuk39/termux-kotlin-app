@@ -2061,4 +2061,45 @@ agent run factory_agent --task create_skill --args '{"name": "myskill", "templat
 
 ---
 
+## Session 28: Auto-Release Workflow Fix (2026-01-20)
+
+### User Request
+Fix auto-release workflow to create new tag and GitHub release on every push to main.
+
+### Problem
+Auto-release was skipping because:
+1. Original condition only triggered on PR merge commits
+2. Even when tag was pushed, `release.yml` didn't trigger (GitHub limitation: workflows can't trigger other workflows from same token)
+
+### Solution: Self-Contained Auto-Release
+Updated `.github/workflows/auto-release.yml` to:
+
+1. **Removed PR merge condition** - Now runs on every push to main
+2. **Waits for CI** - Uses `lewagon/wait-on-check-action` to ensure CI passes first
+3. **Calculates next version** - Increments patch version (v1.2.1 → v1.2.2)
+4. **Creates and pushes tag** - Uses github-actions[bot]
+5. **Builds APK directly** - No longer relies on separate release.yml
+6. **Generates changelog** - From commits since last tag
+7. **Creates GitHub Release** - Uses `softprops/action-gh-release@v2`
+
+### New Workflow Steps
+```
+1. Checkout code
+2. Wait for CI to complete
+3. Get latest tag
+4. Calculate next version (patch bump)
+5. Check if tag exists
+6. Create and push tag
+7. Set up JDK 17
+8. Build Debug APK
+9. Generate changelog
+10. Create GitHub Release with APK
+```
+
+### Result
+- **v1.2.2** auto-released successfully
+- All 5 APK variants attached (arm64, armeabi, universal, x86, x86_64)
+
+---
+
 *Updated: 2026-01-20*

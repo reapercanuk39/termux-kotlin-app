@@ -1,3 +1,18 @@
+## [v1.2.2] - 2026-01-20
+
+### 🚀 Auto-Release Enhancement
+- **Self-contained auto-release workflow** - Creates tag, builds APK, and publishes release in one workflow
+- **No longer requires manual tagging** - Every push to main automatically creates a new release
+- **Generates changelog from commits** - Auto-documents what changed since last release
+- **All 5 APK variants** - arm64-v8a, armeabi-v7a, universal, x86, x86_64
+
+### 🔧 CI/CD Improvements
+- Fixed auto-release to run on every push (removed PR-only condition)
+- Workflow waits for CI to pass before releasing
+- Uses `softprops/action-gh-release@v2` for reliable release creation
+
+---
+
 ## [2026-01-20] Build #197
 
 ### Changes
