@@ -1,0 +1,16 @@
+name: compat
+description: Compatibility layer management skill
+version: "1.0.0"
+
+provides:
+  - check_shim_status
+  - compile_shim
+  - check_wrapper_status
+  - verify_paths
+  - diagnose_compat
+  - fix_compat
+
+requires_capabilities:
+  - exec.shell
+  - filesystem.read
+  - filesystem.write

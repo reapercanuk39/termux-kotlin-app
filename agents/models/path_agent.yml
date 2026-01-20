@@ -1,0 +1,25 @@
+name: path_agent
+description: Path management agent. Handles path rewriting, verification, and translation.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - path
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_paths: "Check for incorrect paths in files"
+  - rewrite_paths: "Rewrite paths in text files"
+  - find_old_paths: "Find files with old com.termux paths"
+  - verify_prefix: "Verify PREFIX is correct"
+  - fix_shebangs: "Fix shebang lines in scripts"
+  - scan_binaries: "Scan binaries for hardcoded paths"

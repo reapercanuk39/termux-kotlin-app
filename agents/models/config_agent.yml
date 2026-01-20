@@ -1,0 +1,27 @@
+name: config_agent
+description: Configuration management agent. Manages configuration files and settings.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - config
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_config: "Check configuration file validity"
+  - backup_config: "Backup configuration files"
+  - restore_config: "Restore configuration from backup"
+  - edit_config: "Edit configuration value"
+  - list_configs: "List all configuration files"
+  - validate_yaml: "Validate YAML configuration"
+  - validate_json: "Validate JSON configuration"
+  - fix_paths_in_config: "Fix paths in configuration files"

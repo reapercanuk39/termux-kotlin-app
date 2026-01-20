@@ -1,0 +1,30 @@
+name: update_agent
+description: Package update agent. Manages pkg update, upgrade, and repository issues.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - exec.shell
+  - exec.analyze
+  - exec.pkg
+
+skills:
+  - pkg
+  - fs
+  - network
+
+memory_backend: json
+
+tasks:
+  - check_updates: "Check for available updates"
+  - run_update: "Run pkg update"
+  - run_upgrade: "Run pkg upgrade"
+  - check_mirrors: "Check mirror connectivity"
+  - change_mirror: "Change to faster mirror"
+  - fix_repos: "Fix repository configuration"
+  - show_changelog: "Show upgrade changelog"

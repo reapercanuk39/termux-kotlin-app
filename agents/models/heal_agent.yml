@@ -1,0 +1,32 @@
+name: heal_agent
+description: Self-healing coordinator. Orchestrates repairs across multiple agents.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - system.process
+  - exec.shell
+  - exec.analyze
+  - exec.pkg
+  - orchestrator.call
+
+skills:
+  - heal
+  - fs
+  - pkg
+
+memory_backend: json
+
+tasks:
+  - full_heal: "Perform comprehensive self-healing"
+  - heal_bootstrap: "Repair bootstrap issues"
+  - heal_compat: "Repair compatibility layer"
+  - heal_packages: "Repair package database"
+  - heal_permissions: "Fix permission issues"
+  - heal_env: "Repair environment configuration"
+  - check_heal_needed: "Check if healing is required"

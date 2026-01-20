@@ -1,0 +1,28 @@
+name: diagnostic_agent
+description: System diagnostics agent. Collects system info, analyzes logs, identifies issues.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - system.process
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - diagnostic
+  - fs
+  - log
+
+memory_backend: json
+
+tasks:
+  - collect_info: "Collect comprehensive system information"
+  - analyze_logs: "Analyze logs for errors and warnings"
+  - check_health: "Perform full system health check"
+  - find_issues: "Identify common issues and suggest fixes"
+  - generate_report: "Generate diagnostic report"
+  - check_dependencies: "Check package dependencies"

@@ -1,0 +1,15 @@
+name: log
+description: Log analysis and error detection skill
+version: "1.0.0"
+
+provides:
+  - tail_log
+  - find_errors
+  - find_warnings
+  - grep_log
+  - analyze_dpkg_log
+  - summarize_log
+
+requires_capabilities:
+  - filesystem.read
+  - exec.shell

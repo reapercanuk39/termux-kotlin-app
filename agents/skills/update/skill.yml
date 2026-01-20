@@ -1,0 +1,14 @@
+name: update
+description: System update and upgrade skill
+version: "1.0.0"
+
+provides:
+  - check_updates
+  - run_update
+  - run_upgrade
+  - fix_mirrors
+
+requires_capabilities:
+  - exec.shell
+  - exec.pkg
+  - network.local

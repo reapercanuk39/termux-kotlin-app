@@ -1,0 +1,16 @@
+name: shim
+description: LD_PRELOAD shim management skill
+version: "1.0.0"
+
+provides:
+  - check_shim
+  - compile_shim
+  - verify_shim
+  - test_shim
+  - show_status
+
+requires_capabilities:
+  - exec.shell
+  - exec.pkg
+  - filesystem.read
+  - filesystem.write

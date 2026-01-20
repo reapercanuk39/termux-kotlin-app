@@ -1,0 +1,27 @@
+name: env_agent
+description: Environment agent. Manages environment variables, PATH, LD_LIBRARY_PATH, etc.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - system.info
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - env
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_env: "Check all environment variables"
+  - fix_path: "Fix PATH variable issues"
+  - fix_ld_path: "Fix LD_LIBRARY_PATH issues"
+  - check_profile: "Check shell profile configuration"
+  - export_env: "Export environment to file"
+  - import_env: "Import environment from file"
+  - validate_env: "Validate environment against expected values"

@@ -1,0 +1,14 @@
+name: diagnostic
+description: System diagnostics and analysis skill
+version: "1.0.0"
+
+provides:
+  - collect_system_info
+  - check_health
+  - find_issues
+  - generate_report
+
+requires_capabilities:
+  - exec.shell
+  - filesystem.read
+  - system.info

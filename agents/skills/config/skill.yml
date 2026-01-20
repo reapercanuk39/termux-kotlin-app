@@ -1,0 +1,14 @@
+name: config
+description: Configuration file management skill
+version: "1.0.0"
+
+provides:
+  - read_config
+  - write_config
+  - check_configs
+  - validate_config
+  - reset_config
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write

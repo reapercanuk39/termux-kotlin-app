@@ -1,0 +1,15 @@
+name: path
+description: Path rewriting and verification skill
+version: "1.0.0"
+
+provides:
+  - check_paths
+  - rewrite_paths
+  - find_old_paths
+  - fix_shebangs
+  - verify_prefix
+
+requires_capabilities:
+  - exec.shell
+  - filesystem.read
+  - filesystem.write

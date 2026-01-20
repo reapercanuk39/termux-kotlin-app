@@ -1,0 +1,28 @@
+name: shim_agent
+description: LD_PRELOAD shim agent. Manages libtermux_compat.so compilation and status.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - exec.shell
+  - exec.analyze
+  - exec.pkg
+
+skills:
+  - shim
+  - fs
+  - pkg
+
+memory_backend: json
+
+tasks:
+  - check_shim: "Check if shim is compiled"
+  - compile_shim: "Compile shim from source"
+  - verify_shim: "Verify shim is loaded correctly"
+  - check_clang: "Check if clang is installed"
+  - install_clang: "Install clang for compilation"
+  - test_shim: "Test shim path interception"
+  - show_status: "Show full shim status"

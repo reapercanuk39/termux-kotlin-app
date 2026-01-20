@@ -1,0 +1,14 @@
+name: permission
+description: File permission management skill
+version: "1.0.0"
+
+provides:
+  - check_permissions
+  - fix_bin_perms
+  - fix_lib_perms
+  - audit_permissions
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write
+  - exec.shell

@@ -1,0 +1,27 @@
+name: permission_agent
+description: Permission management agent. Fixes file permissions and ownership issues.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - system.info
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - permission
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_permissions: "Check file permissions"
+  - fix_bin_perms: "Fix binary permissions (chmod +x)"
+  - fix_lib_perms: "Fix library permissions"
+  - find_world_writable: "Find world-writable files"
+  - fix_home_perms: "Fix home directory permissions"
+  - fix_prefix_perms: "Fix PREFIX permissions"
+  - audit_permissions: "Full permission audit"

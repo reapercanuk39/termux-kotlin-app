@@ -1,0 +1,28 @@
+name: bootstrap_agent
+description: Bootstrap integrity agent. Verifies and repairs bootstrap installation.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - bootstrap
+  - fs
+
+memory_backend: json
+
+tasks:
+  - verify_bootstrap: "Verify bootstrap files are intact"
+  - check_binaries: "Check essential binaries exist"
+  - check_libs: "Check essential libraries exist"
+  - repair_symlinks: "Repair broken symlinks"
+  - verify_dpkg_db: "Verify dpkg database integrity"
+  - list_missing: "List missing bootstrap files"
+  - reinstall_bootstrap: "Trigger bootstrap reinstallation"

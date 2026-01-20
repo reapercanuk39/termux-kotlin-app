@@ -1,0 +1,17 @@
+name: heal
+description: Self-healing and repair skill
+version: "1.0.0"
+
+provides:
+  - full_heal
+  - heal_bootstrap
+  - heal_compat
+  - heal_packages
+  - heal_permissions
+  - check_heal_needed
+
+requires_capabilities:
+  - exec.shell
+  - filesystem.read
+  - filesystem.write
+  - exec.pkg

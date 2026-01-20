@@ -1,0 +1,15 @@
+name: bootstrap
+description: Bootstrap integrity verification skill
+version: "1.0.0"
+
+provides:
+  - verify_bootstrap
+  - check_binaries
+  - check_libs
+  - repair_symlinks
+  - list_missing
+
+requires_capabilities:
+  - filesystem.read
+  - filesystem.write
+  - exec.shell

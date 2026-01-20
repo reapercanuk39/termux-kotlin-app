@@ -1,0 +1,14 @@
+name: env
+description: Environment variable management skill
+version: "1.0.0"
+
+provides:
+  - check_env
+  - fix_path
+  - validate_env
+  - export_env
+
+requires_capabilities:
+  - exec.shell
+  - filesystem.read
+  - filesystem.write

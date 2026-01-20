@@ -1,0 +1,30 @@
+name: package_agent
+description: Package troubleshooting agent. Diagnoses and fixes package installation issues.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - exec.shell
+  - exec.analyze
+  - exec.pkg
+
+skills:
+  - pkg
+  - fs
+  - path
+
+memory_backend: json
+
+tasks:
+  - diagnose_install: "Diagnose package installation failure"
+  - check_deps: "Check package dependencies"
+  - fix_broken: "Fix broken packages"
+  - clear_cache: "Clear package cache"
+  - verify_package: "Verify installed package"
+  - list_problematic: "List packages with path issues"
+  - reinstall_package: "Reinstall a specific package"

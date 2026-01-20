@@ -1,0 +1,15 @@
+name: package
+description: Package installation and troubleshooting skill
+version: "1.0.0"
+
+provides:
+  - check_package
+  - list_packages
+  - find_broken
+  - verify_paths
+  - diagnose_install
+
+requires_capabilities:
+  - exec.shell
+  - exec.pkg
+  - filesystem.read

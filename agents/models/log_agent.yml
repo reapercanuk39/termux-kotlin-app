@@ -1,0 +1,25 @@
+name: log_agent
+description: Log analysis agent. Parses logs, finds errors, extracts patterns.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - memory.read
+  - memory.write
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - log
+  - fs
+
+memory_backend: json
+
+tasks:
+  - tail_log: "Show last N lines of a log file"
+  - find_errors: "Find error messages in logs"
+  - find_warnings: "Find warning messages in logs"
+  - grep_log: "Search logs for pattern"
+  - analyze_dpkg: "Analyze dpkg wrapper logs"
+  - analyze_apt: "Analyze apt logs"
+  - summarize_log: "Summarize log file contents"

@@ -1,0 +1,27 @@
+name: compat_agent
+description: Compatibility layer agent. Manages dpkg-wrapper, LD_PRELOAD shim, and path translation.
+version: "1.0.0"
+
+capabilities:
+  - filesystem.read
+  - filesystem.write
+  - memory.read
+  - memory.write
+  - network.external
+  - system.info
+  - exec.shell
+  - exec.analyze
+
+skills:
+  - compat
+  - fs
+
+memory_backend: json
+
+tasks:
+  - check_shim: "Check if LD_PRELOAD shim is compiled and loaded"
+  - compile_shim: "Compile libtermux_compat.so from source"
+  - check_wrapper: "Verify dpkg wrapper is properly installed"
+  - verify_paths: "Verify path translation is working"
+  - diagnose_compat: "Full compatibility layer diagnostic"
+  - fix_compat: "Auto-fix common compatibility issues"
