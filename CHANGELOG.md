@@ -1,3 +1,49 @@
+## [2026-01-20] v2.0.5 - Kotlin Agent Daemon & Plugin Integration
+
+### 🚀 Major Features
+
+#### Kotlin-Native Agent Daemon
+- **Zero Python Dependency** - Core agent system now runs in pure Kotlin
+- **20 new Kotlin files** in `app/src/main/kotlin/com/termux/app/agents/`
+- **AgentDaemon.kt** - Core supervisor singleton, auto-starts with app
+- **SkillExecutor.kt** - Dispatches tasks to skill implementations
+- **SwarmCoordinator.kt** - Stigmergy-based multi-agent coordination (ported from Python)
+- **45+ Capabilities** - Fine-grained permission system for agents
+- **4 Pure Kotlin Skills**: pkg, fs, git, diagnostic
+- **PythonSkillBridge.kt** - Graceful fallback for complex Python skills
+- **CliBridge.kt** - File-based IPC for shell access
+- **AgentWorker.kt** - Periodic health checks via AlarmManager
+
+#### Termux:Boot Integration (4 files)
+- **BootPreferences.kt** - DataStore preferences for boot settings
+- **BootScriptExecutor.kt** - Executes `~/.termux/boot/` scripts with notifications
+- **BootService.kt** - Foreground service with wake lock
+- **SystemEventReceiver** integration for `BOOT_COMPLETED`
+
+#### Termux:Styling Integration (5 files)
+- **ColorScheme.kt** - 11 built-in color schemes (Dracula, Monokai, Nord, Solarized, etc.)
+- **FontManager.kt** - Font loading from assets and `~/.termux/fonts/`
+- **StylingManager.kt** - Theme management with DataStore persistence
+- **StylingActivity.kt** - Full Compose UI with:
+  - Color scheme picker with terminal preview
+  - Font selector with size slider (6-42sp)
+  - Cursor style selector (block/underline/bar)
+  - Bell/vibration settings
+
+#### Termux:Widget Integration (6 files + layouts)
+- **ShortcutScanner.kt** - Scans `~/.shortcuts/` and `~/.shortcuts/tasks/`
+- **WidgetPreferences.kt** - DataStore for widget configurations
+- **TermuxWidgetProvider.kt** - AppWidgetProvider for 3 widget sizes
+- **WidgetRemoteViewsService.kt** - List widget adapter
+- **WidgetConfigureActivity.kt** - Compose UI for widget setup
+- **3 widget layouts**: 1x1, 2x1 (label), 4x1 (list)
+
+### Build Status
+- All 5 workflows: ✅ success
+- Release: v2.0.5 with 5 APK variants
+
+---
+
 ## [2026-01-20] Build #208
 
 ### Changes

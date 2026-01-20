@@ -227,12 +227,15 @@ Surpass Termux in reliability and usability with comprehensive package managemen
 
 ## 8. Agent Framework ✅ COMPLETED
 
-A fully offline, Python-based agent system for automation and extensibility:
+A fully offline agent system with **Kotlin-native daemon** (v2.0.5+) and Python fallback:
 
 | Feature | Status |
 |---------|--------|
-| Agent Supervisor (agentd) | ✅ Implemented |
-| Capability/Permission System | ✅ Implemented |
+| **Kotlin-Native AgentDaemon** | ✅ Implemented (v2.0.5) |
+| **Auto-start with App** | ✅ Implemented (v2.0.5) |
+| **45+ Capabilities System** | ✅ Implemented (v2.0.5) |
+| **Swarm Intelligence (Kotlin)** | ✅ Implemented (v2.0.5) |
+| Agent Supervisor (Python agentd) | ✅ Implemented |
 | Plugin/Skill System | ✅ Implemented |
 | Memory & Sandboxing | ✅ Implemented |
 | CLI Interface (`agent` command) | ✅ Implemented |
@@ -241,12 +244,52 @@ A fully offline, Python-based agent system for automation and extensibility:
 | Bootstrap Integration | ✅ Implemented |
 | Documentation (AI.md) | ✅ Complete |
 
+**v2.0.5 Kotlin-Native Components:**
+- `AgentDaemon.kt` - Core supervisor singleton
+- `SkillExecutor.kt` - Task dispatch to skills
+- `SwarmCoordinator.kt` - Stigmergy coordination
+- `PkgSkill.kt`, `FsSkill.kt`, `GitSkill.kt`, `DiagnosticSkill.kt` - Pure Kotlin skills
+- `PythonSkillBridge.kt` - Fallback for complex Python skills
+
 **Future Enhancements:**
 - Natural language task interpretation
 - Agent-to-agent communication
 - SQLite memory backend
 - Web UI for agent management
 - Local LLM integration (Ollama/llama.cpp)
+
+---
+
+## 9. Integrated Plugins ✅ COMPLETED (v2.0.5)
+
+Built-in functionality that previously required separate plugin apps:
+
+| Feature | Status |
+|---------|--------|
+| **Termux:Boot** | ✅ Integrated (v2.0.5) |
+| **Termux:Styling** | ✅ Integrated (v2.0.5) |
+| **Termux:Widget** | ✅ Integrated (v2.0.5) |
+| Termux:API | 📋 Planned |
+| Termux:Tasker | 📋 Planned |
+| Termux:Float | 📋 Planned |
+
+### Termux:Boot Integration
+- `BootService.kt` - Foreground service with wake lock
+- `BootScriptExecutor.kt` - Runs `~/.termux/boot/` scripts
+- `BootPreferences.kt` - DataStore settings
+- Auto-runs scripts on device boot
+
+### Termux:Styling Integration
+- 11 built-in color schemes (Dracula, Monokai, Nord, etc.)
+- Font picker with custom font support
+- Material 3 Compose settings UI
+- Real-time terminal preview
+
+### Termux:Widget Integration
+- 3 widget sizes (1x1, 2x1, 4x1)
+- Scans `~/.shortcuts/` for scripts
+- Configurable via Compose UI
+- One-tap script execution from home screen
 
 ---
 

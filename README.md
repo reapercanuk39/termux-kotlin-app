@@ -61,6 +61,30 @@ This fork focuses on:
 - Modern Android development practices
 - AI agent integration for development assistance
 
+### 🤖 Kotlin-Native Agent Daemon (v2.0.5+)
+
+The agent framework now runs in **pure Kotlin** with zero Python dependency:
+
+| Feature | Description |
+|---------|-------------|
+| **Auto-start** | Daemon starts automatically when app launches |
+| **45+ Capabilities** | Fine-grained permission system for agents |
+| **4 Pure Kotlin Skills** | pkg, fs, git, diagnostic |
+| **Swarm Intelligence** | Stigmergy-based multi-agent coordination |
+| **Python Fallback** | Complex skills gracefully degrade if Python missing |
+
+### 🔌 Integrated Plugins (v2.0.5+)
+
+No more separate plugin APKs! These features are now built-in:
+
+| Plugin | Status | Features |
+|--------|--------|----------|
+| **Termux:Boot** | ✅ Built-in | Auto-run scripts on device boot |
+| **Termux:Styling** | ✅ Built-in | 11 color schemes, custom fonts, Compose UI |
+| **Termux:Widget** | ✅ Built-in | 3 widget sizes, shortcut execution |
+| Termux:API | 📋 Planned | Hardware access APIs |
+| Termux:Tasker | 📋 Planned | Tasker integration |
+
 ### 📦 APK Size Explanation
 
 | Architecture | APK Size | Bootstrap Size |

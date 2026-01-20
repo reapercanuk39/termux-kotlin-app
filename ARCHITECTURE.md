@@ -63,6 +63,62 @@ termux-kotlin-app/
 │   └── IMPLEMENTATION_PLAN_SETTINGS_AND_PACKAGES.md
 │
 └── .github/workflows/            # CI/CD workflows
+
+### Agent Framework (v2.0.5+)
+
+```
+app/src/main/kotlin/com/termux/app/agents/
+├── cli/
+│   └── CliBridge.kt              # File-based IPC for shell access
+├── daemon/
+│   ├── AgentDaemon.kt            # Core supervisor singleton
+│   ├── AgentRegistry.kt          # Agent discovery and lifecycle
+│   └── AgentWorker.kt            # Periodic health checks
+├── di/
+│   └── AgentModule.kt            # Hilt DI module
+├── models/
+│   ├── Agent.kt                  # Agent data model
+│   ├── Capability.kt             # 45+ capability definitions
+│   └── TaskResult.kt             # Sealed result types
+├── runtime/
+│   ├── AgentMemory.kt            # Persistent key-value storage
+│   ├── AgentSandbox.kt           # Execution isolation
+│   ├── CommandRunner.kt          # Process execution
+│   └── SkillExecutor.kt          # Task dispatch to skills
+├── skills/
+│   ├── DiagnosticSkill.kt        # System diagnostics
+│   ├── FsSkill.kt                # Filesystem operations
+│   ├── GitSkill.kt               # Git operations
+│   ├── PkgSkill.kt               # Package management
+│   ├── PythonSkillBridge.kt      # Python skill fallback
+│   └── SkillProvider.kt          # Skill registry
+└── swarm/
+    ├── Signal.kt                 # 13 signal types for stigmergy
+    └── SwarmCoordinator.kt       # Multi-agent coordination
+```
+
+### Integrated Plugins (v2.0.5+)
+
+```
+app/src/main/kotlin/com/termux/app/
+├── boot/
+│   ├── BootModule.kt             # Hilt DI
+│   ├── BootPreferences.kt        # DataStore settings
+│   ├── BootScriptExecutor.kt     # Script runner
+│   └── BootService.kt            # Foreground service
+├── styling/
+│   ├── ColorScheme.kt            # 11 built-in themes
+│   ├── FontManager.kt            # Font loading
+│   ├── StylingActivity.kt        # Compose settings UI
+│   ├── StylingManager.kt         # Theme persistence
+│   └── StylingModule.kt          # Hilt DI
+└── widget/
+    ├── ShortcutScanner.kt        # ~/.shortcuts/ scanner
+    ├── TermuxWidgetProvider.kt   # AppWidgetProvider
+    ├── WidgetConfigureActivity.kt # Compose configuration
+    ├── WidgetModule.kt           # Hilt DI
+    ├── WidgetPreferences.kt      # Widget settings
+    └── WidgetRemoteViewsService.kt # List adapter
 ```
 
 ## 🏗️ Module Architecture

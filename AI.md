@@ -72,6 +72,10 @@ cat /root/termux-kotlin-app/README.md /root/termux-kotlin-app/ARCHITECTURE.md /r
 | Package name | `com.termux` | `com.termux` |
 | Data path | `/data/data/com.termux/files/usr` | `/data/data/com.termux/files/usr` |
 | Language | Java | 100% Kotlin |
+| Agent Framework | None | ✅ Kotlin-native (v2.0.5+) |
+| Termux:Boot | Separate APK | ✅ Built-in (v2.0.5+) |
+| Termux:Styling | Separate APK | ✅ Built-in (v2.0.5+) |
+| Termux:Widget | Separate APK | ✅ Built-in (v2.0.5+) |
 
 ### The Path Solution (v2.0.0+)
 
@@ -83,6 +87,17 @@ Starting with v2.0.0, we use the same package name as upstream Termux (`com.term
 - ✅ Python, pip, and all packages install perfectly
 
 **Trade-off:** Cannot coexist with official Termux app (same package name, different signing key). Inspired by ZeroTermux which uses the same approach.
+
+### Current Version: v2.0.5
+
+| Feature | Status |
+|---------|--------|
+| Kotlin-native Agent Daemon | ✅ Auto-starts with app |
+| 45+ Agent Capabilities | ✅ Fine-grained permissions |
+| Swarm Intelligence | ✅ Stigmergy coordination |
+| Termux:Boot | ✅ Built-in |
+| Termux:Styling | ✅ 11 color schemes |
+| Termux:Widget | ✅ 3 widget sizes |
 
 ---
 
@@ -293,6 +308,55 @@ repo/
 ---
 
 ## 📅 Session History
+
+### 2026-01-20: Kotlin-Native Agent Daemon & Plugin Integration (v2.0.5)
+- **Task:** Fully implement Kotlin-native agent daemon and integrate Termux:Boot/Styling/Widget
+
+#### Kotlin-Native Agent Daemon
+- **Created 20 Kotlin files** in `app/src/main/kotlin/com/termux/app/agents/`
+- **Key Components:**
+  | File | Purpose |
+  |------|---------|
+  | `AgentDaemon.kt` | Core supervisor singleton, auto-starts with app |
+  | `SkillExecutor.kt` | Dispatches tasks to skill implementations |
+  | `SwarmCoordinator.kt` | Stigmergy-based multi-agent coordination |
+  | `Capability.kt` | 45+ capability definitions |
+  | `PkgSkill.kt` | Package management skill (pure Kotlin) |
+  | `FsSkill.kt` | Filesystem operations (pure Kotlin) |
+  | `GitSkill.kt` | Git operations (pure Kotlin) |
+  | `DiagnosticSkill.kt` | System diagnostics (pure Kotlin) |
+  | `PythonSkillBridge.kt` | Fallback for complex Python skills |
+  | `CliBridge.kt` | File-based IPC for shell access |
+  | `AgentWorker.kt` | Periodic health checks via AlarmManager |
+
+#### Termux:Boot Integration (4 files)
+- `BootPreferences.kt` - DataStore preferences
+- `BootScriptExecutor.kt` - Runs `~/.termux/boot/` scripts
+- `BootService.kt` - Foreground service with wake lock
+- `BootModule.kt` - Hilt DI module
+- Integrated with `SystemEventReceiver` for `BOOT_COMPLETED`
+
+#### Termux:Styling Integration (5 files)
+- `ColorScheme.kt` - 11 built-in schemes (Dracula, Monokai, Nord, etc.)
+- `FontManager.kt` - Font loading from assets and `~/.termux/fonts/`
+- `StylingManager.kt` - Theme management with DataStore
+- `StylingActivity.kt` - Full Compose UI
+- `StylingModule.kt` - Hilt DI module
+
+#### Termux:Widget Integration (6 files + layouts)
+- `ShortcutScanner.kt` - Scans `~/.shortcuts/`
+- `TermuxWidgetProvider.kt` - AppWidgetProvider for 3 sizes
+- `WidgetRemoteViewsService.kt` - List widget adapter
+- `WidgetConfigureActivity.kt` - Compose UI
+- `WidgetPreferences.kt` - DataStore settings
+- Widget layouts: 1x1, 2x1 (label), 4x1 (list)
+
+#### Build Results
+- All 5 workflows: ✅ success
+- Release: **v2.0.5** with 5 APK variants
+- Commit: `52a27af`
+
+---
 
 ### 2026-01-18: CI/CD Fixes & Debug APK Testing
 - **Task:** Fix version numbering in releases and change workflow to debug builds
