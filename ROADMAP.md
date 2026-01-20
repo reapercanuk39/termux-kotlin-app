@@ -269,7 +269,7 @@ Built-in functionality that previously required separate plugin apps:
 | **Termux:Boot** | ✅ Integrated (v2.0.5) |
 | **Termux:Styling** | ✅ Integrated (v2.0.5) |
 | **Termux:Widget** | ✅ Integrated (v2.0.5) |
-| Termux:API | 📋 Planned |
+| **Termux:API** | ✅ Integrated (v2.0.5) |
 | Termux:Tasker | 📋 Planned |
 | Termux:Float | 📋 Planned |
 
@@ -290,6 +290,14 @@ Built-in functionality that previously required separate plugin apps:
 - Scans `~/.shortcuts/` for scripts
 - Configurable via Compose UI
 - One-tap script execution from home screen
+
+### Termux:API Integration
+- `DeviceApiService.kt` - Background service for API operations
+- `DeviceApiActionBase.kt` - Base class for all API actions
+- `BatteryAction.kt` - Battery status implementation
+- 20+ API actions: battery, clipboard, location, sensors, camera, audio, vibration, toast, TTS, torch, WiFi, telephony, SMS, contacts, notifications
+- Typed IPC with sealed `DeviceApiMessage` classes
+- No separate APK required
 
 ---
 
