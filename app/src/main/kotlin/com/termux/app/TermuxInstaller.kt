@@ -805,40 +805,62 @@ rewrite_deb() {
     fi
     
     # =========================================================================
-    # STEP 4: FIX SHEBANGS IN INSTALLED SCRIPTS (critical for python, pip, etc)
-    # Only check first line of files in bin/ directories - very fast
+    # STEP 4: FIX ALL TEXT FILES WITH OLD PATHS
+    # This is critical for Python's sysconfig, pip config, and other files
+    # Use grep -rIl to find text files (skip binaries) with old paths
+    # =========================================================================
+    local pkg_data="pkg_root/data/data/com.termux.kotlin/files/usr"
+    if [ -d "${'$'}pkg_data" ]; then
+        # Find all text files containing old paths and fix them
+        # -r = recursive, -I = skip binary, -l = list files only
+        while IFS= read -r file; do
+            sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" "${'$'}file" 2>/dev/null
+        done < <(grep -rIl "/data/data/com\.termux/" "${'$'}pkg_data" 2>/dev/null || true)
+    fi
+    
+    # =========================================================================
+    # STEP 5: FIX SHEBANGS IN SCRIPTS (bin/, libexec/, share/)
+    # Check first 2 bytes for #! to avoid reading binary files
     # =========================================================================
     local bin_dir="pkg_root/data/data/com.termux.kotlin/files/usr/bin"
     if [ -d "${'$'}bin_dir" ]; then
         for script in "${'$'}bin_dir"/*; do
             if [ -f "${'$'}script" ] && [ ! -L "${'$'}script" ]; then
-                # Read first line only (shebang check)
-                local first_line
-                first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
-                if [[ "${'$'}first_line" == "#!"*"com.termux/"* ]]; then
-                    sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+                # Check first 2 bytes for shebang magic
+                local magic
+                magic=${'$'}(head -c 2 "${'$'}script" 2>/dev/null)
+                if [ "${'$'}magic" = "#!" ]; then
+                    # It's a script, check if shebang needs fixing
+                    local first_line
+                    first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
+                    if [[ "${'$'}first_line" == *"com.termux/"* ]]; then
+                        sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+                    fi
                 fi
             fi
         done
     fi
     
-    # Also fix shebangs in libexec and share directories (some scripts there too)
+    # Also fix shebangs in libexec and share directories
     for extra_dir in "pkg_root/data/data/com.termux.kotlin/files/usr/libexec" \
                      "pkg_root/data/data/com.termux.kotlin/files/usr/share"; do
         if [ -d "${'$'}extra_dir" ]; then
-            # Use find to get executable files, fix shebangs
-            find "${'$'}extra_dir" -type f -executable 2>/dev/null | while read -r script; do
-                local first_line
-                first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
-                if [[ "${'$'}first_line" == "#!"*"com.termux/"* ]]; then
-                    sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+            find "${'$'}extra_dir" -type f 2>/dev/null | while read -r script; do
+                local magic
+                magic=${'$'}(head -c 2 "${'$'}script" 2>/dev/null)
+                if [ "${'$'}magic" = "#!" ]; then
+                    local first_line
+                    first_line=${'$'}(head -1 "${'$'}script" 2>/dev/null)
+                    if [[ "${'$'}first_line" == *"com.termux/"* ]]; then
+                        sed -i "1s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|" "${'$'}script" 2>/dev/null
+                    fi
                 fi
             done
         fi
     done
     
     # =========================================================================
-    # STEP 5: FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc)
+    # STEP 6: FIX DEBIAN CONTROL SCRIPTS (postinst, prerm, etc)
     # =========================================================================
     for script in pkg_root/DEBIAN/postinst pkg_root/DEBIAN/preinst pkg_root/DEBIAN/postrm pkg_root/DEBIAN/prerm pkg_root/DEBIAN/config; do
         if [ -f "${'$'}script" ]; then
@@ -851,7 +873,7 @@ rewrite_deb() {
     [ -f pkg_root/DEBIAN/conffiles ] && sed -i "s|/data/data/com\.termux/|/data/data/com.termux.kotlin/|g" pkg_root/DEBIAN/conffiles 2>/dev/null
     
     # =========================================================================
-    # STEP 6: REBUILD PACKAGE (use gzip for speed instead of xz)
+    # STEP 7: REBUILD PACKAGE (use gzip for speed instead of xz)
     # -Zgzip: Use gzip compression (much faster than xz)
     # -z1: Compression level 1 (fastest)
     # =========================================================================
