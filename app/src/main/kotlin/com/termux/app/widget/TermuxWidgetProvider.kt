@@ -314,19 +314,39 @@ class TermuxWidgetProvider : AppWidgetProvider() {
         isTask: Boolean
     ) {
         Logger.logInfo(LOG_TAG, "Executing shortcut: $shortcutName (task=$isTask)")
-        
-        val file = File(shortcutPath)
-        if (!file.exists()) {
-            Logger.logWarn(LOG_TAG, "Shortcut file not found: $shortcutPath")
+
+        // Restrict shortcut execution to the app's shortcuts directory to avoid arbitrary path access.
+        val shortcutsBaseDir = File(context.filesDir, "shortcuts").canonicalFile
+
+        val candidateFile = File(shortcutPath)
+        val resolvedFile = try {
+            if (candidateFile.isAbsolute) {
+                candidateFile.canonicalFile
+            } else {
+                File(shortcutsBaseDir, shortcutPath).canonicalFile
+            }
+        } catch (e: Exception) {
+            Logger.logWarn(LOG_TAG, "Invalid shortcut path: $shortcutPath - ${e.message}")
+            return
+        }
+
+        // Ensure the resolved path stays within the shortcuts base directory.
+        if (!resolvedFile.path.startsWith(shortcutsBaseDir.path + File.separator)) {
+            Logger.logWarn(LOG_TAG, "Rejected shortcut outside of allowed directory: $shortcutPath")
+            return
+        }
+
+        if (!resolvedFile.exists()) {
+            Logger.logWarn(LOG_TAG, "Shortcut file not found: ${resolvedFile.path}")
             return
         }
         
         if (isTask) {
             // Execute in background without terminal UI
-            executeBackgroundTask(context, shortcutPath, shortcutName)
+            executeBackgroundTask(context, resolvedFile.absolutePath, shortcutName)
         } else {
             // Launch Termux with script
-            launchTermuxWithScript(context, shortcutPath)
+            launchTermuxWithScript(context, resolvedFile.absolutePath)
         }
     }
     
