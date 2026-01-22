@@ -1,3 +1,15 @@
+## [2026-01-22] Build #220
+
+### Changes
+- b9237fa fix: Built-in plugins (API, Boot, Styling, Widget) now work correctly
+
+### Build Status
+- Prefix Validation: success
+- APK Build: success
+- Emulator Tests: skipped
+
+---
+
 ## [2026-01-22] v2.0.7
 
 ### Fixed
