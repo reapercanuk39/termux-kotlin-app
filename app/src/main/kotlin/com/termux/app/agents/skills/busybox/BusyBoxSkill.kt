@@ -667,32 +667,52 @@ class BusyBoxSkill(
     }
     
     /**
-     * Check Magisk status.
+     * Check Magisk/root status with comprehensive detection.
+     * 
+     * Detects:
+     * - Magisk (traditional)
+     * - KernelSU
+     * - APatch
+     * - Unknown root solutions
      */
     private suspend fun magiskCheck(params: Map<String, Any?>): SkillResult {
-        log("Checking Magisk status")
+        log("Checking root/Magisk status")
         
-        // Check if Magisk is installed
-        val magiskDir = File("/data/adb/magisk")
-        val installed = magiskDir.exists()
+        // Detect root solution type
+        val rootType = detectRootType()
         
-        if (!installed) {
+        // Check if any root is installed
+        if (rootType == RootType.NONE) {
             return SkillResult(
                 success = true,
                 data = mapOf(
+                    "root_type" to "none",
                     "installed" to false,
                     "version" to null,
-                    "busybox_module" to false
+                    "busybox_module" to false,
+                    "su_path" to null
                 )
             )
         }
         
-        // Get Magisk version
-        val versionResult = runShell("magisk -v 2>/dev/null || cat /data/adb/magisk/magisk.apk.ver 2>/dev/null")
-        val version = versionResult.stdout.trim().takeIf { it.isNotBlank() }
+        // Find su binary
+        val suPath = findSuBinary()
+        
+        // Get version based on root type
+        val version = when (rootType) {
+            RootType.MAGISK -> getMagiskVersion()
+            RootType.KERNELSU -> getKernelSuVersion()
+            RootType.APATCH -> getApatchVersion()
+            else -> null
+        }
         
         // Check for BusyBox module
-        val modulePath = config.magiskModulePath ?: BusyBoxConfig.DEFAULT_MAGISK_MODULE_PATH
+        val modulePath = when (rootType) {
+            RootType.MAGISK -> config.magiskModulePath ?: BusyBoxConfig.DEFAULT_MAGISK_MODULE_PATH
+            RootType.KERNELSU -> "/data/adb/ksu/modules/busybox-modern"
+            else -> config.magiskModulePath ?: BusyBoxConfig.DEFAULT_MAGISK_MODULE_PATH
+        }
+        
         val moduleDir = File(modulePath)
         val moduleInstalled = moduleDir.exists()
         
@@ -700,14 +720,15 @@ class BusyBoxSkill(
         var systemlessMode = false
         
         if (moduleInstalled) {
-            // Check if module is disabled
             val disableFile = File("$modulePath/disable")
             moduleEnabled = !disableFile.exists()
             
-            // Check for system.prop
             val systemProp = File("$modulePath/system.prop")
             systemlessMode = !systemProp.exists()
         }
+        
+        // Check for Magisk's own busybox (to avoid conflicts)
+        val magiskBusyboxPath = findMagiskBusybox()
         
         val status = MagiskStatus(
             installed = true,
@@ -720,15 +741,103 @@ class BusyBoxSkill(
         return SkillResult(
             success = true,
             data = mapOf(
+                "root_type" to rootType.name.lowercase(),
                 "installed" to status.installed,
                 "version" to status.version,
+                "su_path" to suPath,
                 "busybox_module_path" to status.modulePath,
                 "busybox_module_installed" to moduleInstalled,
                 "busybox_module_enabled" to status.moduleEnabled,
-                "systemless_mode" to status.systemlessMode
+                "systemless_mode" to status.systemlessMode,
+                "magisk_busybox_path" to magiskBusyboxPath,
+                "has_magisk_busybox" to (magiskBusyboxPath != null)
             ),
             logs = context.getLogs()
         )
+    }
+    
+    /**
+     * Detect root solution type.
+     */
+    private fun detectRootType(): RootType {
+        // Check Magisk first (most common)
+        if (File("/data/adb/magisk").exists()) {
+            return RootType.MAGISK
+        }
+        
+        // Check for Magisk socket
+        for (socketPath in BusyBoxConfig.MAGISK_SOCKET_PATHS) {
+            if (File(socketPath).exists()) {
+                return RootType.MAGISK
+            }
+        }
+        
+        // Check KernelSU
+        if (File("/data/adb/ksu").exists()) {
+            return RootType.KERNELSU
+        }
+        
+        // Check APatch
+        if (File("/data/adb/ap").exists()) {
+            return RootType.APATCH
+        }
+        
+        // Check if su binary exists (unknown root)
+        val suPath = findSuBinary()
+        if (suPath != null) {
+            return RootType.UNKNOWN
+        }
+        
+        return RootType.NONE
+    }
+    
+    /**
+     * Find su binary path.
+     */
+    private fun findSuBinary(): String? {
+        for (path in BusyBoxConfig.getSuPaths()) {
+            val file = File(path)
+            if (file.exists()) {
+                return path
+            }
+        }
+        return null
+    }
+    
+    /**
+     * Find Magisk's bundled BusyBox (to avoid conflicts).
+     */
+    private fun findMagiskBusybox(): String? {
+        for (path in BusyBoxConfig.MAGISK_BUSYBOX_PATHS) {
+            if (File(path).exists()) {
+                return path
+            }
+        }
+        return null
+    }
+    
+    /**
+     * Get Magisk version.
+     */
+    private suspend fun getMagiskVersion(): String? {
+        val result = runShell("magisk -v 2>/dev/null || cat /data/adb/magisk/magisk.apk.ver 2>/dev/null")
+        return result.stdout.trim().takeIf { it.isNotBlank() }
+    }
+    
+    /**
+     * Get KernelSU version.
+     */
+    private suspend fun getKernelSuVersion(): String? {
+        val result = runShell("ksud --version 2>/dev/null || cat /data/adb/ksu/.version 2>/dev/null")
+        return result.stdout.trim().takeIf { it.isNotBlank() }
+    }
+    
+    /**
+     * Get APatch version.
+     */
+    private suspend fun getApatchVersion(): String? {
+        val result = runShell("cat /data/adb/ap/version 2>/dev/null")
+        return result.stdout.trim().takeIf { it.isNotBlank() }
     }
     
     /**
