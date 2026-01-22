@@ -1,0 +1,164 @@
+# MCP Server Configuration
+# ========================
+# Model Context Protocol server configuration.
+# Exposes Termux agent skills as tools for external AI assistants.
+
+# Server enabled
+enabled: false
+
+# Server Configuration
+# --------------------
+server:
+  # Port to listen on
+  port: 50052
+  
+  # Host to bind to
+  # - 127.0.0.1: Local only (more secure)
+  # - 0.0.0.0: All interfaces (needed for external access)
+  host: 127.0.0.1
+  
+  # Protocol: "http" | "grpc" (http recommended for compatibility)
+  protocol: http
+
+# Authentication
+# --------------
+auth:
+  # Enable authentication
+  enabled: false
+  
+  # Authentication method: "token" | "none"
+  method: token
+  
+  # Static token (generate a secure one for production)
+  # token: "your-secure-token-here"
+
+# Exposed Tools
+# -------------
+# List of skills to expose as MCP tools.
+# Format: skill.function or just skill (exposes all functions)
+expose:
+  # Package management
+  - pkg.install
+  - pkg.upgrade
+  - pkg.search
+  - pkg.list_installed
+  - pkg.uninstall
+  
+  # Git operations
+  - git.clone
+  - git.status
+  - git.diff
+  - git.commit
+  - git.push
+  - git.pull
+  
+  # Filesystem operations
+  - fs.read
+  - fs.write
+  - fs.list
+  - fs.exists
+  - fs.mkdir
+  - fs.delete
+  
+  # Diagnostics
+  - diagnostic.run
+  - diagnostic.check_env
+  - diagnostic.check_deps
+  - diagnostic.system_info
+
+# Tool Metadata
+# -------------
+# Additional metadata for exposed tools.
+tools:
+  pkg.install:
+    description: "Install a Termux package"
+    parameters:
+      name:
+        type: string
+        description: "Package name to install"
+        required: true
+      force:
+        type: boolean
+        description: "Force reinstall if already installed"
+        required: false
+        default: false
+  
+  pkg.upgrade:
+    description: "Upgrade all installed packages"
+    parameters:
+      dry_run:
+        type: boolean
+        description: "Show what would be upgraded without actually upgrading"
+        required: false
+        default: false
+  
+  git.clone:
+    description: "Clone a git repository"
+    parameters:
+      url:
+        type: string
+        description: "Repository URL to clone"
+        required: true
+      path:
+        type: string
+        description: "Destination directory"
+        required: false
+      branch:
+        type: string
+        description: "Branch to checkout"
+        required: false
+  
+  fs.read:
+    description: "Read file contents"
+    parameters:
+      path:
+        type: string
+        description: "File path to read"
+        required: true
+      encoding:
+        type: string
+        description: "Text encoding (default: utf-8)"
+        required: false
+        default: "utf-8"
+  
+  diagnostic.run:
+    description: "Run diagnostics on the Termux environment"
+    parameters:
+      category:
+        type: string
+        description: "Diagnostic category: all, env, deps, network, storage"
+        required: false
+        default: "all"
+
+# Rate Limiting
+# -------------
+rate_limit:
+  # Enable rate limiting
+  enabled: true
+  
+  # Max requests per minute
+  requests_per_minute: 60
+  
+  # Max concurrent requests
+  max_concurrent: 10
+
+# Logging
+# -------
+logging:
+  # Log all MCP requests
+  log_requests: true
+  
+  # Log request/response bodies (verbose)
+  log_bodies: false
+  
+  # Log file path (relative to agents/logs/)
+  log_file: mcp_server.log
+
+# CORS Configuration
+# ------------------
+# For browser-based MCP clients
+cors:
+  enabled: false
+  allowed_origins:
+    - "http://localhost:*"
+    - "https://localhost:*"

@@ -197,6 +197,7 @@ dependencies {
     implementation libs.bundles.markwon
     
     // Utilities
+    implementation libs.snakeyaml
     implementation libs.guava
     implementation libs.guava.listenablefuture
     

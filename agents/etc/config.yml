@@ -1,0 +1,124 @@
+# Termux Agent Framework Configuration
+# =====================================
+# Main configuration file for agent framework settings.
+
+# Framework version
+version: "2.1.0"
+
+# LLM Configuration
+# -----------------
+# Controls optional local LLM integration via Ollama.
+# Set provider to "none" for skill-only mode (no LLM required).
+llm:
+  # Provider: "ollama" | "none"
+  # - ollama: Use local Ollama server for AI inference
+  # - none: Skill-only mode, no LLM (default, always works)
+  provider: none
+  
+  # Model to use (only if provider is "ollama")
+  model: qwen2:7b
+  
+  # Ollama server URL
+  base_url: http://localhost:11434
+  
+  # Request timeout in milliseconds
+  timeout_ms: 30000
+  
+  # Max tokens for completion
+  max_tokens: 2048
+  
+  # Temperature for generation (0.0 - 1.0)
+  temperature: 0.7
+  
+  # Fallback chain when primary model fails
+  # - Try models in order until one succeeds
+  # - "skill_only" means fall back to no LLM
+  fallback:
+    - ollama:llama3:8b
+    - ollama:mistral:7b
+    - skill_only
+
+# Agent Daemon Configuration
+# --------------------------
+daemon:
+  # Auto-start daemon on app launch
+  auto_start: true
+  
+  # Health check interval in milliseconds
+  health_check_interval_ms: 60000
+  
+  # Max concurrent tasks per agent
+  max_concurrent_tasks: 4
+  
+  # Default task timeout in milliseconds
+  default_task_timeout_ms: 60000
+
+# Swarm Configuration
+# -------------------
+swarm:
+  # Enable swarm-based coordination
+  enabled: true
+  
+  # Signal decay rate (0.0 - 1.0)
+  decay_rate: 0.05
+  
+  # Decay interval in milliseconds
+  decay_interval_ms: 300000
+  
+  # Signal weak threshold
+  weak_threshold: 0.1
+
+# Handoff Configuration
+# ---------------------
+# Controls Swarm-style agent-to-agent handoffs.
+handoffs:
+  # Enable agent handoffs
+  enabled: true
+  
+  # Max handoff chain depth (prevents infinite loops)
+  max_depth: 10
+  
+  # Preserve context between handoffs
+  preserve_context: true
+
+# Memory Configuration
+# --------------------
+memory:
+  # Default memory backend: "json" | "datastore"
+  default_backend: json
+  
+  # Max history entries per agent
+  max_history_entries: 1000
+  
+  # Auto-cleanup old entries
+  auto_cleanup: true
+
+# Logging Configuration
+# ---------------------
+logging:
+  # Log level: "debug" | "info" | "warn" | "error"
+  level: info
+  
+  # Log LLM requests (may be verbose)
+  log_llm_requests: false
+  
+  # Log MCP requests
+  log_mcp_requests: true
+  
+  # Log handoffs
+  log_handoffs: true
+  
+  # Max log file size in bytes
+  max_log_size_bytes: 1048576
+
+# Security Configuration
+# ----------------------
+security:
+  # Validate agent capabilities before execution
+  enforce_capabilities: true
+  
+  # Block external network by default
+  default_network_policy: none
+  
+  # Sandbox agent file access
+  sandbox_enabled: true

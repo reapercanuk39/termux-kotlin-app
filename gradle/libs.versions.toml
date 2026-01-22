@@ -41,6 +41,7 @@ material = "1.12.0"
 markwon = "4.6.2"
 
 # Utilities
+snakeyaml = "2.2"
 guava = "33.4.0-android"
 commons-io = "2.5"
 hiddenapibypass = "6.1"
@@ -113,6 +114,7 @@ markwon-linkify = { module = "io.noties.markwon:linkify", version.ref = "markwon
 markwon-recycler = { module = "io.noties.markwon:recycler", version.ref = "markwon" }
 
 # Utilities
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 guava-listenablefuture = { module = "com.google.guava:listenablefuture", version = "9999.0-empty-to-avoid-conflict-with-guava" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }

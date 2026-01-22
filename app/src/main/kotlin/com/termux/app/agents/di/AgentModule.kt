@@ -4,6 +4,12 @@ import android.content.Context
 import com.termux.app.agents.cli.CliBridge
 import com.termux.app.agents.daemon.AgentDaemon
 import com.termux.app.agents.daemon.AgentRegistry
+import com.termux.app.agents.handoff.HandoffExecutor
+import com.termux.app.agents.llm.LlmConfig
+import com.termux.app.agents.llm.LlmProvider
+import com.termux.app.agents.llm.LlmProviderFactory
+import com.termux.app.agents.mcp.McpServer
+import com.termux.app.agents.mcp.ToolRegistry
 import com.termux.app.agents.runtime.AgentMemoryFactory
 import com.termux.app.agents.runtime.AgentSandboxFactory
 import com.termux.app.agents.runtime.CommandRunner
@@ -14,6 +20,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import org.yaml.snakeyaml.Yaml
 import java.io.File
 import javax.inject.Singleton
 
@@ -110,6 +117,76 @@ object AgentModule {
         return CliBridge(
             context = context,
             agentDaemon = agentDaemon
+        )
+    }
+    
+    // ====================================================================
+    // LLM Integration
+    // ====================================================================
+    
+    @Provides
+    @Singleton
+    fun provideLlmConfig(): LlmConfig {
+        return try {
+            val configFile = File("$AGENTS_BASE_DIR/etc/config.yml")
+            if (!configFile.exists()) {
+                return LlmConfig.SKILL_ONLY
+            }
+            
+            val yaml = Yaml()
+            val configMap = configFile.inputStream().use { stream ->
+                @Suppress("UNCHECKED_CAST")
+                yaml.load<Map<String, Any?>>(stream) ?: emptyMap()
+            }
+            LlmConfig.fromMap(configMap)
+        } catch (e: Exception) {
+            LlmConfig.SKILL_ONLY
+        }
+    }
+    
+    @Provides
+    @Singleton
+    fun provideLlmProvider(config: LlmConfig): LlmProvider {
+        return LlmProviderFactory.create(config)
+    }
+    
+    // ====================================================================
+    // MCP Server Integration
+    // ====================================================================
+    
+    @Provides
+    @Singleton
+    fun provideToolRegistry(): ToolRegistry {
+        return ToolRegistry()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideMcpServer(
+        toolRegistry: ToolRegistry,
+        agentDaemon: AgentDaemon
+    ): McpServer {
+        return McpServer(
+            toolRegistry = toolRegistry,
+            daemon = agentDaemon
+        )
+    }
+    
+    // ====================================================================
+    // Handoff Executor
+    // ====================================================================
+    
+    @Provides
+    @Singleton
+    fun provideHandoffExecutor(
+        registry: AgentRegistry,
+        agentDaemon: AgentDaemon,
+        swarmCoordinator: SwarmCoordinator
+    ): HandoffExecutor {
+        return HandoffExecutor(
+            registry = registry,
+            daemon = agentDaemon,
+            swarmCoordinator = swarmCoordinator
         )
     }
 }

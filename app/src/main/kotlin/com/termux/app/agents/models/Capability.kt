@@ -105,9 +105,12 @@ sealed class Capability {
         object Unzip : Exec() {
             override val name = "exec.unzip"
         }
+        object BusyBox : Exec() {
+            override val name = "exec.busybox"
+        }
         
         companion object {
-            fun all() = listOf(Pkg, Git, Qemu, Iso, Apk, Docker, Shell, Python, Build, Analyze, Compress, Custom, Curl, Wget, Ssh, Tar, Unzip)
+            fun all() = listOf(Pkg, Git, Qemu, Iso, Apk, Docker, Shell, Python, Build, Analyze, Compress, Custom, Curl, Wget, Ssh, Tar, Unzip, BusyBox)
         }
     }
     
@@ -237,7 +240,10 @@ sealed class Capability {
             "xz" to Exec.Compress,
             "zstd" to Exec.Compress,
             "zip" to Exec.Compress,
-            "unzip" to Exec.Compress
+            "unzip" to Exec.Compress,
+            // BusyBox
+            "busybox" to Exec.BusyBox,
+            "busybox-modern" to Exec.BusyBox
         )
         
         /**
