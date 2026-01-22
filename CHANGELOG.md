@@ -2,6 +2,9 @@
 
 ### Fixed
 - **Styling button now uses built-in StylingActivity** - Previously tried to launch external `com.termux.styling` package and prompted to install from F-Droid. Now correctly launches the integrated styling UI.
+- **Settings now show built-in Termux:API and Termux:Widget preferences** - Previously hidden because external package checks failed.
+- **SharedPreferences for built-in plugins now use main app context** - `TermuxAPIAppSharedPreferences`, `TermuxWidgetAppSharedPreferences`, `TermuxStylingAppSharedPreferences`, and `TermuxBootAppSharedPreferences` now fall back to main app context since these plugins are built-in since v2.0.5.
+- **TermuxAPIShellEnvironment now works with built-in API** - Previously returned null when external `com.termux.api` package not found.
 
 ### Build Status
 - Pending

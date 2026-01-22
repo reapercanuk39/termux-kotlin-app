@@ -45,15 +45,18 @@ class TermuxAPIAppSharedPreferences private constructor(context: Context) : AppS
 
         @JvmStatic
         fun build(context: Context): TermuxAPIAppSharedPreferences? {
+            // Termux:API is built-in since v2.0.5 - use current app context
+            // First try the external package (for backwards compatibility), then fall back to current context
             val termuxAPIPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_API_PACKAGE_NAME)
-                ?: return null
+                ?: context  // Use current app context since API is built-in
             return TermuxAPIAppSharedPreferences(termuxAPIPackageContext)
         }
 
         @JvmStatic
         fun build(context: Context, exitAppOnError: Boolean): TermuxAPIAppSharedPreferences? {
-            val termuxAPIPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_API_PACKAGE_NAME, exitAppOnError)
-                ?: return null
+            // Termux:API is built-in since v2.0.5 - use current app context if external package not found
+            val termuxAPIPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_API_PACKAGE_NAME)
+                ?: context  // Use current app context since API is built-in
             return TermuxAPIAppSharedPreferences(termuxAPIPackageContext)
         }
     }

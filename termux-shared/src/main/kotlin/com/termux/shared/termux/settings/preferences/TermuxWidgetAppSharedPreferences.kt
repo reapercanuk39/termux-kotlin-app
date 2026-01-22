@@ -55,15 +55,18 @@ class TermuxWidgetAppSharedPreferences private constructor(context: Context) : A
 
         @JvmStatic
         fun build(context: Context): TermuxWidgetAppSharedPreferences? {
+            // Termux:Widget is built-in since v2.0.5 - use current app context
+            // First try the external package (for backwards compatibility), then fall back to current context
             val termuxWidgetPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_WIDGET_PACKAGE_NAME)
-                ?: return null
+                ?: context  // Use current app context since Widget is built-in
             return TermuxWidgetAppSharedPreferences(termuxWidgetPackageContext)
         }
 
         @JvmStatic
         fun build(context: Context, exitAppOnError: Boolean): TermuxWidgetAppSharedPreferences? {
-            val termuxWidgetPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_WIDGET_PACKAGE_NAME, exitAppOnError)
-                ?: return null
+            // Termux:Widget is built-in since v2.0.5 - use current app context if external package not found
+            val termuxWidgetPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_WIDGET_PACKAGE_NAME)
+                ?: context  // Use current app context since Widget is built-in
             return TermuxWidgetAppSharedPreferences(termuxWidgetPackageContext)
         }
     }

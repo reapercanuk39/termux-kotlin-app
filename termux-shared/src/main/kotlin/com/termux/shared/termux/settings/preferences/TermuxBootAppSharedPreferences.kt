@@ -45,8 +45,10 @@ class TermuxBootAppSharedPreferences private constructor(context: Context) : App
          */
         @JvmStatic
         fun build(context: Context): TermuxBootAppSharedPreferences? {
+            // Termux:Boot is built-in since v2.0.5 - use current app context
+            // First try the external package (for backwards compatibility), then fall back to current context
             val termuxBootPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_BOOT_PACKAGE_NAME)
-                ?: return null
+                ?: context  // Use current app context since Boot is built-in
             return TermuxBootAppSharedPreferences(termuxBootPackageContext)
         }
 
@@ -61,8 +63,9 @@ class TermuxBootAppSharedPreferences private constructor(context: Context) : App
          */
         @JvmStatic
         fun build(context: Context, exitAppOnError: Boolean): TermuxBootAppSharedPreferences? {
-            val termuxBootPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_BOOT_PACKAGE_NAME, exitAppOnError)
-                ?: return null
+            // Termux:Boot is built-in since v2.0.5 - use current app context if external package not found
+            val termuxBootPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_BOOT_PACKAGE_NAME)
+                ?: context  // Use current app context since Boot is built-in
             return TermuxBootAppSharedPreferences(termuxBootPackageContext)
         }
     }

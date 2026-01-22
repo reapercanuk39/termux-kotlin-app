@@ -67,17 +67,16 @@ class SettingsActivity : AppCompatActivity() {
         private fun configureTermuxAPIPreference(context: Context) {
             val termuxAPIPreference = findPreference<Preference>("termux_api")
             if (termuxAPIPreference != null) {
-                val preferences = TermuxAPIAppSharedPreferences.build(context, false)
-                // If failed to get app preferences, then likely app is not installed, so do not show its preference
-                termuxAPIPreference.isVisible = preferences != null
+                // Termux:API is built-in since v2.0.5 - always show settings
+                termuxAPIPreference.isVisible = true
             }
         }
 
         private fun configureTermuxFloatPreference(context: Context) {
             val termuxFloatPreference = findPreference<Preference>("termux_float")
             if (termuxFloatPreference != null) {
+                // Termux:Float is still a separate app - check if installed
                 val preferences = TermuxFloatAppSharedPreferences.build(context, false)
-                // If failed to get app preferences, then likely app is not installed, so do not show its preference
                 termuxFloatPreference.isVisible = preferences != null
             }
         }
@@ -85,8 +84,8 @@ class SettingsActivity : AppCompatActivity() {
         private fun configureTermuxTaskerPreference(context: Context) {
             val termuxTaskerPreference = findPreference<Preference>("termux_tasker")
             if (termuxTaskerPreference != null) {
+                // Termux:Tasker is still a separate app - check if installed
                 val preferences = TermuxTaskerAppSharedPreferences.build(context, false)
-                // If failed to get app preferences, then likely app is not installed, so do not show its preference
                 termuxTaskerPreference.isVisible = preferences != null
             }
         }
@@ -94,9 +93,8 @@ class SettingsActivity : AppCompatActivity() {
         private fun configureTermuxWidgetPreference(context: Context) {
             val termuxWidgetPreference = findPreference<Preference>("termux_widget")
             if (termuxWidgetPreference != null) {
-                val preferences = TermuxWidgetAppSharedPreferences.build(context, false)
-                // If failed to get app preferences, then likely app is not installed, so do not show its preference
-                termuxWidgetPreference.isVisible = preferences != null
+                // Termux:Widget is built-in since v2.0.5 - always show settings
+                termuxWidgetPreference.isVisible = true
             }
         }
 

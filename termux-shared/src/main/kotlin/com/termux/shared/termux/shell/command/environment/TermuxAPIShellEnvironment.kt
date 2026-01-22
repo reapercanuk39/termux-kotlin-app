@@ -4,10 +4,10 @@ import android.content.Context
 import com.termux.shared.android.PackageUtils
 import com.termux.shared.shell.command.environment.ShellEnvironmentUtils
 import com.termux.shared.termux.TermuxConstants
-import com.termux.shared.termux.TermuxUtils
 
 /**
  * Environment for [TermuxConstants.TERMUX_API_PACKAGE_NAME] app.
+ * Note: Since v2.0.5, Termux:API is built-in to the main app.
  */
 object TermuxAPIShellEnvironment {
 
@@ -20,10 +20,16 @@ object TermuxAPIShellEnvironment {
     /** Get shell environment for Termux:API app. */
     @JvmStatic
     fun getEnvironment(currentPackageContext: Context): HashMap<String, String>? {
-        if (TermuxUtils.isTermuxAPIAppInstalled(currentPackageContext) != null) return null
-
-        val packageName = TermuxConstants.TERMUX_API_PACKAGE_NAME
-        val packageInfo = PackageUtils.getPackageInfoForPackage(currentPackageContext, packageName) ?: return null
+        // Termux:API is built-in since v2.0.5 - use current app's package info
+        // First check for external package, then fall back to main app
+        var packageName = TermuxConstants.TERMUX_API_PACKAGE_NAME
+        var packageInfo = PackageUtils.getPackageInfoForPackage(currentPackageContext, packageName)
+        
+        if (packageInfo == null) {
+            // API is built-in, use main app's package info
+            packageName = TermuxConstants.TERMUX_PACKAGE_NAME
+            packageInfo = PackageUtils.getPackageInfoForPackage(currentPackageContext, packageName) ?: return null
+        }
 
         val environment = HashMap<String, String>()
         ShellEnvironmentUtils.putToEnvIfSet(environment, ENV_TERMUX_API_APP__VERSION_NAME, PackageUtils.getVersionNameForPackage(packageInfo))

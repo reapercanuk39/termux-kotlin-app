@@ -38,15 +38,18 @@ class TermuxStylingAppSharedPreferences private constructor(context: Context) : 
 
         @JvmStatic
         fun build(context: Context): TermuxStylingAppSharedPreferences? {
+            // Termux:Styling is built-in since v2.0.5 - use current app context
+            // First try the external package (for backwards compatibility), then fall back to current context
             val termuxStylingPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_STYLING_PACKAGE_NAME)
-                ?: return null
+                ?: context  // Use current app context since Styling is built-in
             return TermuxStylingAppSharedPreferences(termuxStylingPackageContext)
         }
 
         @JvmStatic
         fun build(context: Context, exitAppOnError: Boolean): TermuxStylingAppSharedPreferences? {
-            val termuxStylingPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_STYLING_PACKAGE_NAME, exitAppOnError)
-                ?: return null
+            // Termux:Styling is built-in since v2.0.5 - use current app context if external package not found
+            val termuxStylingPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_STYLING_PACKAGE_NAME)
+                ?: context  // Use current app context since Styling is built-in
             return TermuxStylingAppSharedPreferences(termuxStylingPackageContext)
         }
     }
