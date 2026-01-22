@@ -1,3 +1,13 @@
+## [2026-01-22] v2.0.7
+
+### Fixed
+- **Styling button now uses built-in StylingActivity** - Previously tried to launch external `com.termux.styling` package and prompted to install from F-Droid. Now correctly launches the integrated styling UI.
+
+### Build Status
+- Pending
+
+---
+
 ## [2026-01-22] Build #219
 
 ### Changes

@@ -645,31 +645,9 @@ class TermuxActivity : AppCompatActivity(), ServiceConnection {
     }
 
     private fun showStylingDialog() {
-        val stylingIntent = Intent()
-        stylingIntent.setClassName(
-            TermuxConstants.TERMUX_STYLING_PACKAGE_NAME,
-            TermuxConstants.TERMUX_STYLING_APP.TERMUX_STYLING_ACTIVITY_NAME
-        )
-        try {
-            startActivity(stylingIntent)
-        } catch (e: ActivityNotFoundException) {
-            showStylingNotInstalledDialog()
-        } catch (e: IllegalArgumentException) {
-            showStylingNotInstalledDialog()
-        }
-    }
-
-    private fun showStylingNotInstalledDialog() {
-        AlertDialog.Builder(this)
-            .setMessage(getString(R.string.error_styling_not_installed))
-            .setPositiveButton(R.string.action_styling_install) { _, _ ->
-                ActivityUtils.startActivity(
-                    this,
-                    Intent(Intent.ACTION_VIEW, Uri.parse(TermuxConstants.TERMUX_STYLING_FDROID_PACKAGE_URL))
-                )
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        // Launch built-in styling activity (integrated in v2.0.5)
+        val stylingIntent = Intent(this, com.termux.app.styling.StylingActivity::class.java)
+        startActivity(stylingIntent)
     }
 
     private fun toggleKeepScreenOn() {
