@@ -10,6 +10,26 @@
 
 ---
 
+## [2026-01-22] v2.0.8
+
+### Enhanced
+- **BusyBoxSkill now detects multiple root solutions** - Supports Magisk, KernelSU, APatch, and unknown root types with version-specific path detection
+- **Android version-aware path handling** - Uses `/debug_ramdisk` for Android 11+ and `/sbin` for Android 10 and below
+- **Conflict prevention with Magisk's BusyBox** - BusyBoxConfig now tracks Magisk's bundled busybox paths to avoid conflicts
+- **Comprehensive su binary detection** - Checks version-appropriate paths for each Android version
+
+### Added
+- `RootType` enum: NONE, MAGISK, KERNELSU, APATCH, UNKNOWN
+- `BusyBoxConfig.forKernelSu()` configuration option
+- `BusyBoxConfig.getSuPaths()` for version-aware su path detection
+- `BusyBoxConfig.conflictsWithMagisk()` helper method
+- Detailed root status in `magisk_check` including `su_path` and `magisk_busybox_path`
+
+### Documentation
+- Added `MAGISK_SU_RESEARCH.md` with comprehensive Magisk v30.6 analysis
+
+---
+
 ## [2026-01-22] v2.0.7
 
 ### Fixed
