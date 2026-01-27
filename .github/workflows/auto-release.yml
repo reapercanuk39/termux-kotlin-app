@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Wait for CI to complete
-        uses: lewagon/wait-on-check-action@v1.4.1
+        uses: lewagon/wait-on-check-action@v1.5.0
         with:
           ref: ${{ github.sha }}
           running-workflow-name: 'Auto Tag & Release'
