@@ -47,7 +47,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Dependency Check Report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: dependency-check-report
