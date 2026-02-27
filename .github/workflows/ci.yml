@@ -168,7 +168,7 @@ jobs:
         run: chmod +x scripts/*.sh
 
       - name: Download change detection
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: change-detection
           path: ./change-detection
@@ -273,7 +273,7 @@ jobs:
         run: chmod +x scripts/*.sh
 
       - name: Download built packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: packages-${{ matrix.arch }}
           path: ./rebuilt-packages/${{ matrix.arch }}
@@ -390,7 +390,7 @@ jobs:
           cache: 'gradle'
 
       - name: Download bootstraps
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: bootstrap-*
           path: ./bootstraps
@@ -455,7 +455,7 @@ jobs:
         run: chmod +x scripts/*.sh
 
       - name: Download APK
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: debug-apks
           path: ./apks
@@ -550,7 +550,7 @@ jobs:
           fi
 
       - name: Download all package artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: packages-*
           path: ./all-packages
@@ -694,7 +694,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Download bootstraps
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: bootstrap-*
           path: ./bootstraps
@@ -839,7 +839,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download test results
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: emulator-test-results
           path: ./test-results
