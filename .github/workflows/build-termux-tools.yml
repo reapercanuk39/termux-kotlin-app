@@ -193,14 +193,14 @@ jobs:
           done
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: termux-tools-packages
           path: output/**/*.deb
           retention-days: 30
 
       - name: Upload bootstrap artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: updated-bootstrap
           path: app/src/main/cpp/bootstrap-*.zip

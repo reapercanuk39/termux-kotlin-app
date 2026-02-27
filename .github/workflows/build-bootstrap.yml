@@ -193,7 +193,7 @@ jobs:
           fi
 
       - name: Upload bootstrap artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: bootstrap-${{ github.event.inputs.architecture }}
           path: app/src/main/cpp/bootstrap-*.zip
